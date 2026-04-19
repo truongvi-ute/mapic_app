@@ -7,7 +7,6 @@ import {
   ScrollView,
   TextInput,
   Image,
-  Alert,
   ActivityIndicator,
   Platform,
   Modal,
@@ -18,6 +17,8 @@ import * as Location from 'expo-location';
 import * as FileSystem from 'expo-file-system/legacy';
 import Constants from 'expo-constants';
 import { useAuthStore } from '../store/useAuthStore';
+import { useAlert } from '../context/AlertContext';
+import LocationPicker from '../components/LocationPicker';
 
 interface MediaItem {
   uri: string;
@@ -31,13 +32,16 @@ export default function CreateMomentScreen() {
   const [category, setCategory] = useState('');
   const [isPublic, setIsPublic] = useState(true);
   const [location, setLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [locationIds, setLocationIds] = useState<{ provinceId: string; districtId: string; wardId: string } | null>(null);
   const [address, setAddress] = useState('');
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [showLocationPicker, setShowLocationPicker] = useState(false);
 
   const user = useAuthStore((state) => state.user);
   const token = useAuthStore((state) => state.token);
+  const { showAlert } = useAlert();
 
   const categories = [
     { id: 'LANDSCAPE', label: 'Phong cảnh', icon: 'image-outline' },
@@ -63,7 +67,7 @@ export default function CreateMomentScreen() {
       if (status === 'granted') {
         getCurrentLocation();
       } else {
-        Alert.alert('Thông báo', 'Cần cấp quyền truy cập vị trí để sử dụng chế độ chụp nhanh');
+        showAlert('Thông báo', 'Cần cấp quyền truy cập vị trí để sử dụng chế độ chụp nhanh');
       }
     } catch (error) {
       console.error('Location permission error:', error);
@@ -77,7 +81,7 @@ export default function CreateMomentScreen() {
       // Check if location services are enabled
       const enabled = await Location.hasServicesEnabledAsync();
       if (!enabled) {
-        Alert.alert('Thông báo', 'Vui lòng bật dịch vụ định vị trên thiết bị');
+        showAlert('Thông báo', 'Vui lòng bật dịch vụ định vị trên thiết bị');
         setLoading(false);
         return;
       }
@@ -108,7 +112,7 @@ export default function CreateMomentScreen() {
       }
     } catch (error) {
       console.error('Get location error:', error);
-      Alert.alert('Lỗi', 'Không thể lấy vị trí hiện tại. Vui lòng thử lại.');
+      showAlert('Lỗi', 'Không thể lấy vị trí hiện tại. Vui lòng thử lại.');
     } finally {
       setLoading(false);
     }
@@ -118,7 +122,7 @@ export default function CreateMomentScreen() {
     try {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Thông báo', 'Cần cấp quyền truy cập camera');
+        showAlert('Thông báo', 'Cần cấp quyền truy cập camera');
         return;
       }
 
@@ -137,7 +141,7 @@ export default function CreateMomentScreen() {
       }
     } catch (error) {
       console.error('Camera error:', error);
-      Alert.alert('Lỗi', 'Không thể mở camera');
+      showAlert('Lỗi', 'Không thể mở camera');
     }
   };
 
@@ -160,7 +164,7 @@ export default function CreateMomentScreen() {
       console.error('[CreateMoment] Native picker error:', error);
       
       if (error.code !== 'E_PICKER_CANCELLED') {
-        Alert.alert('Lỗi', 'Không thể chọn ảnh: ' + error.message);
+        showAlert('Lỗi', 'Không thể chọn ảnh: ' + error.message);
       }
     }
   };
@@ -171,12 +175,18 @@ export default function CreateMomentScreen() {
 
   const handlePost = async () => {
     if (mediaItems.length === 0) {
-      Alert.alert('Thông báo', 'Vui lòng chọn ít nhất một ảnh hoặc video');
+      showAlert('Thông báo', 'Vui lòng chọn ít nhất một ảnh hoặc video');
       return;
     }
 
     if (!category) {
-      Alert.alert('Thông báo', 'Vui lòng chọn danh mục');
+      showAlert('Thông báo', 'Vui lòng chọn danh mục');
+      return;
+    }
+
+    // Kiểm tra địa điểm cho tab thư viện
+    if (activeTab === 'library' && !location) {
+      showAlert('Thông báo', 'Vui lòng chọn địa điểm');
       return;
     }
 
@@ -185,10 +195,19 @@ export default function CreateMomentScreen() {
 
       const formData = new FormData();
 
+      console.log('[CreateMoment] Starting upload process...');
+      console.log('[CreateMoment] Media items count:', mediaItems.length);
+      console.log('[CreateMoment] Active tab:', activeTab);
+      console.log('[CreateMoment] Location:', location);
+      console.log('[CreateMoment] Address:', address);
+
       // Process and add files
       for (let index = 0; index < mediaItems.length; index++) {
         const item = mediaItems[index];
         let fileUri = item.uri;
+
+        console.log(`[CreateMoment] Processing file ${index + 1}/${mediaItems.length}`);
+        console.log(`[CreateMoment] Original URI: ${fileUri}`);
 
         // On Android, if URI is content://, copy to cache first
         if (Platform.OS === 'android' && item.uri.startsWith('content://')) {
@@ -219,6 +238,7 @@ export default function CreateMomentScreen() {
           name: fileName,
         };
 
+        console.log(`[CreateMoment] File object:`, file);
         formData.append('files', file);
       }
 
@@ -230,27 +250,32 @@ export default function CreateMomentScreen() {
         latitude: location?.latitude,
         longitude: location?.longitude,
         addressName: address || '',
+        provinceId: locationIds?.provinceId ? parseInt(locationIds.provinceId) : null,
+        districtId: locationIds?.districtId ? parseInt(locationIds.districtId) : null,
+        communeId: locationIds?.wardId ? parseInt(locationIds.wardId) : null,
       };
 
-      formData.append('metadata', {
-        string: JSON.stringify(metadata),
-        type: 'application/json',
-      } as any);
+      // Gửi metadata dưới dạng string JSON
+      formData.append('metadata', JSON.stringify(metadata));
 
       const API_URL = Constants.expoConfig?.extra?.apiUrl || 'http://192.168.1.26:8080/api';
 
       console.log('[CreateMoment] Uploading to:', `${API_URL}/moments`);
+      console.log('[CreateMoment] Metadata:', metadata);
+      console.log('[CreateMoment] Files count:', mediaItems.length);
+      console.log('[CreateMoment] Token:', token ? 'Present' : 'Missing');
 
       const response = await fetch(`${API_URL}/moments`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
-          'Content-Type': 'multipart/form-data',
+          // KHÔNG set Content-Type - để fetch tự động set với boundary
         },
         body: formData,
       });
 
       console.log('[CreateMoment] Response status:', response.status);
+      console.log('[CreateMoment] Response headers:', response.headers);
 
       if (response.ok) {
         // Clean up cached files on Android
@@ -266,7 +291,7 @@ export default function CreateMomentScreen() {
           }
         }
 
-        Alert.alert('Thành công', 'Đã đăng khoảnh khắc thành công', [
+        showAlert('Thành công', 'Đã đăng khoảnh khắc thành công', [
           {
             text: 'OK',
             onPress: () => {
@@ -280,11 +305,11 @@ export default function CreateMomentScreen() {
       } else {
         const error = await response.text();
         console.error('[CreateMoment] Upload failed:', error);
-        Alert.alert('Lỗi', 'Không thể đăng khoảnh khắc');
+        showAlert('Lỗi', 'Không thể đăng khoảnh khắc');
       }
     } catch (error: any) {
       console.error('[CreateMoment] Post moment error:', error);
-      Alert.alert('Lỗi', error.message || 'Không thể đăng khoảnh khắc');
+      showAlert('Lỗi', error.message || 'Không thể đăng khoảnh khắc');
     } finally {
       setUploading(false);
     }
@@ -328,7 +353,7 @@ export default function CreateMomentScreen() {
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Location Info */}
+        {/* Location Info - Quick Mode */}
         {activeTab === 'quick' && (
           <View style={styles.locationCard}>
             <View style={styles.locationHeader}>
@@ -348,6 +373,29 @@ export default function CreateMomentScreen() {
                 {loading ? 'Đang lấy vị trí...' : 'Nhấn biểu tượng làm mới để lấy vị trí'}
               </Text>
             )}
+          </View>
+        )}
+
+        {/* Location Picker - Library Mode */}
+        {activeTab === 'library' && (
+          <View style={styles.locationCard}>
+            <View style={styles.locationHeader}>
+              <Ionicons name="location" size={20} color="#007AFF" />
+              <Text style={styles.locationTitle}>Địa điểm</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.locationSelector}
+              onPress={() => setShowLocationPicker(true)}
+            >
+              {address ? (
+                <Text style={styles.locationText}>{address}</Text>
+              ) : (
+                <View style={styles.locationPlaceholderContainer}>
+                  <Text style={styles.locationPlaceholder}>Chọn địa điểm</Text>
+                  <Ionicons name="chevron-forward" size={20} color="#666" />
+                </View>
+              )}
+            </TouchableOpacity>
           </View>
         )}
 
@@ -530,6 +578,25 @@ export default function CreateMomentScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Location Picker Modal */}
+      <LocationPicker
+        visible={showLocationPicker}
+        onClose={() => setShowLocationPicker(false)}
+        onSelect={(selectedLocation) => {
+          setLocation({
+            latitude: selectedLocation.latitude,
+            longitude: selectedLocation.longitude,
+          });
+          setLocationIds({
+            provinceId: selectedLocation.provinceId,
+            districtId: selectedLocation.districtId,
+            wardId: selectedLocation.wardId,
+          });
+          setAddress(selectedLocation.fullAddress);
+          setShowLocationPicker(false);
+        }}
+      />
     </View>
   );
 }
@@ -615,6 +682,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#999',
     fontStyle: 'italic',
+  },
+  locationSelector: {
+    paddingVertical: 8,
+  },
+  locationPlaceholderContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   mediaSection: {
     backgroundColor: '#fff',
@@ -812,3 +887,4 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
+

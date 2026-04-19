@@ -72,6 +72,19 @@ const authService = {
     return userStr ? JSON.parse(userStr) : null;
   },
 
+  async verifyToken(): Promise<ApiResponse<AuthResponse>> {
+    const token = await AsyncStorage.getItem('token');
+    if (!token) {
+      throw new Error('No token found');
+    }
+    const response = await api.get<ApiResponse<AuthResponse>>('/auth/verify-token', {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    return response.data;
+  },
+
   async forgotPassword(email: string): Promise<ApiResponse<void>> {
     const response = await api.post<ApiResponse<void>>('/auth/forgot-password', { email });
     return response.data;

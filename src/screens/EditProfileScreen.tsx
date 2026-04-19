@@ -9,11 +9,11 @@ import {
   ActivityIndicator,
   Modal,
   FlatList,
-  Alert,
   StatusBar,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../store/useAuthStore';
+import { useAlert } from '../context/AlertContext';
 import userService, { UpdateProfileData } from '../api/userService';
 
 type GenderType = 'MALE' | 'FEMALE' | 'OTHER' | null;
@@ -31,6 +31,7 @@ interface EditProfileScreenProps {
 export default function EditProfileScreen({ onBack, onSaveSuccess }: EditProfileScreenProps) {
   const user = useAuthStore((state) => state.user);
   const setUser = useAuthStore((state) => state.setUser);
+  const { showAlert } = useAlert();
   const [loading, setLoading] = useState(false);
   const [name, setName] = useState('');
   const [bio, setBio] = useState('');
@@ -184,7 +185,7 @@ export default function EditProfileScreen({ onBack, onSaveSuccess }: EditProfile
 
   const handleSave = async () => {
     if (!name.trim()) {
-      Alert.alert('Lỗi', 'Tên không được để trống');
+      showAlert('Lỗi', 'Tên không được để trống');
       return;
     }
 
@@ -220,7 +221,7 @@ export default function EditProfileScreen({ onBack, onSaveSuccess }: EditProfile
         setUser(updatedUser);
       }
       
-      Alert.alert('Thành công', 'Cập nhật thông tin thành công!', [
+      showAlert('Thành công', 'Cập nhật thông tin thành công!', [
         {
           text: 'OK',
           onPress: () => {
@@ -230,7 +231,7 @@ export default function EditProfileScreen({ onBack, onSaveSuccess }: EditProfile
         },
       ]);
     } catch (error: any) {
-      Alert.alert('Lỗi', error.message || 'Không thể kết nối đến server');
+      showAlert('Lỗi', error.message || 'Không thể kết nối đến server');
     } finally {
       setLoading(false);
     }
@@ -656,3 +657,4 @@ const styles = StyleSheet.create({
     height: 32,
   },
 });
+

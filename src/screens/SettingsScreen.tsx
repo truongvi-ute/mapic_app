@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
   StatusBar,
   Platform,
   ActivityIndicator,
@@ -15,6 +14,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import Constants from 'expo-constants';
 import { useAuthStore } from '../store/useAuthStore';
+import { useAlert } from '../context/AlertContext';
 import authService from '../api/authService';
 import userService from '../api/userService';
 
@@ -28,19 +28,16 @@ export default function SettingsScreen({ onBack, onNavigateToEditProfile, onNavi
   const user = useAuthStore((state) => state.user);
   const setUser = useAuthStore((state) => state.setUser);
   const logoutStore = useAuthStore((state) => state.logout);
+  const { showAlert } = useAlert();
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
-
-  const showAlert = (title: string, message: string, buttons?: any[]) => {
-    Alert.alert(title, message, buttons);
-  };
 
   const handleEditProfile = () => {
     onNavigateToEditProfile();
   };
 
   const handleChangeImages = () => {
-    Alert.alert(
+    showAlert(
       'Đổi ảnh',
       'Chọn loại ảnh bạn muốn thay đổi',
       [
@@ -58,7 +55,7 @@ export default function SettingsScreen({ onBack, onNavigateToEditProfile, onNavi
   };
 
   const handleImageSelection = (type: 'avatar' | 'cover') => {
-    Alert.alert(
+    showAlert(
       `Chọn ${type === 'avatar' ? 'ảnh đại diện' : 'ảnh bìa'}`,
       'Bạn muốn chọn từ đâu?',
       [
@@ -74,7 +71,7 @@ export default function SettingsScreen({ onBack, onNavigateToEditProfile, onNavi
               }
             } catch (error: any) {
               if (error.code !== 'E_PICKER_CANCELLED') {
-                Alert.alert('Lỗi', 'Không thể chọn ảnh: ' + error.message);
+                showAlert('Lỗi', 'Không thể chọn ảnh: ' + error.message);
               }
             }
           },
@@ -93,7 +90,7 @@ export default function SettingsScreen({ onBack, onNavigateToEditProfile, onNavi
                 await uploadImageFromUri(result.assets[0].uri, type);
               }
             } catch (error: any) {
-              Alert.alert('Lỗi', 'Không thể chụp ảnh: ' + error.message);
+              showAlert('Lỗi', 'Không thể chụp ảnh: ' + error.message);
             }
           },
         },
@@ -170,13 +167,13 @@ export default function SettingsScreen({ onBack, onNavigateToEditProfile, onNavi
         const profile = await userService.getProfile();
         setUser(profile);
         
-        Alert.alert('Thành công', `Cập nhật ${type === 'avatar' ? 'ảnh đại diện' : 'ảnh bìa'} thành công`);
+        showAlert('Thành công', `Cập nhật ${type === 'avatar' ? 'ảnh đại diện' : 'ảnh bìa'} thành công`);
       } else {
         const error = await response.text();
-        Alert.alert('Lỗi', `Upload thất bại: ${error}`);
+        showAlert('Lỗi', `Upload thất bại: ${error}`);
       }
     } catch (error: any) {
-      Alert.alert('Lỗi', error.message || 'Không thể upload ảnh');
+      showAlert('Lỗi', error.message || 'Không thể upload ảnh');
     } finally {
       setUploading(false);
     }
@@ -488,3 +485,4 @@ const styles = StyleSheet.create({
     height: 32,
   },
 });
+
