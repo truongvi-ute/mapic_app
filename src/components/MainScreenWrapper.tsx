@@ -13,6 +13,7 @@ import ProfileScreen from '../screens/ProfileScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import EditProfileScreen from '../screens/EditProfileScreen';
 import MomentMapScreen from '../screens/MomentMapScreen';
+import UserProfileScreen from '../screens/UserProfileScreen';
 
 interface MapScreenParams {
   latitude: number;
@@ -22,6 +23,10 @@ interface MapScreenParams {
   imageUrl?: string;
 }
 
+interface UserProfileParams {
+  userId: number;
+}
+
 export default function MainScreenWrapper() {
   const navigation = useNavigation<any>();
   const [activeScreen, setActiveScreen] = useState('home');
@@ -29,6 +34,7 @@ export default function MainScreenWrapper() {
   const [homeNeedsRefresh, setHomeNeedsRefresh] = useState(false);
   const [exploreNeedsRefresh, setExploreNeedsRefresh] = useState(false);
   const [mapParams, setMapParams] = useState<MapScreenParams | null>(null);
+  const [userProfileParams, setUserProfileParams] = useState<UserProfileParams | null>(null);
 
   const menuItems = [
     {
@@ -78,7 +84,11 @@ export default function MainScreenWrapper() {
           onOpenMap={(params) => {
             setMapParams(params);
             setActiveScreen('map');
-          }} 
+          }}
+          onPressProfile={(userId) => {
+            setUserProfileParams({ userId });
+            setActiveScreen('userProfile');
+          }}
         />;
       case 'explore':
         return <ExploreScreen 
@@ -86,7 +96,11 @@ export default function MainScreenWrapper() {
           onOpenMap={(params) => {
             setMapParams(params);
             setActiveScreen('map');
-          }} 
+          }}
+          onPressProfile={(userId) => {
+            setUserProfileParams({ userId });
+            setActiveScreen('userProfile');
+          }}
         />;
       case 'create':
         return <CreateMomentScreen 
@@ -100,7 +114,12 @@ export default function MainScreenWrapper() {
           }}
         />;
       case 'friends':
-        return <FriendsScreen />;
+        return <FriendsScreen 
+          onPressProfile={(userId) => {
+            setUserProfileParams({ userId });
+            setActiveScreen('userProfile');
+          }}
+        />;
       case 'notifications':
         return <NotificationsScreen />;
       case 'profile':
@@ -136,6 +155,17 @@ export default function MainScreenWrapper() {
           <MomentMapScreen
             {...mapParams}
             onBack={() => setActiveScreen('home')}
+          />
+        ) : null;
+      case 'userProfile':
+        return userProfileParams ? (
+          <UserProfileScreen
+            userId={userProfileParams.userId}
+            onBack={() => setActiveScreen('home')}
+            onOpenMap={(params) => {
+              setMapParams(params);
+              setActiveScreen('map');
+            }}
           />
         ) : null;
       default:

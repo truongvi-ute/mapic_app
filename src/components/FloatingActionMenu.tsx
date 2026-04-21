@@ -167,11 +167,15 @@ export default function FloatingActionMenu({ items, activeItem }: FloatingAction
         onPress={toggleMenu}
         activeOpacity={0.8}
       >
-        <Ionicons 
-          name={isVisible ? "close" : "apps"} 
-          size={isVisible ? 28 : 24} 
-          color="#FFFFFF" 
-        />
+        {isVisible ? (
+          <Ionicons name="close" size={28} color="#FFFFFF" />
+        ) : (
+          <Image
+            source={require('../assets/images/menu.png')}
+            style={styles.menuIcon}
+            resizeMode="contain"
+          />
+        )}
       </TouchableOpacity>
     </>
   );
@@ -194,6 +198,10 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 10,
     zIndex: 9999,
+  },
+  menuIcon: {
+    width: 28,
+    height: 28,
   },
   backdrop: {
     flex: 1,

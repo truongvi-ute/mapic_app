@@ -27,7 +27,11 @@ interface Friend {
   friendsSince: string;
 }
 
-export default function FriendsScreen() {
+interface FriendsScreenProps {
+  onPressProfile?: (userId: number) => void;
+}
+
+export default function FriendsScreen({ onPressProfile }: FriendsScreenProps) {
   const token = useAuthStore((state) => state.token);
   const { showAlert } = useAlert();
   
@@ -160,7 +164,11 @@ export default function FriendsScreen() {
       : null;
 
     return (
-      <TouchableOpacity style={styles.friendItem}>
+      <TouchableOpacity 
+        style={styles.friendItem}
+        onPress={() => onPressProfile?.(item.id)}
+        activeOpacity={0.7}
+      >
         <View style={styles.friendInfo}>
           {avatarUri ? (
             <Image source={{ uri: avatarUri }} style={styles.avatar} />
@@ -184,7 +192,7 @@ export default function FriendsScreen() {
               },
               {
                 text: 'Xem trang cá nhân',
-                onPress: () => console.log('View profile:', item.id),
+                onPress: () => onPressProfile?.(item.id),
               },
               {
                 text: 'Hủy kết bạn',

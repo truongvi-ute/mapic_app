@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,14 +7,14 @@ import {
   TouchableOpacity,
   Dimensions,
   ScrollView,
-  Linking,
-  Alert,
+  Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { getBaseUrl, buildAvatarUrl, buildMomentImageUrl } from '../config/api';
+import LottieView from 'lottie-react-native';
+import { getBaseUrl, buildAvatarUrl, buildMomentImageUrl, getApiUrl } from '../config/api';
 
 const { width } = Dimensions.get('window');
-const CARD_WIDTH = width - 32; // 16px margin on each side
+const CARD_WIDTH = width - 32;
 
 interface MomentMedia {
   id: number;
@@ -69,6 +69,8 @@ export interface Moment {
   status: string;
   createdAt: string;
   media?: MomentMedia[];
+  reactionCount?: number;
+  userReacted?: boolean;
 }
 
 interface MomentCardProps {
@@ -80,9 +82,10 @@ interface MomentCardProps {
   onPressShare?: () => void;
   onPressMenu?: () => void;
   baseUrl?: string;
+  token?: string;
 }
 
-const CATEGORY_LABELS: { [key: string]: string } = {
+const CATEGORY_LABELS: { [key: string]: string} = {
   LANDSCAPE: 'Phong cảnh',
   PEOPLE: 'Con người',
   FOOD: 'Món ăn',
@@ -103,11 +106,18 @@ export default function MomentCard({
   onPressShare,
   onPressMenu,
   baseUrl,
+  token,
 }: MomentCardProps) {
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
-  const [liked, setLiked] = useState(false);
+  const [liked, setLiked] = useState(moment.userReacted || false);
+  const [likeCount, setLikeCount] = useState(moment.reactionCount || 0);
+  const [isLiking, setIsLiking] = useState(false);
+  const [showLottie, setShowLottie] = useState(false);
   
-  // Use baseUrl from props or get from config
+  // Animation values
+  const scaleAnim = useState(new Animated.Value(1))[0];
+  const lottieRef = useRef<LottieView>(null);
+  
   const actualBaseUrl = baseUrl || getBaseUrl();
 
   const getTimeAgo = (dateString: string) => {
@@ -132,18 +142,106 @@ export default function MomentCard({
     return 'Không xác định';
   };
 
-  const openGoogleMaps = () => {
-    if (moment.location) {
-      const url = `https://www.google.com/maps/dir/?api=1&destination=${moment.location.latitude},${moment.location.longitude}`;
-      Linking.openURL(url).catch(() => {
-        Alert.alert('Lỗi', 'Không thể mở Google Maps');
-      });
-    }
+  const getCategoryIcon = (category: string): keyof typeof Ionicons.glyphMap => {
+    const iconMap: { [key: string]: keyof typeof Ionicons.glyphMap } = {
+      LANDSCAPE: 'image-outline',
+      PEOPLE: 'people-outline',
+      FOOD: 'restaurant-outline',
+      ARCHITECTURE: 'business-outline',
+      CULTURE: 'color-palette-outline',
+      NATURE: 'leaf-outline',
+      URBAN: 'business-outline',
+      EVENT: 'calendar-outline',
+      OTHER: 'ellipsis-horizontal-circle-outline',
+    };
+    return iconMap[category] || 'ellipsis-horizontal-circle-outline';
   };
 
-  const handleLike = () => {
+  const handleLike = async () => {
+    console.log('[MomentCard] handleLike called', { isLiking, hasToken: !!token, momentId: moment.id });
+    
+    if (isLiking || !token) {
+      console.log('[MomentCard] Skipping - isLiking:', isLiking, 'hasToken:', !!token);
+      return;
+    }
+    
+    setIsLiking(true);
+    const wasLiked = liked;
+    const previousCount = likeCount;
+    
+    console.log('[MomentCard] Before toggle - liked:', wasLiked, 'count:', previousCount);
+    
+    // Optimistic update
     setLiked(!liked);
-    onPressLike?.();
+    setLikeCount(liked ? likeCount - 1 : likeCount + 1);
+    
+    // Button scale animation
+    Animated.sequence([
+      Animated.timing(scaleAnim, {
+        toValue: 1.3,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+      Animated.timing(scaleAnim, {
+        toValue: 1,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+    ]).start();
+    
+    // Heart animation (only when liking)
+    if (!wasLiked) {
+      console.log('[MomentCard] Starting Lottie animation');
+      setShowLottie(true);
+      
+      // Delay to ensure state update and smooth start
+      setTimeout(() => {
+        lottieRef.current?.reset();
+        lottieRef.current?.play();
+      }, 50);
+      
+      // Hide after 3 seconds
+      setTimeout(() => {
+        setShowLottie(false);
+      }, 3000);
+    }
+    
+    try {
+      const API_URL = getApiUrl();
+      console.log('[MomentCard] Calling API:', `${API_URL}/reactions/moments/${moment.id}`);
+      
+      const response = await fetch(`${API_URL}/reactions/moments/${moment.id}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ type: 'HEART' }),
+      });
+      
+      console.log('[MomentCard] API response status:', response.status);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('[MomentCard] API error:', errorText);
+        // Revert on error
+        setLiked(wasLiked);
+        setLikeCount(previousCount);
+      } else {
+        const result = await response.json();
+        console.log('[MomentCard] API success:', result);
+      }
+      
+      onPressLike?.();
+    } catch (error) {
+      // Revert on error
+      setLiked(wasLiked);
+      setLikeCount(previousCount);
+      console.error('[MomentCard] Error toggling reaction:', error);
+    } finally {
+      setIsLiking(false);
+      console.log('[MomentCard] handleLike completed');
+    }
   };
 
   const handleScroll = (event: any) => {
@@ -156,102 +254,7 @@ export default function MomentCard({
 
   return (
     <View style={styles.card}>
-      {/* 1. LOCATION SECTION - Top with gradient overlay */}
-      {moment.location && (
-        <View style={styles.locationSection}>
-          <View style={styles.locationGradient}>
-            <View style={styles.locationContent}>
-              <View style={styles.locationLeft}>
-                <Ionicons name="location" size={20} color="#007AFF" />
-                <View style={styles.locationTextContainer}>
-                  <Text style={styles.locationText} numberOfLines={1}>
-                    {getLocationText()}
-                  </Text>
-                </View>
-              </View>
-              <View style={styles.locationActions}>
-                <TouchableOpacity
-                  style={styles.locationButton}
-                  onPress={() => {
-                    if (onPressMap && moment.location) {
-                      onPressMap();
-                    }
-                  }}
-                >
-                  <Image
-                    source={require('../assets/images/open-map.png')}
-                    style={styles.mapIcon}
-                    resizeMode="contain"
-                  />
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-        </View>
-      )}
-
-      {/* 2. AUTHOR SECTION */}
-      <View style={styles.authorSection}>
-        <TouchableOpacity
-          style={styles.authorLeft}
-          onPress={onPressProfile}
-          activeOpacity={0.7}
-        >
-          {(() => {
-            const avatarUrl = buildAvatarUrl(moment.author.avatarUrl);
-            console.log('[MomentCard] Author:', moment.author.fullName, 'Avatar URL:', avatarUrl);
-            
-            return (
-              <Image
-                source={
-                  avatarUrl
-                    ? { uri: avatarUrl }
-                    : require('../assets/images/avatar-default.png')
-                }
-                style={styles.avatar}
-                onError={(error) => {
-                  console.error('[MomentCard] Avatar load error:', error.nativeEvent);
-                }}
-              />
-            );
-          })()}
-          <View style={styles.authorInfo}>
-            <Text style={styles.authorName}>{moment.author.fullName}</Text>
-            <View style={styles.metaRow}>
-              <Text style={styles.timeText}>{getTimeAgo(moment.createdAt)}</Text>
-              <View style={styles.dot} />
-              <View style={styles.categoryBadge}>
-                <Text style={styles.categoryText}>
-                  {CATEGORY_LABELS[moment.category] || moment.category}
-                </Text>
-              </View>
-              {!moment.isPublic && (
-                <>
-                  <View style={styles.dot} />
-                  <Ionicons name="lock-closed" size={12} color="#666" />
-                </>
-              )}
-            </View>
-          </View>
-        </TouchableOpacity>
-        {onPressMenu && (
-          <TouchableOpacity
-            style={styles.menuButton}
-            onPress={onPressMenu}
-          >
-            <Ionicons name="ellipsis-horizontal" size={24} color="#666" />
-          </TouchableOpacity>
-        )}
-      </View>
-
-      {/* Caption */}
-      {moment.content && (
-        <View style={styles.captionSection}>
-          <Text style={styles.captionText}>{moment.content}</Text>
-        </View>
-      )}
-
-      {/* 3. MEDIA SECTION */}
+      {/* MEDIA SECTION WITH OVERLAYS */}
       {mediaCount > 0 && (
         <View style={styles.mediaSection}>
           <ScrollView
@@ -261,7 +264,7 @@ export default function MomentCard({
             onScroll={handleScroll}
             scrollEventThrottle={16}
           >
-            {moment.media?.map((media, index) => (
+            {moment.media?.map((media) => (
               <View key={media.id} style={styles.mediaContainer}>
                 {media.mediaType === 'IMAGE' ? (
                   <Image
@@ -279,7 +282,127 @@ export default function MomentCard({
             ))}
           </ScrollView>
           
-          {/* Media indicator */}
+          {/* Author Info Overlay - Tất cả thông tin ở góc trên */}
+          <View style={styles.authorOverlay}>
+            <TouchableOpacity
+              style={styles.authorContent}
+              onPress={onPressProfile}
+              activeOpacity={0.8}
+            >
+              <Image
+                source={
+                  buildAvatarUrl(moment.author.avatarUrl)
+                    ? { uri: buildAvatarUrl(moment.author.avatarUrl) || undefined }
+                    : require('../assets/images/avatar-default.png')
+                }
+                style={styles.avatarOverlay}
+              />
+              <View style={styles.authorInfo}>
+                <Text style={styles.authorName} numberOfLines={1}>
+                  {moment.author.fullName}
+                </Text>
+                <View style={styles.metaRow}>
+                  {/* Time */}
+                  <Text style={styles.metaText}>{getTimeAgo(moment.createdAt)}</Text>
+                  
+                  <View style={styles.metaDot} />
+                  
+                  {/* Public/Private Icon */}
+                  <Ionicons 
+                    name={moment.isPublic ? "globe-outline" : "lock-closed"} 
+                    size={12} 
+                    color="#FFFFFF" 
+                  />
+                  
+                  <View style={styles.metaDot} />
+                  
+                  {/* Category Icon */}
+                  <Ionicons 
+                    name={getCategoryIcon(moment.category)} 
+                    size={12} 
+                    color="#FFFFFF" 
+                  />
+                </View>
+              </View>
+            </TouchableOpacity>
+            
+            {/* Menu Button */}
+            {onPressMenu && (
+              <TouchableOpacity
+                style={styles.menuButtonOverlay}
+                onPress={onPressMenu}
+              >
+                <Ionicons name="ellipsis-horizontal" size={18} color="#FFFFFF" />
+              </TouchableOpacity>
+            )}
+          </View>
+          
+          {/* Interaction Overlay - Giữa phía dưới với nút Map */}
+          <View style={styles.interactionOverlay}>
+            <TouchableOpacity
+              style={styles.overlayButton}
+              onPress={handleLike}
+              activeOpacity={0.7}
+              disabled={isLiking}
+            >
+              <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+                <Ionicons
+                  name={liked ? 'heart' : 'heart-outline'}
+                  size={28}
+                  color={liked ? '#FF3B30' : '#FFFFFF'}
+                />
+              </Animated.View>
+              {likeCount > 0 && (
+                <Text style={styles.reactionCount}>{likeCount}</Text>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.overlayButton}
+              onPress={onPressComment}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="chatbubble-outline" size={26} color="#FFFFFF" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.overlayButton}
+              onPress={onPressShare}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="share-outline" size={26} color="#FFFFFF" />
+            </TouchableOpacity>
+
+            {/* Map Button - Chỉ hiện khi có location */}
+            {moment.location && onPressMap && (
+              <TouchableOpacity
+                style={styles.overlayButton}
+                onPress={onPressMap}
+                activeOpacity={0.7}
+              >
+                <Image
+                  source={require('../assets/images/open-map.png')}
+                  style={styles.mapIconInteraction}
+                  resizeMode="contain"
+                />
+              </TouchableOpacity>
+            )}
+          </View>
+          
+          {/* Lottie Love Animation - Always mounted, controlled by opacity */}
+          <LottieView
+            ref={lottieRef}
+            source={require('../assets/aminations/Love Animation with Particle.json')}
+            style={[
+              styles.lottieAnimation,
+              { opacity: showLottie ? 1 : 0 }
+            ]}
+            loop={false}
+            autoPlay={false}
+            speed={0.3}
+          />
+          
+          {/* Media Indicator */}
           {mediaCount > 1 && (
             <View style={styles.mediaIndicator}>
               {moment.media?.map((_, index) => (
@@ -295,42 +418,6 @@ export default function MomentCard({
           )}
         </View>
       )}
-
-      {/* 4. INTERACTION SECTION */}
-      <View style={styles.interactionSection}>
-        <TouchableOpacity
-          style={styles.interactionButton}
-          onPress={handleLike}
-          activeOpacity={0.7}
-        >
-          <Ionicons
-            name={liked ? 'heart' : 'heart-outline'}
-            size={24}
-            color={liked ? '#FF3B30' : '#666'}
-          />
-          <Text style={[styles.interactionText, liked && styles.likedText]}>
-            Thích
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.interactionButton}
-          onPress={onPressComment}
-          activeOpacity={0.7}
-        >
-          <Ionicons name="chatbubble-outline" size={22} color="#666" />
-          <Text style={styles.interactionText}>Bình luận</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.interactionButton}
-          onPress={onPressShare}
-          activeOpacity={0.7}
-        >
-          <Ionicons name="share-outline" size={22} color="#666" />
-          <Text style={styles.interactionText}>Chia sẻ</Text>
-        </TouchableOpacity>
-      </View>
     </View>
   );
 }
@@ -348,119 +435,6 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
   },
-  
-  // Location Section
-  locationSection: {
-    overflow: 'hidden',
-  },
-  locationGradient: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#F0F7FF', // Light blue background instead of gradient
-  },
-  locationContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  locationLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    marginRight: 12,
-  },
-  locationTextContainer: {
-    flex: 1,
-    marginLeft: 8,
-  },
-  locationText: {
-    fontSize: 14,
-    color: '#007AFF',
-    fontWeight: '500',
-  },
-  locationActions: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  locationButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  mapIcon: {
-    width: 18,
-    height: 18,
-  },
-
-  // Author Section
-  authorSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  authorLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#f0f0f0',
-  },
-  authorInfo: {
-    marginLeft: 12,
-    flex: 1,
-  },
-  authorName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#000',
-    marginBottom: 4,
-  },
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  timeText: {
-    fontSize: 13,
-    color: '#666',
-  },
-  dot: {
-    width: 3,
-    height: 3,
-    borderRadius: 1.5,
-    backgroundColor: '#999',
-    marginHorizontal: 6,
-  },
-  categoryBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10,
-    backgroundColor: '#F0F0F0',
-  },
-  categoryText: {
-    fontSize: 11,
-    color: '#666',
-    fontWeight: '500',
-  },
-  menuButton: {
-    width: 36,
-    height: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
 
   // Media Section
   mediaSection: {
@@ -468,7 +442,7 @@ const styles = StyleSheet.create({
   },
   mediaContainer: {
     width: CARD_WIDTH,
-    height: CARD_WIDTH * 1.25, // 4:5 aspect ratio
+    height: CARD_WIDTH * 1.25,
     backgroundColor: '#000',
   },
   mediaImage: {
@@ -487,9 +461,134 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginTop: 8,
   },
+  
+  // Author Overlay - Tất cả thông tin ở góc trên
+  authorOverlay: {
+    position: 'absolute',
+    top: 16,
+    left: 16,
+    right: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  authorContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    borderRadius: 20,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    paddingRight: 14,
+    maxWidth: '75%',
+  },
+  avatarOverlay: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#f0f0f0',
+    marginRight: 8,
+  },
+  authorInfo: {
+    flex: 1,
+  },
+  authorName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginBottom: 3,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  metaText: {
+    fontSize: 11,
+    color: '#FFFFFF',
+    opacity: 0.9,
+  },
+  metaDot: {
+    width: 2,
+    height: 2,
+    borderRadius: 1,
+    backgroundColor: '#FFFFFF',
+    opacity: 0.6,
+  },
+  menuButtonOverlay: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  
+  // Interaction Overlay - Giữa phía dưới (có thể có 3 hoặc 4 nút)
+  interactionOverlay: {
+    position: 'absolute',
+    bottom: 16,
+    alignSelf: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    borderRadius: 30,
+    gap: 8,
+  },
+  overlayButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.4)',
+  },
+  reactionCount: {
+    position: 'absolute',
+    bottom: -6,
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#fff',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 10,
+    overflow: 'hidden',
+  },
+  mapIconInteraction: {
+    width: 24,
+    height: 24,
+    tintColor: '#FFFFFF',
+  },
+  animatedHeart: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    marginLeft: -50,
+    marginTop: -50,
+    zIndex: 100,
+  },
+  lottieAnimation: {
+    position: 'absolute',
+    width: 300,
+    height: 300,
+    top: '50%',
+    left: '50%',
+    marginLeft: -150,
+    marginTop: -150,
+    zIndex: 100,
+    pointerEvents: 'none',
+  },
+  
+  // Media Indicator
   mediaIndicator: {
     position: 'absolute',
-    bottom: 12,
+    bottom: 76,
     left: 0,
     right: 0,
     flexDirection: 'row',
@@ -505,42 +604,5 @@ const styles = StyleSheet.create({
   indicatorDotActive: {
     backgroundColor: '#fff',
     width: 20,
-  },
-
-  // Caption Section
-  captionSection: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  captionText: {
-    fontSize: 15,
-    color: '#000',
-    lineHeight: 20,
-  },
-
-  // Interaction Section
-  interactionSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-around',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
-  },
-  interactionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-  },
-  interactionText: {
-    fontSize: 14,
-    color: '#666',
-    fontWeight: '500',
-  },
-  likedText: {
-    color: '#FF3B30',
   },
 });

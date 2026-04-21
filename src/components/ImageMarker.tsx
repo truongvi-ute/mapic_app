@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, memo } from 'react';
 import { View, Image, StyleProp, ViewStyle, Text } from 'react-native';
 
 interface ImageMarkerProps {
@@ -8,7 +8,7 @@ interface ImageMarkerProps {
   onImageLoad?: () => void;
 }
 
-export default function ImageMarker({
+const ImageMarker = memo(function ImageMarker({
   imageUrl,
   style,
   size = 100,
@@ -105,4 +105,6 @@ export default function ImageMarker({
       />
     </View>
   );
-}
+});
+
+export default ImageMarker;

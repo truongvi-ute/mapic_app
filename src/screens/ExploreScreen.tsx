@@ -38,10 +38,12 @@ interface ExploreScreenProps {
     addressName: string;
     provinceName?: string;
     imageUrl?: string;
+    caption?: string;
   }) => void;
+  onPressProfile?: (userId: number) => void;
 }
 
-export default function ExploreScreen({ refreshTrigger, onOpenMap }: ExploreScreenProps) {
+export default function ExploreScreen({ refreshTrigger, onOpenMap, onPressProfile }: ExploreScreenProps) {
   const token = useAuthStore((state) => state.token);
   const { showAlert } = useAlert();
 
@@ -403,17 +405,20 @@ export default function ExploreScreen({ refreshTrigger, onOpenMap }: ExploreScre
           <MomentCard
             moment={item}
             baseUrl={baseUrl}
-            onPressProfile={() => console.log('View profile:', item.author.id)}
+            token={token}
+            onPressProfile={() => onPressProfile?.(item.author.id)}
             onPressMap={() => {
               if (item.location && onOpenMap) {
                 const provinceName = item.province?.name || item.district?.name || '';
                 const firstImage = item.media && item.media.length > 0 ? item.media[0].mediaUrl : undefined;
+                console.log('[ExploreScreen] Opening map with media:', item.media?.length || 0);
                 onOpenMap({
                   latitude: item.location.latitude,
                   longitude: item.location.longitude,
                   addressName: item.location.address || item.location.name,
                   provinceName,
                   imageUrl: firstImage,
+                  caption: item.caption,
                 });
               }
             }}

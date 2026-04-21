@@ -33,10 +33,12 @@ interface HomeScreenProps {
     addressName: string;
     provinceName?: string;
     imageUrl?: string;
+    caption?: string;
   }) => void;
+  onPressProfile?: (userId: number) => void;
 }
 
-export default function HomeScreen({ refreshTrigger, onOpenMap }: HomeScreenProps) {
+export default function HomeScreen({ refreshTrigger, onOpenMap, onPressProfile }: HomeScreenProps) {
   const user = useAuthStore((state) => state.user);
   const token = useAuthStore((state) => state.token);
   const { showAlert } = useAlert();
@@ -180,17 +182,25 @@ export default function HomeScreen({ refreshTrigger, onOpenMap }: HomeScreenProp
           <MomentCard
             moment={item}
             baseUrl={baseUrl}
-            onPressProfile={() => console.log('View profile:', item.author.id)}
+            token={token}
+            onPressProfile={() => onPressProfile?.(item.author.id)}
             onPressMap={() => {
               if (item.location && onOpenMap) {
                 const provinceName = item.province?.name || item.district?.name || '';
                 const firstImage = item.media && item.media.length > 0 ? item.media[0].mediaUrl : undefined;
+                console.log('[HomeScreen] Opening map with:', {
+                  location: item.location,
+                  provinceName,
+                  firstImage,
+                  mediaCount: item.media?.length || 0,
+                });
                 onOpenMap({
                   latitude: item.location.latitude,
                   longitude: item.location.longitude,
                   addressName: item.location.address || item.location.name,
                   provinceName,
                   imageUrl: firstImage,
+                  caption: item.caption,
                 });
               }
             }}
