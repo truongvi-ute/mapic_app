@@ -8,8 +8,24 @@ import {
   Animated,
   Dimensions,
   TouchableWithoutFeedback,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+
+// Import custom icons
+const iconImages = {
+  home: require('../assets/images/home.png'),
+  compass: require('../assets/images/explore.png'),
+  'add-circle': require('../assets/images/write.png'),
+  people: require('../assets/images/friend.png'),
+  notifications: require('../assets/images/notification.png'),
+  person: require('../assets/images/profile.png'),
+};
+
+// Function to get icon source based on active state
+const getIconSource = (iconKey: keyof typeof iconImages) => {
+  return iconImages[iconKey];
+};
 
 const { height } = Dimensions.get('window');
 
@@ -126,14 +142,13 @@ export default function FloatingActionMenu({ items, activeItem }: FloatingAction
                             activeItem === item.id && styles.iconContainerActive,
                           ]}
                         >
-                          <Ionicons
-                            name={item.icon}
-                            size={24}
-                            color={
-                              activeItem === item.id
-                                ? '#007AFF'
-                                : item.color || '#8E8E93'
-                            }
+                          <Image
+                            source={getIconSource(item.icon as keyof typeof iconImages)}
+                            style={[
+                              styles.iconImage,
+                              activeItem === item.id && styles.iconImageActive,
+                            ]}
+                            resizeMode="contain"
                           />
                         </View>
                       </View>
@@ -225,5 +240,13 @@ const styles = StyleSheet.create({
   },
   iconContainerActive: {
     backgroundColor: '#E3F2FD',
+  },
+  iconImage: {
+    width: 24,
+    height: 24,
+    opacity: 0.6,
+  },
+  iconImageActive: {
+    opacity: 1,
   },
 });

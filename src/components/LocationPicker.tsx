@@ -17,6 +17,27 @@ import { vietnamLocations, Province, District, Ward } from '../data/vietnamLocat
 // MapLibre configuration
 MapLibreGL.setAccessToken(null);
 
+// OpenStreetMap style for detailed Vietnam map
+const osmMapStyle = JSON.stringify({
+  version: 8,
+  sources: {
+    osm: {
+      type: "raster",
+      tiles: ["https://a.tile.openstreetmap.org/{z}/{x}/{y}.png"],
+      tileSize: 256,
+      attribution: "&copy; OpenStreetMap",
+      maxzoom: 19,
+    },
+  },
+  layers: [
+    {
+      id: "osm",
+      type: "raster",
+      source: "osm",
+    },
+  ],
+});
+
 const { width, height } = Dimensions.get('window');
 
 interface LocationPickerProps {
@@ -188,9 +209,14 @@ export default function LocationPicker({ visible, onClose, onSelect }: LocationP
     }
 
     if (step === 'province') {
+      // Sắp xếp tỉnh/thành phố theo thứ tự chữ cái
+      const sortedProvinces = [...vietnamLocations].sort((a, b) => 
+        a.nameWithType.localeCompare(b.nameWithType, 'vi')
+      );
+      
       return (
         <ScrollView style={styles.listContainer}>
-          {vietnamLocations.map((province) => (
+          {sortedProvinces.map((province) => (
             <TouchableOpacity
               key={province.code}
               style={styles.listItem}
@@ -205,9 +231,14 @@ export default function LocationPicker({ visible, onClose, onSelect }: LocationP
     }
 
     if (step === 'district' && selectedProvince) {
+      // Sắp xếp quận/huyện theo thứ tự chữ cái
+      const sortedDistricts = [...selectedProvince.districts].sort((a, b) => 
+        a.nameWithType.localeCompare(b.nameWithType, 'vi')
+      );
+      
       return (
         <ScrollView style={styles.listContainer}>
-          {selectedProvince.districts.map((district) => (
+          {sortedDistricts.map((district) => (
             <TouchableOpacity
               key={district.code}
               style={styles.listItem}
@@ -222,9 +253,14 @@ export default function LocationPicker({ visible, onClose, onSelect }: LocationP
     }
 
     if (step === 'ward' && selectedDistrict) {
+      // Sắp xếp phường/xã theo thứ tự chữ cái
+      const sortedWards = [...selectedDistrict.wards].sort((a, b) => 
+        a.nameWithType.localeCompare(b.nameWithType, 'vi')
+      );
+      
       return (
         <ScrollView style={styles.listContainer}>
-          {selectedDistrict.wards.map((ward) => (
+          {sortedWards.map((ward) => (
             <TouchableOpacity
               key={ward.code}
               style={styles.listItem}
@@ -243,11 +279,13 @@ export default function LocationPicker({ visible, onClose, onSelect }: LocationP
         <View style={styles.mapContainer}>
           <MapLibreGL.MapView
             style={styles.map}
-            styleURL="https://demotiles.maplibre.org/style.json"
+            mapStyle={osmMapStyle}
+            logoEnabled={false}
+            attributionEnabled={false}
             onPress={handleMapPress}
           >
             <MapLibreGL.Camera
-              zoomLevel={15}
+              zoomLevel={16}
               centerCoordinate={coordinates}
               animationMode="flyTo"
               animationDuration={1000}

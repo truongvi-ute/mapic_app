@@ -9,10 +9,10 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
-import Constants from 'expo-constants';
 import { useAuthStore } from '../store/useAuthStore';
 import { useAlert } from '../context/AlertContext';
 import MomentCard, { Moment } from '../components/MomentCard';
+import { getApiUrl, getBaseUrl } from '../config/api';
 
 interface PageInfo {
   pageNumber: number;
@@ -25,7 +25,18 @@ interface PageInfo {
   hasPrevious: boolean;
 }
 
-export default function HomeScreen() {
+interface HomeScreenProps {
+  refreshTrigger?: boolean;
+  onOpenMap?: (params: {
+    latitude: number;
+    longitude: number;
+    addressName: string;
+    provinceName?: string;
+    imageUrl?: string;
+  }) => void;
+}
+
+export default function HomeScreen({ refreshTrigger, onOpenMap }: HomeScreenProps) {
   const user = useAuthStore((state) => state.user);
   const token = useAuthStore((state) => state.token);
   const { showAlert } = useAlert();
@@ -37,12 +48,12 @@ export default function HomeScreen() {
   const [pageInfo, setPageInfo] = useState<PageInfo | null>(null);
   const [currentPage, setCurrentPage] = useState(0);
 
-  const API_URL = Constants.expoConfig?.extra?.apiUrl || 'http://192.168.1.26:8080/api';
-  const baseUrl = API_URL.replace('/api', '');
+  const API_URL = getApiUrl();
+  const baseUrl = getBaseUrl();
 
   useEffect(() => {
     loadFeed(0, false);
-  }, []);
+  }, [refreshTrigger]); // Reload when refreshTrigger changes
 
   const loadFeed = async (page: number, append: boolean = false) => {
     if (append && loadingMore) return;
@@ -170,7 +181,19 @@ export default function HomeScreen() {
             moment={item}
             baseUrl={baseUrl}
             onPressProfile={() => console.log('View profile:', item.author.id)}
-            onPressMap={() => console.log('View map:', item.id)}
+            onPressMap={() => {
+              if (item.location && onOpenMap) {
+                const provinceName = item.province?.name || item.district?.name || '';
+                const firstImage = item.media && item.media.length > 0 ? item.media[0].mediaUrl : undefined;
+                onOpenMap({
+                  latitude: item.location.latitude,
+                  longitude: item.location.longitude,
+                  addressName: item.location.address || item.location.name,
+                  provinceName,
+                  imageUrl: firstImage,
+                });
+              }
+            }}
             onPressLike={() => console.log('Like moment:', item.id)}
             onPressComment={() => console.log('Comment on moment:', item.id)}
             onPressShare={() => console.log('Share moment:', item.id)}

@@ -15,10 +15,10 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import * as FileSystem from 'expo-file-system/legacy';
-import Constants from 'expo-constants';
 import { useAuthStore } from '../store/useAuthStore';
 import { useAlert } from '../context/AlertContext';
 import LocationPicker from '../components/LocationPicker';
+import { getApiUrl } from '../config/api';
 
 interface MediaItem {
   uri: string;
@@ -258,7 +258,7 @@ export default function CreateMomentScreen() {
       // Gửi metadata dưới dạng string JSON
       formData.append('metadata', JSON.stringify(metadata));
 
-      const API_URL = Constants.expoConfig?.extra?.apiUrl || 'http://192.168.1.26:8080/api';
+      const API_URL = getApiUrl();
 
       console.log('[CreateMoment] Uploading to:', `${API_URL}/moments`);
       console.log('[CreateMoment] Metadata:', metadata);

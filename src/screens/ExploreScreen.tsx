@@ -13,11 +13,11 @@ import {
   Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import Constants from 'expo-constants';
 import { useAuthStore } from '../store/useAuthStore';
 import { useAlert } from '../context/AlertContext';
 import MomentCard, { Moment } from '../components/MomentCard';
 import { vietnamLocations } from '../data/vietnamLocations';
+import { getApiUrl, getBaseUrl } from '../config/api';
 
 type SortOption = 'newest' | 'popular';
 type CategoryOption = 'all' | 'food' | 'travel' | 'nature' | 'urban' | 'people' | 'other';
@@ -30,7 +30,18 @@ interface PageInfo {
   hasNext: boolean;
 }
 
-export default function ExploreScreen() {
+interface ExploreScreenProps {
+  refreshTrigger?: boolean;
+  onOpenMap?: (params: {
+    latitude: number;
+    longitude: number;
+    addressName: string;
+    provinceName?: string;
+    imageUrl?: string;
+  }) => void;
+}
+
+export default function ExploreScreen({ refreshTrigger, onOpenMap }: ExploreScreenProps) {
   const token = useAuthStore((state) => state.token);
   const { showAlert } = useAlert();
 
@@ -48,8 +59,8 @@ export default function ExploreScreen() {
   const [showProvinceModal, setShowProvinceModal] = useState(false);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
 
-  const API_URL = Constants.expoConfig?.extra?.apiUrl || 'http://192.168.1.26:8080/api';
-  const baseUrl = API_URL.replace('/api', '');
+  const API_URL = getApiUrl();
+  const baseUrl = getBaseUrl();
 
   const categories = [
     { id: 'all', label: 'Tất cả', icon: 'apps' },
@@ -63,7 +74,7 @@ export default function ExploreScreen() {
 
   useEffect(() => {
     loadMoments(0, false);
-  }, [selectedProvince, selectedCategory, sortBy]);
+  }, [selectedProvince, selectedCategory, sortBy, refreshTrigger]); // Add refreshTrigger
 
   const loadMoments = async (page: number, append: boolean = false) => {
     if (append && loadingMore) return;
@@ -393,7 +404,19 @@ export default function ExploreScreen() {
             moment={item}
             baseUrl={baseUrl}
             onPressProfile={() => console.log('View profile:', item.author.id)}
-            onPressMap={() => console.log('View map:', item.id)}
+            onPressMap={() => {
+              if (item.location && onOpenMap) {
+                const provinceName = item.province?.name || item.district?.name || '';
+                const firstImage = item.media && item.media.length > 0 ? item.media[0].mediaUrl : undefined;
+                onOpenMap({
+                  latitude: item.location.latitude,
+                  longitude: item.location.longitude,
+                  addressName: item.location.address || item.location.name,
+                  provinceName,
+                  imageUrl: firstImage,
+                });
+              }
+            }}
             onPressLike={() => console.log('Like moment:', item.id)}
             onPressComment={() => console.log('Comment on moment:', item.id)}
             onPressShare={() => console.log('Share moment:', item.id)}

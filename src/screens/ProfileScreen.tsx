@@ -16,13 +16,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
-import Constants from 'expo-constants';
 import { useAuthStore } from '../store/useAuthStore';
 import { useAlert } from '../context/AlertContext';
 import authService from '../api/authService';
 import userService from '../api/userService';
 import { useMediaUpload } from '../hooks/useMediaUpload';
 import MomentCard, { Moment } from '../components/MomentCard';
+import { getApiUrl, getBaseUrl, buildMediaUrl } from '../config/api';
 
 const GENDER_LABELS: { [key: string]: string } = {
   MALE: 'Nam',
@@ -42,9 +42,16 @@ const formatDate = (dateString: string) => {
 interface ProfileScreenProps {
   onNavigateToSettings?: () => void;
   refreshTrigger?: boolean;
+  onOpenMap?: (params: {
+    latitude: number;
+    longitude: number;
+    addressName: string;
+    provinceName?: string;
+    imageUrl?: string;
+  }) => void;
 }
 
-export default function ProfileScreen({ onNavigateToSettings }: ProfileScreenProps) {
+export default function ProfileScreen({ onNavigateToSettings, onOpenMap }: ProfileScreenProps) {
   const user = useAuthStore((state) => state.user);
   const token = useAuthStore((state) => state.token);
   const setUser = useAuthStore((state) => state.setUser);
@@ -88,7 +95,7 @@ export default function ProfileScreen({ onNavigateToSettings }: ProfileScreenPro
   const loadMoments = async () => {
     try {
       setLoadingMoments(true);
-      const API_URL = Constants.expoConfig?.extra?.apiUrl || 'http://192.168.1.26:8080/api';
+      const API_URL = getApiUrl();
       
       const response = await fetch(`${API_URL}/moments/my-moments`, {
         method: 'GET',
@@ -124,24 +131,8 @@ export default function ProfileScreen({ onNavigateToSettings }: ProfileScreenPro
     logoutStore();
   };
 
-  const getInitials = () => {
-    if (user?.name) {
-      const parts = user.name.split(' ');
-      if (parts.length >= 2) {
-        return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
-      }
-      return user.name.substring(0, 2).toUpperCase();
-    }
-    return user?.email?.[0].toUpperCase() || 'U';
-  };
-
   const buildImageUrl = (path?: string) => {
-    if (!path) return null;
-    if (path.startsWith('http')) return path;
-    
-    const API_URL = Constants.expoConfig?.extra?.apiUrl || 'http://192.168.1.26:8080/api';
-    const baseUrl = API_URL.replace('/api', '');
-    return `${baseUrl}${path}`;
+    return buildMediaUrl(path);
   };
 
   const handleAvatarPress = () => {
@@ -303,7 +294,7 @@ export default function ProfileScreen({ onNavigateToSettings }: ProfileScreenPro
       console.log('[ProfileScreen] File object:', fileObj);
       formData.append('file', fileObj);
       
-      const API_URL = Constants.expoConfig?.extra?.apiUrl || 'http://192.168.1.26:8080/api';
+      const API_URL = getApiUrl();
       const token = useAuthStore.getState().token;
       const endpoint = type === 'avatar' ? '/user/upload-avatar' : '/user/upload-cover';
       
@@ -397,9 +388,10 @@ export default function ProfileScreen({ onNavigateToSettings }: ProfileScreenPro
                 cachePolicy="none"
               />
             ) : (
-              <View style={[styles.avatar, styles.avatarPlaceholder]}>
-                <Text style={styles.avatarText}>{getInitials()}</Text>
-              </View>
+              <Image 
+                source={require('../assets/images/avatar-default.png')} 
+                style={styles.avatar}
+              />
             )}
           </View>
 
@@ -497,8 +489,7 @@ export default function ProfileScreen({ onNavigateToSettings }: ProfileScreenPro
     </View>
   );
 
-  const API_URL = Constants.expoConfig?.extra?.apiUrl || 'http://192.168.1.26:8080/api';
-  const baseUrl = API_URL.replace('/api', '');
+  const baseUrl = getBaseUrl();
 
   if (isLoading) {
     return (
@@ -519,6 +510,19 @@ export default function ProfileScreen({ onNavigateToSettings }: ProfileScreenPro
             <MomentCard
               moment={item}
               baseUrl={baseUrl}
+              onPressMap={() => {
+                if (item.location && onOpenMap) {
+                  const provinceName = item.province?.name || item.district?.name || '';
+                  const firstImage = item.media && item.media.length > 0 ? item.media[0].mediaUrl : undefined;
+                  onOpenMap({
+                    latitude: item.location.latitude,
+                    longitude: item.location.longitude,
+                    addressName: item.location.address || item.location.name,
+                    provinceName,
+                    imageUrl: firstImage,
+                  });
+                }
+              }}
               onPressLike={() => console.log('Like moment:', item.id)}
               onPressComment={() => console.log('Comment on moment:', item.id)}
               onPressShare={() => console.log('Share moment:', item.id)}
@@ -591,16 +595,6 @@ const styles = StyleSheet.create({
     borderRadius: 60,
     borderWidth: 4,
     borderColor: '#fff',
-  },
-  avatarPlaceholder: {
-    backgroundColor: '#007AFF',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  avatarText: {
-    fontSize: 40,
-    fontWeight: 'bold',
-    color: '#fff',
   },
   nameContainer: {
     flex: 1,

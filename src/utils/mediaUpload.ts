@@ -1,7 +1,7 @@
 import ImagePicker, { Image, Video } from 'react-native-image-crop-picker';
 import { Alert, Platform } from 'react-native';
 import axios from 'axios';
-import Constants from 'expo-constants';
+import { getApiUrl } from '../config/api';
 
 // Types
 export type MediaType = 'image' | 'video' | 'any';
@@ -60,11 +60,7 @@ const UPLOAD_PRESETS: Record<UploadType, PickerOptions> = {
   },
 };
 
-// Get API base URL
-const getApiUrl = () => {
-  const apiUrl = Constants.expoConfig?.extra?.apiUrl || 'http://192.168.1.26:8080/api';
-  return apiUrl;
-};
+// Note: getApiUrl is now imported from '../config/api'
 
 /**
  * Pick media from library

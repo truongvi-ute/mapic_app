@@ -12,9 +12,9 @@ import {
   Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import Constants from 'expo-constants';
 import { useAuthStore } from '../store/useAuthStore';
 import { useAlert } from '../context/AlertContext';
+import { getApiUrl, getBaseUrl } from '../config/api';
 
 interface FriendRequest {
   id: number;
@@ -37,8 +37,8 @@ export default function FriendRequestsScreen({ onBack }: FriendRequestsScreenPro
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
-  const API_URL = Constants.expoConfig?.extra?.apiUrl || 'http://192.168.1.26:8080/api';
-  const baseUrl = API_URL.replace('/api', '');
+  const API_URL = getApiUrl();
+  const baseUrl = getBaseUrl();
 
   useEffect(() => {
     loadRequests();
@@ -80,6 +80,9 @@ export default function FriendRequestsScreen({ onBack }: FriendRequestsScreenPro
 
   const handleAccept = async (requestId: number, senderName: string) => {
     try {
+      // Xóa ngay khỏi UI để tránh duplicate key
+      setRequests((prev) => prev.filter((req) => req.id !== requestId));
+      
       const response = await fetch(`${API_URL}/friends/accept/${requestId}`, {
         method: 'POST',
         headers: {
@@ -89,14 +92,17 @@ export default function FriendRequestsScreen({ onBack }: FriendRequestsScreenPro
 
       if (response.ok) {
         showAlert('Thành công', `Bạn và ${senderName} đã trở thành bạn bè`);
-        setRequests((prev) => prev.filter((req) => req.id !== requestId));
       } else {
         const result = await response.json();
         showAlert('Lỗi', result.message || 'Không thể chấp nhận lời mời');
+        // Reload lại nếu lỗi
+        loadRequests();
       }
     } catch (error) {
       console.error('[FriendRequestsScreen] Accept error:', error);
       showAlert('Lỗi', 'Không thể kết nối đến server');
+      // Reload lại nếu lỗi
+      loadRequests();
     }
   };
 
@@ -111,6 +117,9 @@ export default function FriendRequestsScreen({ onBack }: FriendRequestsScreenPro
           style: 'destructive',
           onPress: async () => {
             try {
+              // Xóa ngay khỏi UI để tránh duplicate key
+              setRequests((prev) => prev.filter((req) => req.id !== requestId));
+              
               const response = await fetch(`${API_URL}/friends/reject/${requestId}`, {
                 method: 'POST',
                 headers: {
@@ -120,12 +129,15 @@ export default function FriendRequestsScreen({ onBack }: FriendRequestsScreenPro
 
               if (response.ok) {
                 showAlert('Thành công', 'Đã từ chối lời mời kết bạn');
-                setRequests((prev) => prev.filter((req) => req.id !== requestId));
               } else {
                 showAlert('Lỗi', 'Không thể từ chối lời mời');
+                // Reload lại nếu lỗi
+                loadRequests();
               }
             } catch (error) {
               showAlert('Lỗi', 'Không thể kết nối đến server');
+              // Reload lại nếu lỗi
+              loadRequests();
             }
           },
         },
@@ -159,13 +171,13 @@ export default function FriendRequestsScreen({ onBack }: FriendRequestsScreenPro
           {avatarUri ? (
             <Image source={{ uri: avatarUri }} style={styles.avatar} />
           ) : (
-            <View style={[styles.avatar, styles.avatarPlaceholder]}>
-              <Ionicons name="person" size={32} color="#999" />
-            </View>
+            <Image 
+              source={require('../assets/images/avatar-default.png')} 
+              style={styles.avatar}
+            />
           )}
           <View style={styles.requestDetails}>
             <Text style={styles.requestName}>{item.senderName}</Text>
-            <Text style={styles.requestUsername}>@{item.senderUsername}</Text>
             <Text style={styles.requestTime}>{getTimeAgo(item.createdAt)}</Text>
           </View>
         </View>
@@ -222,7 +234,7 @@ export default function FriendRequestsScreen({ onBack }: FriendRequestsScreenPro
         <FlatList
           data={requests}
           renderItem={renderRequestItem}
-          keyExtractor={(item) => item.id.toString()}
+          keyExtractor={(item, index) => `${item.id}-${index}`}
           ListEmptyComponent={renderEmpty}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
@@ -285,11 +297,6 @@ const styles = StyleSheet.create({
     borderRadius: 25,
     marginRight: 12,
   },
-  avatarPlaceholder: {
-    backgroundColor: '#F0F0F0',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   requestDetails: {
     flex: 1,
   },
@@ -298,11 +305,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#000',
     marginBottom: 4,
-  },
-  requestUsername: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 2,
   },
   requestTime: {
     fontSize: 12,

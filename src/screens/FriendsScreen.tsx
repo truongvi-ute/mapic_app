@@ -13,11 +13,11 @@ import {
   Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import Constants from 'expo-constants';
 import { useAuthStore } from '../store/useAuthStore';
 import { useAlert } from '../context/AlertContext';
 import AddFriendScreen from './AddFriendScreen';
 import FriendRequestsScreen from './FriendRequestsScreen';
+import { getApiUrl, getBaseUrl } from '../config/api';
 
 interface Friend {
   id: number;
@@ -40,8 +40,8 @@ export default function FriendsScreen() {
   const [showRequests, setShowRequests] = useState(false);
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
 
-  const API_URL = Constants.expoConfig?.extra?.apiUrl || 'http://192.168.1.26:8080/api';
-  const baseUrl = API_URL.replace('/api', '');
+  const API_URL = getApiUrl();
+  const baseUrl = getBaseUrl();
 
   useEffect(() => {
     loadFriends();
@@ -165,13 +165,13 @@ export default function FriendsScreen() {
           {avatarUri ? (
             <Image source={{ uri: avatarUri }} style={styles.avatar} />
           ) : (
-            <View style={[styles.avatar, styles.avatarPlaceholder]}>
-              <Ionicons name="person" size={32} color="#999" />
-            </View>
+            <Image 
+              source={require('../assets/images/avatar-default.png')} 
+              style={styles.avatar}
+            />
           )}
           <View style={styles.friendDetails}>
             <Text style={styles.friendName}>{item.name}</Text>
-            <Text style={styles.friendUsername}>@{item.username}</Text>
           </View>
         </View>
         <TouchableOpacity
@@ -303,7 +303,7 @@ export default function FriendsScreen() {
         <FlatList
           data={filteredFriends}
           renderItem={renderFriendItem}
-          keyExtractor={(item) => item.id.toString()}
+          keyExtractor={(item, index) => `friend-${item.id}-${index}`}
           ListEmptyComponent={renderEmpty}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
@@ -418,11 +418,6 @@ const styles = StyleSheet.create({
     height: 50,
     borderRadius: 25,
     marginRight: 12,
-  },
-  avatarPlaceholder: {
-    backgroundColor: '#F0F0F0',
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   friendDetails: {
     flex: 1,

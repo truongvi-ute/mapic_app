@@ -12,11 +12,11 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
-import Constants from 'expo-constants';
 import { useAuthStore } from '../store/useAuthStore';
 import { useAlert } from '../context/AlertContext';
 import authService from '../api/authService';
 import userService from '../api/userService';
+import { getApiUrl } from '../config/api';
 
 interface SettingsScreenProps {
   onBack: () => void;
@@ -140,7 +140,7 @@ export default function SettingsScreen({ onBack, onNavigateToEditProfile, onNavi
       
       formData.append('file', fileObj);
       
-      const API_URL = Constants.expoConfig?.extra?.apiUrl || 'http://192.168.1.26:8080/api';
+      const API_URL = getApiUrl();
       const token = useAuthStore.getState().token;
       const endpoint = type === 'avatar' ? '/user/upload-avatar' : '/user/upload-cover';
       

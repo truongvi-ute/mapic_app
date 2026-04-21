@@ -11,6 +11,7 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { getBaseUrl, buildAvatarUrl, buildMomentImageUrl } from '../config/api';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width - 32; // 16px margin on each side
@@ -101,10 +102,13 @@ export default function MomentCard({
   onPressComment,
   onPressShare,
   onPressMenu,
-  baseUrl = 'http://192.168.1.26:8080',
+  baseUrl,
 }: MomentCardProps) {
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
   const [liked, setLiked] = useState(false);
+  
+  // Use baseUrl from props or get from config
+  const actualBaseUrl = baseUrl || getBaseUrl();
 
   const getTimeAgo = (dateString: string) => {
     const date = new Date(dateString);
@@ -166,19 +170,19 @@ export default function MomentCard({
                 </View>
               </View>
               <View style={styles.locationActions}>
-                {onPressMap && (
-                  <TouchableOpacity
-                    style={styles.locationButton}
-                    onPress={onPressMap}
-                  >
-                    <Ionicons name="map-outline" size={18} color="#007AFF" />
-                  </TouchableOpacity>
-                )}
                 <TouchableOpacity
                   style={styles.locationButton}
-                  onPress={openGoogleMaps}
+                  onPress={() => {
+                    if (onPressMap && moment.location) {
+                      onPressMap();
+                    }
+                  }}
                 >
-                  <Ionicons name="navigate-outline" size={18} color="#007AFF" />
+                  <Image
+                    source={require('../assets/images/open-map.png')}
+                    style={styles.mapIcon}
+                    resizeMode="contain"
+                  />
                 </TouchableOpacity>
               </View>
             </View>
@@ -193,14 +197,24 @@ export default function MomentCard({
           onPress={onPressProfile}
           activeOpacity={0.7}
         >
-          <Image
-            source={{
-              uri: moment.author.avatarUrl
-                ? `${baseUrl}/uploads/avatars/${moment.author.avatarUrl}`
-                : 'https://via.placeholder.com/40',
-            }}
-            style={styles.avatar}
-          />
+          {(() => {
+            const avatarUrl = buildAvatarUrl(moment.author.avatarUrl);
+            console.log('[MomentCard] Author:', moment.author.fullName, 'Avatar URL:', avatarUrl);
+            
+            return (
+              <Image
+                source={
+                  avatarUrl
+                    ? { uri: avatarUrl }
+                    : require('../assets/images/avatar-default.png')
+                }
+                style={styles.avatar}
+                onError={(error) => {
+                  console.error('[MomentCard] Avatar load error:', error.nativeEvent);
+                }}
+              />
+            );
+          })()}
           <View style={styles.authorInfo}>
             <Text style={styles.authorName}>{moment.author.fullName}</Text>
             <View style={styles.metaRow}>
@@ -230,6 +244,13 @@ export default function MomentCard({
         )}
       </View>
 
+      {/* Caption */}
+      {moment.content && (
+        <View style={styles.captionSection}>
+          <Text style={styles.captionText}>{moment.content}</Text>
+        </View>
+      )}
+
       {/* 3. MEDIA SECTION */}
       {mediaCount > 0 && (
         <View style={styles.mediaSection}>
@@ -244,7 +265,7 @@ export default function MomentCard({
               <View key={media.id} style={styles.mediaContainer}>
                 {media.mediaType === 'IMAGE' ? (
                   <Image
-                    source={{ uri: `${baseUrl}/uploads/moments/${media.mediaUrl}` }}
+                    source={{ uri: buildMomentImageUrl(media.mediaUrl) || undefined }}
                     style={styles.mediaImage}
                     resizeMode="cover"
                   />
@@ -272,13 +293,6 @@ export default function MomentCard({
               ))}
             </View>
           )}
-        </View>
-      )}
-
-      {/* Caption */}
-      {moment.content && (
-        <View style={styles.captionSection}>
-          <Text style={styles.captionText}>{moment.content}</Text>
         </View>
       )}
 
@@ -380,6 +394,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 2,
     elevation: 2,
+  },
+  mapIcon: {
+    width: 18,
+    height: 18,
   },
 
   // Author Section

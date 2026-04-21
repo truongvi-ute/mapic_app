@@ -42,16 +42,16 @@ const App = () => {
         await AsyncStorage.removeItem('user');
       }
     } catch (e: any) {
-      console.error('Failed to verify token', e);
+      console.log('[App] Token verification error:', e.message || e);
       
       // Kiểm tra loại lỗi
       if (e.response) {
         // Server trả về response (401, 403, etc.)
         const status = e.response.status;
         
-        if (status === 401 || status === 403) {
-          // Token hết hạn hoặc không hợp lệ → logout
-          console.log('Token expired or invalid (status: ' + status + '), logging out');
+        if (status === 400 || status === 401 || status === 403) {
+          // Token không hợp lệ, hết hạn hoặc bad request → logout
+          console.log('Token invalid or expired (status: ' + status + '), logging out');
           await AsyncStorage.removeItem('token');
           await AsyncStorage.removeItem('user');
         } else {

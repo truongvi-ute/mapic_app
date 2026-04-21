@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,9 +12,9 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import Constants from 'expo-constants';
 import { useAuthStore } from '../store/useAuthStore';
 import { useAlert } from '../context/AlertContext';
+import { getApiUrl, getBaseUrl } from '../config/api';
 
 interface SearchResult {
   id: number;
@@ -30,25 +30,47 @@ interface AddFriendScreenProps {
 
 export default function AddFriendScreen({ onBack }: AddFriendScreenProps) {
   const token = useAuthStore((state) => state.token);
-  const currentUser = useAuthStore((state) => state.user);
   const { showAlert } = useAlert();
 
-  const [activeTab, setActiveTab] = useState<'search' | 'qr'>('search');
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [searching, setSearching] = useState(false);
+  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
 
-  const API_URL = Constants.expoConfig?.extra?.apiUrl || 'http://192.168.1.26:8080/api';
-  const baseUrl = API_URL.replace('/api', '');
+  const API_URL = getApiUrl();
+  const baseUrl = getBaseUrl();
+
+  // Realtime search with debounce
+  useEffect(() => {
+    if (searchTimeout) {
+      clearTimeout(searchTimeout);
+    }
+
+    if (searchQuery.trim().length >= 2) {
+      const timeout = setTimeout(() => {
+        handleSearch();
+      }, 500); // Debounce 500ms
+      setSearchTimeout(timeout);
+    } else {
+      setSearchResults([]);
+    }
+
+    return () => {
+      if (searchTimeout) {
+        clearTimeout(searchTimeout);
+      }
+    };
+  }, [searchQuery]);
 
   const handleSearch = async () => {
     if (searchQuery.trim().length < 2) {
-      showAlert('Thông báo', 'Vui lòng nhập ít nhất 2 ký tự');
       return;
     }
 
     try {
       setSearching(true);
+
+      console.log('[AddFriendScreen] Searching for:', searchQuery);
 
       const response = await fetch(
         `${API_URL}/friends/search?query=${encodeURIComponent(searchQuery)}`,
@@ -61,19 +83,18 @@ export default function AddFriendScreen({ onBack }: AddFriendScreenProps) {
         }
       );
 
+      console.log('[AddFriendScreen] Search response status:', response.status);
+
       if (response.ok) {
         const result = await response.json();
+        console.log('[AddFriendScreen] Search results:', result);
         setSearchResults(result.data || []);
-        
-        if (result.data.length === 0) {
-          showAlert('Thông báo', 'Không tìm thấy người dùng nào');
-        }
       } else {
-        showAlert('Lỗi', 'Không thể tìm kiếm người dùng');
+        const errorText = await response.text();
+        console.error('[AddFriendScreen] Search failed:', response.status, errorText);
       }
     } catch (error) {
       console.error('[AddFriendScreen] Search error:', error);
-      showAlert('Lỗi', 'Không thể kết nối đến server');
     } finally {
       setSearching(false);
     }
@@ -179,109 +200,19 @@ export default function AddFriendScreen({ onBack }: AddFriendScreenProps) {
           {avatarUri ? (
             <Image source={{ uri: avatarUri }} style={styles.avatar} />
           ) : (
-            <View style={[styles.avatar, styles.avatarPlaceholder]}>
-              <Ionicons name="person" size={28} color="#999" />
-            </View>
+            <Image 
+              source={require('../assets/images/avatar-default.png')} 
+              style={styles.avatar}
+            />
           )}
           <View style={styles.resultDetails}>
             <Text style={styles.resultName}>{item.name}</Text>
-            <Text style={styles.resultUsername}>@{item.username}</Text>
           </View>
         </View>
         {renderActionButton(item)}
       </View>
     );
   };
-
-  const renderSearchTab = () => (
-    <View style={styles.tabContent}>
-      <View style={styles.searchContainer}>
-        <View style={styles.searchInputContainer}>
-          <Ionicons name="search" size={20} color="#999" style={styles.searchIcon} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Nhập tên hoặc username..."
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            onSubmitEditing={handleSearch}
-            placeholderTextColor="#999"
-            returnKeyType="search"
-          />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <Ionicons name="close-circle" size={20} color="#999" />
-            </TouchableOpacity>
-          )}
-        </View>
-        <TouchableOpacity
-          style={styles.searchButton}
-          onPress={handleSearch}
-          disabled={searching}
-        >
-          {searching ? (
-            <ActivityIndicator size="small" color="#FFF" />
-          ) : (
-            <Text style={styles.searchButtonText}>Tìm</Text>
-          )}
-        </TouchableOpacity>
-      </View>
-
-      {searchResults.length > 0 ? (
-        <FlatList
-          data={searchResults}
-          renderItem={renderSearchResult}
-          keyExtractor={(item) => item.id.toString()}
-          contentContainerStyle={styles.resultsList}
-        />
-      ) : (
-        <View style={styles.emptyContainer}>
-          <Ionicons name="search-outline" size={64} color="#CCC" />
-          <Text style={styles.emptyTitle}>Tìm kiếm người dùng</Text>
-          <Text style={styles.emptyText}>
-            Nhập tên hoặc username để tìm kiếm bạn bè
-          </Text>
-        </View>
-      )}
-    </View>
-  );
-
-  const renderQRTab = () => (
-    <View style={styles.tabContent}>
-      <View style={styles.qrContainer}>
-        <View style={styles.qrSection}>
-          <Text style={styles.qrTitle}>Mã QR của bạn</Text>
-          <Text style={styles.qrSubtitle}>
-            Cho bạn bè quét mã này để kết bạn
-          </Text>
-          <View style={styles.qrCodePlaceholder}>
-            <Ionicons name="qr-code" size={120} color="#007AFF" />
-            <Text style={styles.qrCodeText}>
-              {currentUser?.username || 'user'}
-            </Text>
-          </View>
-          <Text style={styles.qrNote}>
-            Chức năng tạo mã QR đang được phát triển
-          </Text>
-        </View>
-
-        <View style={styles.divider} />
-
-        <View style={styles.qrSection}>
-          <Text style={styles.qrTitle}>Quét mã QR</Text>
-          <Text style={styles.qrSubtitle}>
-            Quét mã QR của bạn bè để kết bạn nhanh
-          </Text>
-          <TouchableOpacity
-            style={styles.scanButton}
-            onPress={() => showAlert('Thông báo', 'Chức năng quét QR đang được phát triển')}
-          >
-            <Ionicons name="scan" size={32} color="#FFF" />
-            <Text style={styles.scanButtonText}>Mở máy quét</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </View>
-  );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -295,44 +226,54 @@ export default function AddFriendScreen({ onBack }: AddFriendScreenProps) {
         <View style={styles.backButton} />
       </View>
 
-      <View style={styles.tabBar}>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'search' && styles.tabActive]}
-          onPress={() => setActiveTab('search')}
-        >
-          <Ionicons
-            name="search"
-            size={20}
-            color={activeTab === 'search' ? '#007AFF' : '#999'}
-          />
-          <Text
-            style={[
-              styles.tabText,
-              activeTab === 'search' && styles.tabTextActive,
-            ]}
-          >
-            Tìm kiếm
-          </Text>
-        </TouchableOpacity>
+      <View style={styles.tabContent}>
+        <View style={styles.searchContainer}>
+          <View style={styles.searchInputContainer}>
+            <Ionicons name="search" size={20} color="#999" style={styles.searchIcon} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Nhập tên hoặc username..."
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholderTextColor="#999"
+              autoFocus
+            />
+            {searching && (
+              <ActivityIndicator size="small" color="#007AFF" style={{ marginRight: 8 }} />
+            )}
+            {searchQuery.length > 0 && !searching && (
+              <TouchableOpacity onPress={() => setSearchQuery('')}>
+                <Ionicons name="close-circle" size={20} color="#999" />
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
 
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'qr' && styles.tabActive]}
-          onPress={() => setActiveTab('qr')}
-        >
-          <Ionicons
-            name="qr-code"
-            size={20}
-            color={activeTab === 'qr' ? '#007AFF' : '#999'}
+        {searchResults.length > 0 ? (
+          <FlatList
+            data={searchResults}
+            renderItem={renderSearchResult}
+            keyExtractor={(item) => item.id.toString()}
+            contentContainerStyle={styles.resultsList}
           />
-          <Text
-            style={[styles.tabText, activeTab === 'qr' && styles.tabTextActive]}
-          >
-            Mã QR
-          </Text>
-        </TouchableOpacity>
+        ) : searchQuery.trim().length >= 2 && !searching ? (
+          <View style={styles.emptyContainer}>
+            <Ionicons name="search-outline" size={64} color="#CCC" />
+            <Text style={styles.emptyTitle}>Không tìm thấy</Text>
+            <Text style={styles.emptyText}>
+              Không có người dùng nào khớp với "{searchQuery}"
+            </Text>
+          </View>
+        ) : (
+          <View style={styles.emptyContainer}>
+            <Ionicons name="search-outline" size={64} color="#CCC" />
+            <Text style={styles.emptyTitle}>Tìm kiếm người dùng</Text>
+            <Text style={styles.emptyText}>
+              Nhập tên hoặc username để tìm kiếm bạn bè
+            </Text>
+          </View>
+        )}
       </View>
-
-      {activeTab === 'search' ? renderSearchTab() : renderQRTab()}
     </SafeAreaView>
   );
 }
@@ -362,43 +303,14 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#000',
   },
-  tabBar: {
-    flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E5EA',
-  },
-  tab: {
-    flex: 1,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 16,
-    gap: 8,
-  },
-  tabActive: {
-    borderBottomWidth: 2,
-    borderBottomColor: '#007AFF',
-  },
-  tabText: {
-    fontSize: 16,
-    color: '#999',
-  },
-  tabTextActive: {
-    color: '#007AFF',
-    fontWeight: '600',
-  },
   tabContent: {
     flex: 1,
   },
   searchContainer: {
-    flexDirection: 'row',
     padding: 16,
     backgroundColor: '#FFFFFF',
-    gap: 8,
   },
   searchInputContainer: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#F5F5F5',
@@ -415,19 +327,6 @@ const styles = StyleSheet.create({
     height: 44,
     fontSize: 16,
     color: '#000',
-  },
-  searchButton: {
-    backgroundColor: '#007AFF',
-    paddingHorizontal: 24,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-    minWidth: 70,
-  },
-  searchButtonText: {
-    color: '#FFF',
-    fontSize: 16,
-    fontWeight: '600',
   },
   resultsList: {
     padding: 16,
@@ -452,11 +351,6 @@ const styles = StyleSheet.create({
     height: 50,
     borderRadius: 25,
     marginRight: 12,
-  },
-  avatarPlaceholder: {
-    backgroundColor: '#F0F0F0',
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   resultDetails: {
     flex: 1,
@@ -514,67 +408,5 @@ const styles = StyleSheet.create({
     color: '#666',
     textAlign: 'center',
     lineHeight: 20,
-  },
-  qrContainer: {
-    flex: 1,
-    padding: 16,
-  },
-  qrSection: {
-    backgroundColor: '#FFFFFF',
-    padding: 24,
-    borderRadius: 16,
-    alignItems: 'center',
-  },
-  qrTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#000',
-    marginBottom: 8,
-  },
-  qrSubtitle: {
-    fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
-    marginBottom: 24,
-  },
-  qrCodePlaceholder: {
-    width: 200,
-    height: 200,
-    backgroundColor: '#F5F5F5',
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#E5E5EA',
-    borderStyle: 'dashed',
-  },
-  qrCodeText: {
-    marginTop: 12,
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#007AFF',
-  },
-  qrNote: {
-    marginTop: 16,
-    fontSize: 12,
-    color: '#999',
-    fontStyle: 'italic',
-  },
-  divider: {
-    height: 16,
-  },
-  scanButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#007AFF',
-    paddingHorizontal: 32,
-    paddingVertical: 16,
-    borderRadius: 12,
-    gap: 12,
-  },
-  scanButtonText: {
-    color: '#FFF',
-    fontSize: 16,
-    fontWeight: '600',
   },
 });
