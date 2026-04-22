@@ -212,7 +212,7 @@ export default function MomentCard({
     
     try {
       const API_URL = getApiUrl();
-      console.log('[MomentCard] Calling API:', `${API_URL}/reactions/moments/${moment.id}`);
+      console.log('[MomentCard] Calling reaction API:', `${API_URL}/reactions/moments/${moment.id}`, 'hasToken:', !!token);
       
       const response = await fetch(`${API_URL}/reactions/moments/${moment.id}`, {
         method: 'POST',
@@ -223,28 +223,22 @@ export default function MomentCard({
         body: JSON.stringify({ type: 'HEART' }),
       });
       
-      console.log('[MomentCard] API response status:', response.status);
+      const responseText = await response.text();
+      console.log('[MomentCard] Reaction API status:', response.status, 'body:', responseText);
       
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('[MomentCard] API error:', errorText);
-        // Revert on error
+        console.error('[MomentCard] Reaction failed:', response.status, responseText);
         setLiked(wasLiked);
         setLikeCount(previousCount);
-      } else {
-        const result = await response.json();
-        console.log('[MomentCard] API success:', result);
       }
       
       onPressLike?.();
     } catch (error) {
-      // Revert on error
       setLiked(wasLiked);
       setLikeCount(previousCount);
       console.error('[MomentCard] Error toggling reaction:', error);
     } finally {
       setIsLiking(false);
-      console.log('[MomentCard] handleLike completed');
     }
   };
 
