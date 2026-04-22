@@ -279,7 +279,7 @@ export default function MainScreenWrapper() {
         return (
           <ChatsListScreen
             onBack={() => setActiveScreen('home')}
-            onOpenChat={(conv) => setActiveScreen('chat-room', conv)}
+            onOpenChat={onOpenChat}
             refreshTrigger={chatListRefresh}
             initialTab={currentChatTab}
           />
@@ -287,8 +287,8 @@ export default function MainScreenWrapper() {
       case 'chat-room':
         return (
           <ChatRoomScreen
-            conversation={screenParams?.id ? screenParams : null}
-            friendId={screenParams?.userId}
+            conversation={chatParams}
+            friendId={chatParams?.userId}
             onBack={() => {
               setChatListRefresh((n) => n + 1);
               setActiveScreen('chat');
@@ -338,22 +338,25 @@ export default function MainScreenWrapper() {
       case 'moment-map':
         return (
           <MomentMapScreen
-            {...screenParams}
+            {...mapParams}
             onBack={() => setActiveScreen('home')}
           />
         );
       case 'userProfile':
         return (
           <UserProfileScreen 
-            userId={screenParams?.userId}
+            userId={userProfileParams?.userId}
             onBack={() => setActiveScreen('home')}
           />
         );
       default:
         return <HomeScreen 
           refreshTrigger={homeNeedsRefresh}
-          onOpenMap={(params) => setActiveScreen('map', params)}
-          onPressProfile={(userId) => setActiveScreen('userProfile', { userId })}
+          onOpenMap={(params) => {
+            setMapParams(params);
+            setActiveScreen('map');
+          }}
+          onPressProfile={handleOpenProfile}
         />;
     }
   };
