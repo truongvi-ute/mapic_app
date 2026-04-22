@@ -11,6 +11,10 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
+import { SPACING, COLORS, LIGHT_COLORS, DARK_COLORS, FONT_SIZE, FONT_WEIGHT, RADIUS, SHADOWS, DIMENSIONS } from '../constants/design';
+import { useThemeStore } from '../store/useThemeStore';
+import SafeContainer from '../components/ui/SafeContainer';
+import Spacer from '../components/ui/Spacer';
 import { useAuthStore } from '../store/useAuthStore';
 import { useAlert } from '../context/AlertContext';
 import reportService from '../api/reportService';
@@ -70,6 +74,9 @@ export default function UserProfileScreen({ userId, onBack, onOpenMap, onOpenCha
   const token = useAuthStore((state) => state.token);
   const currentUser = useAuthStore((state) => state.user);
   const { showAlert } = useAlert();
+  const { mode } = useThemeStore();
+  const isDark = mode === 'dark';
+  const C = isDark ? DARK_COLORS : LIGHT_COLORS;
 
   const [user, setUser] = useState<UserProfile | null>(null);
   const [moments, setMoments] = useState<Moment[]>([]);
@@ -430,11 +437,11 @@ export default function UserProfileScreen({ userId, onBack, onOpenMap, onOpenCha
           </View>
 
           <View style={styles.nameContainer}>
-            <Text style={styles.name}>{user?.name || 'Người dùng'}</Text>
+            <Text style={[styles.name, { color: C.textPrimary }]}>{user?.name || 'Người dùng'}</Text>
           </View>
         </View>
 
-        {user?.bio && <Text style={styles.bio}>{user.bio}</Text>}
+        {user?.bio && <Text style={[styles.bio, { color: C.textSecondary }]}>{user.bio}</Text>}
 
         <View style={styles.infoRow}>
           {user?.gender && (
@@ -461,12 +468,12 @@ export default function UserProfileScreen({ userId, onBack, onOpenMap, onOpenCha
       </View>
 
       {/* Moments Header */}
-      <View style={styles.momentsHeader}>
+      <View style={[styles.momentsHeader, { backgroundColor: isDark ? '#1a1a2e' : COLORS.gray50, borderBottomColor: C.primary }]}>
         <Image
           source={require('../assets/images/moment.png')}
           style={styles.momentIcon}
         />
-        <Text style={styles.momentsHeaderText}>Khoảnh khắc</Text>
+        <Text style={[styles.momentsHeaderText, { color: C.primary }]}>Khoảnh khắc</Text>
       </View>
     </>
   );
@@ -491,22 +498,23 @@ export default function UserProfileScreen({ userId, onBack, onOpenMap, onOpenCha
 
   if (isLoading) {
     return (
-      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+      <SafeContainer style={[styles.container, { justifyContent: 'center', alignItems: 'center', backgroundColor: C.background }]} top={false}>
         <StatusBar barStyle="light-content" />
-        <ActivityIndicator size="large" color="#007AFF" />
-        <Text style={{ marginTop: 12, color: '#666' }}>Đang tải thông tin...</Text>
-      </View>
+        <ActivityIndicator size="large" color={C.primary} />
+        <Spacer size="md" />
+        <Text style={{ color: C.textSecondary }}>Đang tải thông tin...</Text>
+      </SafeContainer>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <SafeContainer style={[styles.container, { backgroundColor: C.surface }]} top={false}>
       <StatusBar barStyle="light-content" />
 
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={onBack} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#fff" />
+          <Ionicons name="arrow-back" size={DIMENSIONS.iconLG} color={COLORS.white} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Trang cá nhân</Text>
         <View style={styles.placeholder} />
@@ -606,34 +614,35 @@ export default function UserProfileScreen({ userId, onBack, onOpenMap, onOpenCha
           onSave={handleSaveCaption}
         />
       )}
-    </View>
+    </SafeContainer>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.surface,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#007AFF',
-    paddingTop: 50,
-    paddingBottom: 16,
-    paddingHorizontal: 16,
+    backgroundColor: COLORS.primary,
+    paddingTop: SPACING.huge + SPACING.lg,
+    paddingBottom: SPACING.lg,
+    paddingHorizontal: SPACING.lg,
+    ...SHADOWS.sm,
   },
   backButton: {
-    padding: 8,
+    padding: SPACING.sm,
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#fff',
+    fontSize: FONT_SIZE.xl,
+    fontWeight: FONT_WEIGHT.bold,
+    color: COLORS.white,
   },
   placeholder: {
-    width: 40,
+    width: DIMENSIONS.iconXL + SPACING.lg,
   },
   coverContainer: {
     height: 200,
@@ -644,16 +653,16 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   coverPlaceholder: {
-    backgroundColor: '#e1e8ed',
+    backgroundColor: COLORS.gray200,
   },
   profileInfo: {
-    paddingHorizontal: 16,
-    paddingBottom: 16,
+    paddingHorizontal: SPACING.lg,
+    paddingBottom: SPACING.lg,
   },
   profileHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: SPACING.md,
   },
   avatarContainer: {
     marginTop: -60,
@@ -663,91 +672,95 @@ const styles = StyleSheet.create({
     height: 120,
     borderRadius: 60,
     borderWidth: 4,
-    borderColor: '#fff',
+    borderColor: COLORS.white,
+    ...SHADOWS.md,
   },
   nameContainer: {
     flex: 1,
-    marginLeft: 12,
-    marginTop: 20,
+    marginLeft: SPACING.md,
+    marginTop: SPACING.xl,
   },
   name: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#000',
+    fontSize: FONT_SIZE.xxxl,
+    fontWeight: FONT_WEIGHT.bold,
+    color: COLORS.gray900,
   },
   bio: {
-    fontSize: 14,
-    color: '#333',
+    fontSize: FONT_SIZE.md,
+    color: COLORS.gray700,
     textAlign: 'center',
-    marginBottom: 12,
-    paddingHorizontal: 20,
+    marginBottom: SPACING.md,
+    paddingHorizontal: SPACING.xl,
+    lineHeight: FONT_SIZE.md * 1.4,
   },
   infoRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center',
-    marginBottom: 16,
-    gap: 16,
+    marginBottom: SPACING.lg,
+    gap: SPACING.lg,
   },
   infoItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: SPACING.xs,
   },
   infoText: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: FONT_SIZE.md,
+    color: COLORS.gray600,
   },
   actionButtons: {
     flexDirection: 'row',
-    gap: 12,
+    gap: SPACING.md,
     width: '100%',
   },
   actionIcon: {
-    width: 20,
-    height: 20,
+    width: DIMENSIONS.iconMD,
+    height: DIMENSIONS.iconMD,
   },
   unfriendIcon: {
-    width: 24,
-    height: 24,
+    width: DIMENSIONS.iconLG,
+    height: DIMENSIONS.iconLG,
   },
   momentIcon: {
-    width: 24,
-    height: 24,
+    width: DIMENSIONS.iconLG,
+    height: DIMENSIONS.iconLG,
   },
   emptyIcon: {
-    width: 80,
-    height: 80,
+    width: DIMENSIONS.avatarXL,
+    height: DIMENSIONS.avatarXL,
   },
   addFriendButton: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#007AFF',
-    paddingVertical: 10,
-    borderRadius: 8,
-    gap: 6,
+    backgroundColor: COLORS.primary,
+    paddingVertical: SPACING.md,
+    borderRadius: RADIUS.md,
+    gap: SPACING.xs,
+    ...SHADOWS.sm,
   },
   addFriendButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    color: COLORS.white,
+    fontSize: FONT_SIZE.lg,
+    fontWeight: FONT_WEIGHT.semibold,
   },
   messageButton: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#007AFF',
-    paddingVertical: 10,
-    borderRadius: 8,
-    gap: 6,
+    backgroundColor: COLORS.primary,
+    paddingVertical: SPACING.md,
+    borderRadius: RADIUS.md,
+    gap: SPACING.xs,
+    ...SHADOWS.sm,
   },
   messageButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    color: COLORS.white,
+    fontSize: FONT_SIZE.lg,
+    fontWeight: FONT_WEIGHT.semibold,
   },
   unfriendButton: {
     width: 44,
@@ -755,49 +768,50 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#FF3B30',
-    borderRadius: 8,
+    borderColor: COLORS.error,
+    borderRadius: RADIUS.md,
+    backgroundColor: COLORS.surface,
   },
   pendingButton: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#f0f0f0',
-    paddingVertical: 10,
-    borderRadius: 8,
-    gap: 6,
+    backgroundColor: COLORS.gray100,
+    paddingVertical: SPACING.md,
+    borderRadius: RADIUS.md,
+    gap: SPACING.xs,
   },
   pendingButtonText: {
-    color: '#666',
-    fontSize: 16,
-    fontWeight: '600',
+    color: COLORS.gray600,
+    fontSize: FONT_SIZE.lg,
+    fontWeight: FONT_WEIGHT.semibold,
   },
   momentsHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    gap: SPACING.sm,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
     borderBottomWidth: 2,
-    borderBottomColor: '#007AFF',
-    backgroundColor: '#f8f8f8',
+    borderBottomColor: COLORS.primary,
+    backgroundColor: COLORS.gray50,
   },
   momentsHeaderText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#007AFF',
+    fontSize: FONT_SIZE.lg,
+    fontWeight: FONT_WEIGHT.semibold,
+    color: COLORS.primary,
   },
   emptyContainer: {
-    padding: 40,
+    padding: SPACING.xxxl + SPACING.sm,
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 200,
   },
   emptyText: {
-    fontSize: 16,
-    color: '#999',
-    marginTop: 12,
+    fontSize: FONT_SIZE.lg,
+    color: COLORS.gray500,
+    marginTop: SPACING.md,
     textAlign: 'center',
   },
 });

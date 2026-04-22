@@ -15,7 +15,7 @@ import MapLibreGL from '@maplibre/maplibre-react-native';
 import { vietnamLocations, Province, District, Ward } from '../data/vietnamLocations';
 
 // MapLibre configuration
-MapLibreGL.setAccessToken(null);
+try { MapLibreGL.setAccessToken(null); } catch (_) {}
 
 // OpenStreetMap style for detailed Vietnam map
 const osmMapStyle = JSON.stringify({

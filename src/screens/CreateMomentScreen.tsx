@@ -15,6 +15,10 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import * as FileSystem from 'expo-file-system/legacy';
+import { SPACING, COLORS, LIGHT_COLORS, DARK_COLORS, FONT_SIZE, FONT_WEIGHT, RADIUS, SHADOWS, DIMENSIONS } from '../constants/design';
+import { useThemeStore } from '../store/useThemeStore';
+import SafeContainer from '../components/ui/SafeContainer';
+import Spacer from '../components/ui/Spacer';
 import { useAuthStore } from '../store/useAuthStore';
 import { useAlert } from '../context/AlertContext';
 import LocationPicker from '../components/LocationPicker';
@@ -42,6 +46,9 @@ export default function CreateMomentScreen() {
   const user = useAuthStore((state) => state.user);
   const token = useAuthStore((state) => state.token);
   const { showAlert } = useAlert();
+  const { mode } = useThemeStore();
+  const isDark = mode === 'dark';
+  const C = isDark ? DARK_COLORS : LIGHT_COLORS;
 
   const categories = [
     { id: 'LANDSCAPE', label: 'Phong cảnh', icon: 'image-outline' },
@@ -312,23 +319,20 @@ export default function CreateMomentScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeContainer style={[styles.container, { backgroundColor: C.background }]}>
       {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Tạo khoảnh khắc</Text>
+      <View style={[styles.header, { backgroundColor: C.surface, borderBottomColor: C.border }]}>
+        <Text style={[styles.headerTitle, { color: C.textPrimary }]}>Tạo khoảnh khắc</Text>
       </View>
 
       {/* Tabs */}
-      <View style={styles.tabs}>
+      <View style={[styles.tabs, { backgroundColor: C.surface, borderBottomColor: C.border }]}>
         <TouchableOpacity
           style={[styles.tab, activeTab === 'quick' && styles.activeTab]}
           onPress={() => setActiveTab('quick')}
         >
-          <Image
-            source={require('../assets/images/camera.png')}
-            style={styles.tabIcon}
-          />
-          <Text style={[styles.tabText, activeTab === 'quick' && styles.activeTabText]}>
+          <Image source={require('../assets/images/camera.png')} style={styles.tabIcon} />
+          <Text style={[styles.tabText, { color: C.textTertiary }, activeTab === 'quick' && { color: C.primary, fontWeight: FONT_WEIGHT.semibold }]}>
             Chụp nhanh
           </Text>
         </TouchableOpacity>
@@ -336,11 +340,8 @@ export default function CreateMomentScreen() {
           style={[styles.tab, activeTab === 'library' && styles.activeTab]}
           onPress={() => setActiveTab('library')}
         >
-          <Image
-            source={require('../assets/images/folder-management.png')}
-            style={styles.tabIcon}
-          />
-          <Text style={[styles.tabText, activeTab === 'library' && styles.activeTabText]}>
+          <Image source={require('../assets/images/folder-management.png')} style={styles.tabIcon} />
+          <Text style={[styles.tabText, { color: C.textTertiary }, activeTab === 'library' && { color: C.primary, fontWeight: FONT_WEIGHT.semibold }]}>
             Thư viện
           </Text>
         </TouchableOpacity>
@@ -356,10 +357,10 @@ export default function CreateMomentScreen() {
                 style={styles.locationIcon}
               />
               <Text style={styles.locationTitle}>Vị trí hiện tại</Text>
-              {loading && <ActivityIndicator size="small" color="#007AFF" />}
+              {loading && <ActivityIndicator size="small" color={COLORS.primary} />}
               {!loading && (
                 <TouchableOpacity onPress={getCurrentLocation}>
-                  <Ionicons name="refresh" size={20} color="#007AFF" />
+                  <Ionicons name="refresh" size={DIMENSIONS.iconSM} color={COLORS.primary} />
                 </TouchableOpacity>
               )}
             </View>
@@ -392,7 +393,7 @@ export default function CreateMomentScreen() {
               ) : (
                 <View style={styles.locationPlaceholderContainer}>
                   <Text style={styles.locationPlaceholder}>Chọn địa điểm</Text>
-                  <Ionicons name="chevron-forward" size={20} color="#666" />
+                  <Ionicons name="chevron-forward" size={DIMENSIONS.iconSM} color={COLORS.gray500} />
                 </View>
               )}
             </TouchableOpacity>
@@ -415,7 +416,7 @@ export default function CreateMomentScreen() {
                   style={styles.removeButton}
                   onPress={() => handleRemoveMedia(index)}
                 >
-                  <Ionicons name="close-circle" size={24} color="#f44336" />
+                  <Ionicons name="close-circle" size={DIMENSIONS.iconLG} color={COLORS.error} />
                 </TouchableOpacity>
               </View>
             ))}
@@ -464,8 +465,8 @@ export default function CreateMomentScreen() {
                 <>
                   <Ionicons
                     name={categories.find(c => c.id === category)?.icon as any}
-                    size={20}
-                    color="#007AFF"
+                    size={DIMENSIONS.iconSM}
+                    color={COLORS.primary}
                   />
                   <Text style={styles.categorySelectorText}>
                     {categories.find(c => c.id === category)?.label}
@@ -475,7 +476,7 @@ export default function CreateMomentScreen() {
                 <Text style={styles.categorySelectorPlaceholder}>Chọn danh mục</Text>
               )}
             </View>
-            <Ionicons name="chevron-down" size={20} color="#666" />
+            <Ionicons name="chevron-down" size={DIMENSIONS.iconSM} color={COLORS.gray500} />
           </TouchableOpacity>
         </View>
 
@@ -489,8 +490,8 @@ export default function CreateMomentScreen() {
             >
               <Ionicons
                 name="globe-outline"
-                size={20}
-                color={isPublic ? '#fff' : '#007AFF'}
+                size={DIMENSIONS.iconSM}
+                color={isPublic ? COLORS.white : COLORS.primary}
               />
               <Text style={[styles.privacyText, isPublic && styles.privacyTextActive]}>
                 Công khai
@@ -502,8 +503,8 @@ export default function CreateMomentScreen() {
             >
               <Ionicons
                 name="people-outline"
-                size={20}
-                color={!isPublic ? '#fff' : '#007AFF'}
+                size={DIMENSIONS.iconSM}
+                color={!isPublic ? COLORS.white : COLORS.primary}
               />
               <Text style={[styles.privacyText, !isPublic && styles.privacyTextActive]}>
                 Bạn bè
@@ -519,7 +520,7 @@ export default function CreateMomentScreen() {
           disabled={uploading}
         >
           {uploading ? (
-            <ActivityIndicator size="small" color="#fff" />
+            <ActivityIndicator size="small" color={COLORS.white} />
           ) : (
             <>
               <Image
@@ -531,7 +532,7 @@ export default function CreateMomentScreen() {
           )}
         </TouchableOpacity>
 
-        <View style={styles.spacer} />
+        <Spacer size="xxxl" />
       </ScrollView>
 
       {/* Category Modal */}
@@ -546,7 +547,7 @@ export default function CreateMomentScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Chọn danh mục</Text>
               <TouchableOpacity onPress={() => setShowCategoryModal(false)}>
-                <Ionicons name="close" size={24} color="#666" />
+                <Ionicons name="close" size={DIMENSIONS.iconLG} color={COLORS.gray500} />
               </TouchableOpacity>
             </View>
             <ScrollView style={styles.modalList}>
@@ -564,8 +565,8 @@ export default function CreateMomentScreen() {
                 >
                   <Ionicons
                     name={cat.icon as any}
-                    size={24}
-                    color={category === cat.id ? '#007AFF' : '#666'}
+                    size={DIMENSIONS.iconLG}
+                    color={category === cat.id ? COLORS.primary : COLORS.gray500}
                   />
                   <Text
                     style={[
@@ -576,7 +577,7 @@ export default function CreateMomentScreen() {
                     {cat.label}
                   </Text>
                   {category === cat.id && (
-                    <Ionicons name="checkmark" size={24} color="#007AFF" />
+                    <Ionicons name="checkmark" size={DIMENSIONS.iconLG} color={COLORS.primary} />
                   )}
                 </TouchableOpacity>
               ))}
@@ -603,102 +604,97 @@ export default function CreateMomentScreen() {
           setShowLocationPicker(false);
         }}
       />
-    </View>
+    </SafeContainer>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: COLORS.background,
   },
   header: {
-    backgroundColor: '#fff',
-    paddingTop: 50,
-    paddingBottom: 16,
-    paddingHorizontal: 16,
+    backgroundColor: COLORS.surface,
+    paddingBottom: SPACING.lg,
+    paddingHorizontal: SPACING.lg,
     borderBottomWidth: 1,
-    borderBottomColor: '#e1e8ed',
+    borderBottomColor: COLORS.gray200,
   },
   headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#000',
+    fontSize: FONT_SIZE.xxxl,
+    fontWeight: FONT_WEIGHT.bold,
+    color: COLORS.gray900,
   },
   tabs: {
     flexDirection: 'row',
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#e1e8ed',
+    borderBottomColor: COLORS.gray200,
   },
   tab: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
-    gap: 8,
+    paddingVertical: SPACING.md,
+    gap: SPACING.sm,
     borderBottomWidth: 2,
     borderBottomColor: 'transparent',
   },
   activeTab: {
-    borderBottomColor: '#007AFF',
+    borderBottomColor: COLORS.primary,
   },
   tabIcon: {
-    width: 20,
-    height: 20,
+    width: DIMENSIONS.iconSM,
+    height: DIMENSIONS.iconSM,
   },
   tabText: {
-    fontSize: 14,
-    color: '#666',
-    fontWeight: '500',
+    fontSize: FONT_SIZE.md,
+    color: COLORS.gray500,
+    fontWeight: FONT_WEIGHT.medium,
   },
   activeTabText: {
-    color: '#007AFF',
-    fontWeight: '600',
+    color: COLORS.primary,
+    fontWeight: FONT_WEIGHT.semibold,
   },
   content: {
     flex: 1,
   },
   locationCard: {
-    backgroundColor: '#fff',
-    margin: 16,
-    padding: 16,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    backgroundColor: COLORS.surface,
+    margin: SPACING.lg,
+    padding: SPACING.lg,
+    borderRadius: RADIUS.md,
+    ...SHADOWS.sm,
   },
   locationHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 8,
+    gap: SPACING.sm,
+    marginBottom: SPACING.sm,
   },
   locationIcon: {
-    width: 20,
-    height: 20,
+    width: DIMENSIONS.iconSM,
+    height: DIMENSIONS.iconSM,
   },
   locationTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#000',
+    fontSize: FONT_SIZE.lg,
+    fontWeight: FONT_WEIGHT.semibold,
+    color: COLORS.gray900,
     flex: 1,
   },
   locationText: {
-    fontSize: 14,
-    color: '#666',
-    lineHeight: 20,
+    fontSize: FONT_SIZE.md,
+    color: COLORS.gray600,
+    lineHeight: FONT_SIZE.md * 1.4,
   },
   locationPlaceholder: {
-    fontSize: 14,
-    color: '#999',
+    fontSize: FONT_SIZE.md,
+    color: COLORS.gray400,
     fontStyle: 'italic',
   },
   locationSelector: {
-    paddingVertical: 8,
+    paddingVertical: SPACING.sm,
   },
   locationPlaceholderContainer: {
     flexDirection: 'row',
@@ -706,27 +702,27 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   mediaSection: {
-    backgroundColor: '#fff',
-    marginHorizontal: 16,
-    marginBottom: 16,
-    padding: 16,
-    borderRadius: 12,
+    backgroundColor: COLORS.surface,
+    marginHorizontal: SPACING.lg,
+    marginBottom: SPACING.lg,
+    padding: SPACING.lg,
+    borderRadius: RADIUS.md,
   },
   sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#000',
-    marginBottom: 12,
+    fontSize: FONT_SIZE.lg,
+    fontWeight: FONT_WEIGHT.semibold,
+    color: COLORS.gray900,
+    marginBottom: SPACING.md,
   },
   mediaGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    gap: SPACING.md,
   },
   mediaItem: {
     width: 100,
     height: 100,
-    borderRadius: 8,
+    borderRadius: RADIUS.sm,
     overflow: 'hidden',
     position: 'relative',
   },
@@ -746,106 +742,106 @@ const styles = StyleSheet.create({
   },
   removeButton: {
     position: 'absolute',
-    top: 4,
-    right: 4,
-    backgroundColor: '#fff',
-    borderRadius: 12,
+    top: SPACING.xs,
+    right: SPACING.xs,
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.md,
   },
   addMediaButton: {
     width: 100,
     height: 100,
-    borderRadius: 8,
+    borderRadius: RADIUS.sm,
     borderWidth: 2,
-    borderColor: '#007AFF',
+    borderColor: COLORS.primary,
     borderStyle: 'dashed',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 4,
+    gap: SPACING.xs,
   },
   addMediaIcon: {
-    width: 32,
-    height: 32,
+    width: DIMENSIONS.iconXL,
+    height: DIMENSIONS.iconXL,
   },
   addMediaText: {
-    fontSize: 12,
-    color: '#007AFF',
-    fontWeight: '500',
+    fontSize: FONT_SIZE.sm,
+    color: COLORS.primary,
+    fontWeight: FONT_WEIGHT.medium,
   },
   section: {
-    backgroundColor: '#fff',
-    marginHorizontal: 16,
-    marginBottom: 16,
-    padding: 16,
-    borderRadius: 12,
+    backgroundColor: COLORS.surface,
+    marginHorizontal: SPACING.lg,
+    marginBottom: SPACING.lg,
+    padding: SPACING.lg,
+    borderRadius: RADIUS.md,
   },
   captionInput: {
-    backgroundColor: '#f5f5f5',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 14,
-    color: '#000',
+    backgroundColor: COLORS.gray50,
+    borderRadius: RADIUS.sm,
+    padding: SPACING.md,
+    fontSize: FONT_SIZE.md,
+    color: COLORS.gray900,
     minHeight: 100,
   },
   categorySelector: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#f5f5f5',
-    borderRadius: 8,
-    padding: 16,
+    backgroundColor: COLORS.gray50,
+    borderRadius: RADIUS.sm,
+    padding: SPACING.lg,
   },
   categorySelectorContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: SPACING.sm,
   },
   categorySelectorText: {
-    fontSize: 16,
-    color: '#000',
-    fontWeight: '500',
+    fontSize: FONT_SIZE.lg,
+    color: COLORS.gray900,
+    fontWeight: FONT_WEIGHT.medium,
   },
   categorySelectorPlaceholder: {
-    fontSize: 16,
-    color: '#999',
+    fontSize: FONT_SIZE.lg,
+    color: COLORS.gray400,
   },
   privacyOptions: {
     flexDirection: 'row',
-    gap: 12,
+    gap: SPACING.md,
   },
   privacyOption: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 12,
-    borderRadius: 8,
+    gap: SPACING.sm,
+    paddingVertical: SPACING.md,
+    borderRadius: RADIUS.sm,
     borderWidth: 1,
-    borderColor: '#007AFF',
-    backgroundColor: '#fff',
+    borderColor: COLORS.primary,
+    backgroundColor: COLORS.surface,
   },
   privacyOptionActive: {
-    backgroundColor: '#007AFF',
-    borderColor: '#007AFF',
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
   },
   privacyText: {
-    fontSize: 14,
-    color: '#007AFF',
-    fontWeight: '500',
+    fontSize: FONT_SIZE.md,
+    color: COLORS.primary,
+    fontWeight: FONT_WEIGHT.medium,
   },
   privacyTextActive: {
-    color: '#fff',
+    color: COLORS.white,
   },
   postButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    backgroundColor: '#007AFF',
-    marginHorizontal: 16,
-    marginTop: 8,
-    paddingVertical: 16,
-    borderRadius: 12,
+    gap: SPACING.sm,
+    backgroundColor: COLORS.primary,
+    marginHorizontal: SPACING.lg,
+    marginTop: SPACING.sm,
+    paddingVertical: SPACING.lg,
+    borderRadius: RADIUS.md,
   },
   postButtonDisabled: {
     opacity: 0.6,
@@ -855,57 +851,54 @@ const styles = StyleSheet.create({
     height: 35,
   },
   postButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#fff',
-  },
-  spacer: {
-    height: 32,
+    fontSize: FONT_SIZE.lg,
+    fontWeight: FONT_WEIGHT.semibold,
+    color: COLORS.white,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: COLORS.overlay,
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    backgroundColor: COLORS.surface,
+    borderTopLeftRadius: RADIUS.xl,
+    borderTopRightRadius: RADIUS.xl,
     maxHeight: '70%',
   },
   modalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 16,
+    padding: SPACING.lg,
     borderBottomWidth: 1,
-    borderBottomColor: '#e1e8ed',
+    borderBottomColor: COLORS.gray200,
   },
   modalTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#000',
+    fontSize: FONT_SIZE.xl,
+    fontWeight: FONT_WEIGHT.semibold,
+    color: COLORS.gray900,
   },
   modalList: {
-    padding: 8,
+    padding: SPACING.sm,
   },
   modalItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    padding: 16,
-    borderRadius: 8,
+    gap: SPACING.md,
+    padding: SPACING.lg,
+    borderRadius: RADIUS.sm,
   },
   modalItemActive: {
-    backgroundColor: '#f0f8ff',
+    backgroundColor: COLORS.gray50,
   },
   modalItemText: {
     flex: 1,
-    fontSize: 16,
-    color: '#000',
+    fontSize: FONT_SIZE.lg,
+    color: COLORS.gray900,
   },
   modalItemTextActive: {
-    color: '#007AFF',
-    fontWeight: '600',
+    color: COLORS.primary,
+    fontWeight: FONT_WEIGHT.semibold,
   },
 });

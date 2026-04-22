@@ -4,11 +4,11 @@ import {
   Text,
   StyleSheet,
   StatusBar,
-  SafeAreaView,
   FlatList,
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '../store/useAuthStore';
 import { useAlert } from '../context/AlertContext';
 import reportService from '../api/reportService';
@@ -19,6 +19,9 @@ import AlbumSelectModal from '../components/AlbumSelectModal';
 import CommentModal from '../components/CommentModal';
 import EditCaptionModal from '../components/EditCaptionModal';
 import albumService from '../api/albumService';
+import { SPACING, COLORS, LIGHT_COLORS, DARK_COLORS, FONT_SIZE, FONT_WEIGHT, SHADOWS } from '../constants/design';
+import { useThemeStore } from '../store/useThemeStore';
+import Spacer from '../components/ui/Spacer';
 
 interface PageInfo {
   pageNumber: number;
@@ -48,6 +51,10 @@ export default function HomeScreen({ refreshTrigger, onOpenMap, onPressProfile }
   const user = useAuthStore((state) => state.user);
   const token = useAuthStore((state) => state.token);
   const { showAlert } = useAlert();
+  const { mode } = useThemeStore();
+  const isDark = mode === 'dark';
+  const C = isDark ? DARK_COLORS : LIGHT_COLORS;
+  const insets = useSafeAreaInsets();
   
   const [moments, setMoments] = useState<Moment[]>([]);
   const [loading, setLoading] = useState(false);
@@ -249,7 +256,8 @@ export default function HomeScreen({ refreshTrigger, onOpenMap, onPressProfile }
     
     return (
       <View style={styles.footerLoader}>
-        <ActivityIndicator size="small" color="#007AFF" />
+        <ActivityIndicator size="small" color={COLORS.primary} />
+        <Spacer size="sm" />
         <Text style={styles.footerText}>Đang tải thêm...</Text>
       </View>
     );
@@ -257,12 +265,11 @@ export default function HomeScreen({ refreshTrigger, onOpenMap, onPressProfile }
 
   const renderEmpty = () => {
     if (loading) return null;
-    
     return (
       <View style={styles.emptyContainer}>
         <Text style={styles.emptyIcon}>📷</Text>
-        <Text style={styles.emptyTitle}>Chưa có khoảnh khắc nào</Text>
-        <Text style={styles.emptyText}>
+        <Text style={[styles.emptyTitle, { color: C.textPrimary }]}>Chưa có khoảnh khắc nào</Text>
+        <Text style={[styles.emptyText, { color: C.textSecondary }]}>
           Hãy bắt đầu chia sẻ những khoảnh khắc đẹp của bạn!
         </Text>
       </View>
@@ -270,28 +277,29 @@ export default function HomeScreen({ refreshTrigger, onOpenMap, onPressProfile }
   };
 
   const renderHeader = () => (
-    <View style={styles.header}>
-      <Text style={styles.title}>MAPIC</Text>
-      <Text style={styles.subtitle}>Khám phá khoảnh khắc</Text>
+    <View style={[styles.header, { backgroundColor: C.surface, borderBottomColor: C.border }]}>
+      <Text style={[styles.title, { color: C.primary }]}>MAPIC</Text>
+      <Text style={[styles.subtitle, { color: C.textTertiary }]}>Khám phá khoảnh khắc</Text>
     </View>
   );
 
   if (loading && moments.length === 0) {
     return (
-      <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="dark-content" />
+      <View style={[styles.container, { paddingTop: insets.top, backgroundColor: C.background }]}>
+        <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
         {renderHeader()}
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#007AFF" />
-          <Text style={styles.loadingText}>Đang tải...</Text>
+          <ActivityIndicator size="large" color={C.primary} />
+          <Spacer size="md" />
+          <Text style={[styles.loadingText, { color: C.textSecondary }]}>Đang tải...</Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" />
+    <View style={[styles.container, { paddingTop: insets.top, backgroundColor: C.background }]}>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
       <FlatList
         data={moments}
         renderItem={({ item }) => (
@@ -355,7 +363,10 @@ export default function HomeScreen({ refreshTrigger, onOpenMap, onPressProfile }
         }
         onEndReached={onEndReached}
         onEndReachedThreshold={0.5}
-        contentContainerStyle={moments.length === 0 ? styles.emptyList : undefined}
+        contentContainerStyle={[
+          moments.length === 0 ? styles.emptyList : undefined,
+          { paddingBottom: insets.bottom + SPACING.lg }
+        ]}
       />
       
       <AlbumSelectModal
@@ -394,30 +405,31 @@ export default function HomeScreen({ refreshTrigger, onOpenMap, onPressProfile }
           onSave={handleSaveCaption}
         />
       )}
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: COLORS.background,
   },
   header: {
-    padding: 20,
-    backgroundColor: '#FFFFFF',
+    padding: SPACING.xl,
+    backgroundColor: COLORS.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E5EA',
+    borderBottomColor: COLORS.gray200,
+    ...SHADOWS.sm,
   },
   title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#007AFF',
+    fontSize: FONT_SIZE.huge,
+    fontWeight: FONT_WEIGHT.bold,
+    color: COLORS.primary,
   },
   subtitle: {
-    fontSize: 14,
-    color: '#8E8E93',
-    marginTop: 4,
+    fontSize: FONT_SIZE.sm,
+    color: COLORS.gray500,
+    marginTop: SPACING.xs,
   },
   loadingContainer: {
     flex: 1,
@@ -425,9 +437,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loadingText: {
-    marginTop: 12,
-    fontSize: 14,
-    color: '#666',
+    fontSize: FONT_SIZE.md,
+    color: COLORS.gray600,
   },
   emptyList: {
     flexGrow: 1,
@@ -436,32 +447,32 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 40,
+    padding: SPACING.huge,
     minHeight: 400,
   },
   emptyIcon: {
     fontSize: 64,
-    marginBottom: 16,
+    marginBottom: SPACING.lg,
   },
   emptyTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#000',
-    marginBottom: 8,
+    fontSize: FONT_SIZE.xl,
+    fontWeight: FONT_WEIGHT.semibold,
+    color: COLORS.gray900,
+    marginBottom: SPACING.sm,
   },
   emptyText: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: FONT_SIZE.md,
+    color: COLORS.gray600,
     textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: FONT_SIZE.md * 1.5,
   },
   footerLoader: {
-    paddingVertical: 20,
+    paddingVertical: SPACING.xl,
     alignItems: 'center',
   },
   footerText: {
-    marginTop: 8,
-    fontSize: 14,
-    color: '#666',
+    marginTop: SPACING.sm,
+    fontSize: FONT_SIZE.md,
+    color: COLORS.gray600,
   },
 });

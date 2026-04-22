@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   StatusBar,
-  SafeAreaView,
   FlatList,
   ActivityIndicator,
   RefreshControl,
@@ -15,6 +14,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../store/useAuthStore';
 import { useAlert } from '../context/AlertContext';
 import { getApiUrl, buildAvatarUrl, buildCoverUrl } from '../config/api';
+import { SPACING, COLORS, LIGHT_COLORS, DARK_COLORS, FONT_SIZE, FONT_WEIGHT, RADIUS, SHADOWS, DIMENSIONS } from '../constants/design';
+import { useThemeStore } from '../store/useThemeStore';
+import SafeContainer from '../components/ui/SafeContainer';
+import Spacer from '../components/ui/Spacer';
 
 interface FriendRequest {
   id: number;
@@ -34,6 +37,9 @@ interface FriendRequestsScreenProps {
 export default function FriendRequestsScreen({ onBack, onPressProfile }: FriendRequestsScreenProps) {
   const token = useAuthStore((state) => state.token);
   const { showAlert } = useAlert();
+  const { mode } = useThemeStore();
+  const isDark = mode === 'dark';
+  const C = isDark ? DARK_COLORS : LIGHT_COLORS;
 
   const [requests, setRequests] = useState<FriendRequest[]>([]);
   const [loading, setLoading] = useState(false);
@@ -211,7 +217,7 @@ export default function FriendRequestsScreen({ onBack, onPressProfile }: FriendR
                 handleAccept(item.id, item.senderName);
               }}
             >
-              <Ionicons name="checkmark" size={24} color="#FFF" />
+              <Ionicons name="checkmark" size={DIMENSIONS.iconLG} color={COLORS.white} />
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.rejectButton}
@@ -220,7 +226,7 @@ export default function FriendRequestsScreen({ onBack, onPressProfile }: FriendR
                 handleReject(item.id, item.senderName);
               }}
             >
-              <Ionicons name="close" size={24} color="#FFF" />
+              <Ionicons name="close" size={DIMENSIONS.iconLG} color={COLORS.white} />
             </TouchableOpacity>
           </View>
         </View>
@@ -233,8 +239,10 @@ export default function FriendRequestsScreen({ onBack, onPressProfile }: FriendR
 
     return (
       <View style={styles.emptyContainer}>
-        <Ionicons name="mail-open-outline" size={64} color="#CCC" />
+        <Ionicons name="mail-open-outline" size={DIMENSIONS.avatarXL - SPACING.lg} color={COLORS.gray300} />
+        <Spacer size="lg" />
         <Text style={styles.emptyTitle}>Không có lời mời nào</Text>
+        <Spacer size="sm" />
         <Text style={styles.emptyText}>
           Bạn chưa có lời mời kết bạn nào đang chờ
         </Text>
@@ -243,20 +251,21 @@ export default function FriendRequestsScreen({ onBack, onPressProfile }: FriendR
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" />
+    <SafeContainer style={[styles.container, { backgroundColor: C.background }]}>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
 
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: C.surface, borderBottomColor: C.border }]}>
         <TouchableOpacity style={styles.backButton} onPress={onBack}>
-          <Ionicons name="arrow-back" size={24} color="#007AFF" />
+          <Ionicons name="arrow-back" size={DIMENSIONS.iconLG} color={C.primary} />
         </TouchableOpacity>
-        <Text style={styles.title}>Lời mời kết bạn</Text>
+        <Text style={[styles.title, { color: C.textPrimary }]}>Lời mời kết bạn</Text>
         <View style={styles.backButton} />
       </View>
 
       {loading && requests.length === 0 ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#007AFF" />
+          <ActivityIndicator size="large" color={COLORS.primary} />
+          <Spacer size="md" />
           <Text style={styles.loadingText}>Đang tải...</Text>
         </View>
       ) : (
@@ -273,46 +282,48 @@ export default function FriendRequestsScreen({ onBack, onPressProfile }: FriendR
           }
         />
       )}
-    </SafeAreaView>
+    </SafeContainer>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: COLORS.background,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
-    backgroundColor: '#FFFFFF',
+    padding: SPACING.lg,
+    backgroundColor: COLORS.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E5EA',
+    borderBottomColor: COLORS.gray200,
+    ...SHADOWS.sm,
   },
   backButton: {
-    width: 40,
-    height: 40,
+    width: DIMENSIONS.buttonHeight - SPACING.sm,
+    height: DIMENSIONS.buttonHeight - SPACING.sm,
     justifyContent: 'center',
     alignItems: 'center',
   },
   title: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#000',
+    fontSize: FONT_SIZE.xl,
+    fontWeight: FONT_WEIGHT.bold,
+    color: COLORS.gray900,
   },
   listContent: {
-    padding: 16,
-    paddingBottom: 80,
+    padding: SPACING.lg,
+    paddingBottom: SPACING.huge * 2,
   },
   requestItem: {
     height: 140,
-    backgroundColor: '#FFFFFF',
-    marginBottom: 12,
-    borderRadius: 16,
+    backgroundColor: COLORS.surface,
+    marginBottom: SPACING.md,
+    borderRadius: RADIUS.lg,
     overflow: 'hidden',
     position: 'relative',
+    ...SHADOWS.md,
   },
   requestBackground: {
     width: '100%',
@@ -321,11 +332,11 @@ const styles = StyleSheet.create({
   },
   requestOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    backgroundColor: COLORS.overlay,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
+    padding: SPACING.lg,
   },
   requestInfo: {
     flexDirection: 'row',
@@ -333,46 +344,48 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   avatar: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    marginRight: 12,
+    width: DIMENSIONS.avatarXL - SPACING.sm,
+    height: DIMENSIONS.avatarXL - SPACING.sm,
+    borderRadius: (DIMENSIONS.avatarXL - SPACING.sm) / 2,
+    marginRight: SPACING.md,
     borderWidth: 2,
-    borderColor: '#FFF',
+    borderColor: COLORS.white,
   },
   requestDetails: {
     flex: 1,
   },
   requestName: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#FFF',
-    marginBottom: 4,
+    fontSize: FONT_SIZE.xl,
+    fontWeight: FONT_WEIGHT.bold,
+    color: COLORS.white,
+    marginBottom: SPACING.xs,
   },
   requestTime: {
-    fontSize: 12,
-    color: '#FFF',
+    fontSize: FONT_SIZE.sm,
+    color: COLORS.white,
     opacity: 0.8,
   },
   actionButtons: {
     flexDirection: 'row',
-    gap: 12,
+    gap: SPACING.md,
   },
   acceptButton: {
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: '#4CD964',
+    backgroundColor: COLORS.success,
     justifyContent: 'center',
     alignItems: 'center',
+    ...SHADOWS.sm,
   },
   rejectButton: {
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: '#FF3B30',
+    backgroundColor: COLORS.error,
     justifyContent: 'center',
     alignItems: 'center',
+    ...SHADOWS.sm,
   },
   loadingContainer: {
     flex: 1,
@@ -380,9 +393,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loadingText: {
-    marginTop: 12,
-    fontSize: 14,
-    color: '#666',
+    fontSize: FONT_SIZE.md,
+    color: COLORS.gray600,
   },
   emptyList: {
     flexGrow: 1,
@@ -391,20 +403,18 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 40,
+    padding: SPACING.xxxl + SPACING.sm,
     minHeight: 400,
   },
   emptyTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#000',
-    marginTop: 16,
-    marginBottom: 8,
+    fontSize: FONT_SIZE.xl,
+    fontWeight: FONT_WEIGHT.semibold,
+    color: COLORS.gray900,
   },
   emptyText: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: FONT_SIZE.md,
+    color: COLORS.gray600,
     textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: FONT_SIZE.md * 1.4,
   },
 });

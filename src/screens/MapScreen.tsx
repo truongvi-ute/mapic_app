@@ -7,7 +7,6 @@ import {
   Image,
   TouchableOpacity,
   Animated,
-  Dimensions,
   Platform,
   Switch,
   Alert,
@@ -19,6 +18,8 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SPACING, COLORS, FONT_SIZE, FONT_WEIGHT, RADIUS, SHADOWS, DIMENSIONS } from '../constants/design';
+import SafeContainer from '../components/ui/SafeContainer';
 import { useWebSocketStore } from '../store/useWebSocketStore';
 import { useAuthStore } from '../store/useAuthStore';
 import mapService, { FriendLocationResponse } from '../api/mapService';
@@ -39,7 +40,14 @@ interface OwnAvatarFriend extends Omit<MapFriend, 'userId'> {
 // Import vibrant map style
 const vibrantMapStyle = require('../../assets/map-style-dark.json');
 
-MapboxGL.setAccessToken(null);
+try { MapboxGL.setAccessToken(null); } catch (_) {}
+
+// Detect if MapLibreGL native module is available (not available in Expo Go)
+let isMapNativeAvailable = false;
+try {
+  const { NativeModules } = require('react-native');
+  isMapNativeAvailable = !!(NativeModules.MLRNModule || NativeModules.RNMBXModule || NativeModules.MapboxGL);
+} catch (_) {}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helper: resolve a correct absolute image URL from any avatarUrl format
@@ -606,10 +614,25 @@ export default function MapScreen({ focusLocation, onNavigateToNotifications }: 
 
   if (loading) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color="#4361EE" />
+      <SafeContainer style={styles.center}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
         <Text style={styles.loadingText}>Đang xác định vị trí…</Text>
-      </View>
+      </SafeContainer>
+    );
+  }
+
+  // Expo Go fallback - native map module not available
+  if (!isMapNativeAvailable) {
+    return (
+      <SafeContainer style={styles.center}>
+        <View style={{ alignItems: 'center', gap: 16, paddingHorizontal: 32 }}>
+          <Ionicons name="map-outline" size={64} color={COLORS.primary} />
+          <Text style={[styles.loadingText, { fontSize: 18, fontWeight: '700' }]}>Bản đồ không khả dụng</Text>
+          <Text style={[styles.loadingText, { fontSize: 13, opacity: 0.7, textAlign: 'center' }]}>
+            Chức năng bản đồ yêu cầu build native (npx expo run:android).{"\n"}Expo Go không hỗ trợ MapLibreGL.
+          </Text>
+        </View>
+      </SafeContainer>
     );
   }
 
@@ -621,33 +644,38 @@ export default function MapScreen({ focusLocation, onNavigateToNotifications }: 
   const onlineCount = Array.from(friends.values()).filter(f => f.isOnline).length;
 
   return (
-    <View style={styles.container}>
+    <SafeContainer style={styles.container}>
       <MapboxGL.MapView
         style={styles.map}
         mapStyle={vibrantMapStyle}
         logoEnabled={false}
-        onPress={() => { 
-          if (Date.now() - lastMarkerPress.current < 1500) {
-            console.log(`[MapPress] Blocked map reset due to recent marker interaction`);
-            return;
-          }
-          console.log(`[MapPress] Valid tap on map. Clearing selection.`);
-          isMapMoving.current = false;
-          if (selectedId) setSelectedId(null); 
+        onPress={(feature) => {
+          try {
+            if (Date.now() - lastMarkerPress.current < 1500) {
+              console.log(`[MapPress] Blocked map reset due to recent marker interaction`);
+              return;
+            }
+            console.log(`[MapPress] Valid tap on map. Clearing selection.`);
+            isMapMoving.current = false;
+            if (selectedId) setSelectedId(null);
+          } catch (_) {}
         }}
         onRegionWillChange={() => {
-          isMapMoving.current = true;
-          lastLockUpdateTime.current = Date.now();
+          try {
+            isMapMoving.current = true;
+            lastLockUpdateTime.current = Date.now();
+          } catch (_) {}
         }}
         onRegionDidChange={(feature) => {
-          if (feature.geometry && feature.geometry.type === 'Point') {
-            setLastCameraCenter(feature.geometry.coordinates);
-          }
-          
-          setTimeout(() => { 
-            isMapMoving.current = false; 
-            lastMoveEndTime.current = Date.now();
-          }, 300);
+          try {
+            if (feature?.geometry && feature.geometry.type === 'Point') {
+              setLastCameraCenter(feature.geometry.coordinates);
+            }
+            setTimeout(() => {
+              isMapMoving.current = false;
+              lastMoveEndTime.current = Date.now();
+            }, 300);
+          } catch (_) {}
         }}
       >
         <MapboxGL.Camera
@@ -839,7 +867,7 @@ export default function MapScreen({ focusLocation, onNavigateToNotifications }: 
           }}
         />
       )}
-    </View>
+    </SafeContainer>
   );
 }
 
@@ -848,8 +876,17 @@ export default function MapScreen({ focusLocation, onNavigateToNotifications }: 
 // ─────────────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#000', gap: 12 },
-  loadingText: { color: 'rgba(255,255,255,0.55)', fontSize: 14 },
+  center: { 
+    flex: 1, 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    backgroundColor: COLORS.black, 
+    gap: SPACING.md 
+  },
+  loadingText: { 
+    color: COLORS.gray400, 
+    fontSize: FONT_SIZE.md 
+  },
   map: { flex: 1 },
 
   // ── Own pin ──
@@ -865,7 +902,7 @@ const styles = StyleSheet.create({
     height: 75, 
     borderRadius: 37.5,
     borderWidth: 3,
-    borderColor: '#4361EE',
+    borderColor: COLORS.primary,
     backgroundColor: 'rgba(67,97,238,0.25)',
   },
   myPulseRing2: {
@@ -874,99 +911,138 @@ const styles = StyleSheet.create({
     height: 90, 
     borderRadius: 45,
     borderWidth: 2,
-    borderColor: '#4361EE',
+    borderColor: COLORS.primary,
     backgroundColor: 'rgba(67,97,238,0.12)',
   },
   myAvatarBorder: {
-    width: 58, 
-    height: 58, 
-    borderRadius: 29,
+    width: DIMENSIONS.avatarLG + 2, 
+    height: DIMENSIONS.avatarLG + 2, 
+    borderRadius: (DIMENSIONS.avatarLG + 2) / 2,
     borderWidth: 4, 
-    borderColor: '#4361EE',
+    borderColor: COLORS.primary,
     overflow: 'hidden', 
-    backgroundColor: '#1C1C2E',
-    elevation: 12,
+    backgroundColor: COLORS.gray800,
+    ...SHADOWS.lg,
   },
   myNameBubble: { 
     backgroundColor: 'rgba(67,97,238,0.95)', 
     flexDirection: 'row', 
     alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.xs,
     borderWidth: 1.5,
     borderColor: 'rgba(255,255,255,0.4)',
-    marginTop: 6,
+    marginTop: SPACING.xs,
+    borderRadius: RADIUS.sm,
   },
 
   // ── Friend pin ──
   pinWrapper: { alignItems: 'center' },
   avatarContainer: {
-    width: 66, height: 66,
-    justifyContent: 'center', alignItems: 'center',
+    width: 66, 
+    height: 66,
+    justifyContent: 'center', 
+    alignItems: 'center',
   },
   onlineRing: {
     position: 'absolute',
-    width: 66, height: 66, borderRadius: 33,
-    borderWidth: 2.5, borderColor: 'rgba(34,197,94,0.50)',
+    width: 66, 
+    height: 66, 
+    borderRadius: 33,
+    borderWidth: 2.5, 
+    borderColor: 'rgba(34,197,94,0.50)',
     backgroundColor: 'transparent',
   },
-  onlineRingSelected: { borderColor: '#22C55E' },
+  onlineRingSelected: { borderColor: COLORS.success },
   avatarBorder: {
-    width: 52, height: 52, borderRadius: 26,
-    borderWidth: 3, borderColor: '#FFF',
-    overflow: 'hidden', backgroundColor: '#1C1C2E',
-    elevation: 8,
+    width: DIMENSIONS.avatarLG, 
+    height: DIMENSIONS.avatarLG, 
+    borderRadius: DIMENSIONS.avatarLG / 2,
+    borderWidth: 3, 
+    borderColor: COLORS.white,
+    overflow: 'hidden', 
+    backgroundColor: COLORS.gray800,
+    ...SHADOWS.md,
   },
-  avatarBorderOffline: { borderColor: 'rgba(255,255,255,0.40)' },
-  avatarBorderSelected: { borderColor: '#22C55E' },
+  avatarBorderOffline: { borderColor: COLORS.gray400 },
+  avatarBorderSelected: { borderColor: COLORS.success },
 
   // ── Shared image / initials ──
-  avatarImg: { width: 52, height: 52 },
-  avatarInitials: {
-    flex: 1, justifyContent: 'center', alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.12)',
+  avatarImg: { 
+    width: DIMENSIONS.avatarLG, 
+    height: DIMENSIONS.avatarLG 
   },
-  initialsText: { color: '#FFF', fontSize: 18, fontWeight: '700' },
+  avatarInitials: {
+    flex: 1, 
+    justifyContent: 'center', 
+    alignItems: 'center',
+    backgroundColor: COLORS.gray700,
+  },
+  initialsText: { 
+    color: COLORS.white, 
+    fontSize: FONT_SIZE.lg, 
+    fontWeight: FONT_WEIGHT.bold 
+  },
 
   // ── Status dot ──
   statusDot: {
-    position: 'absolute', bottom: 6, right: 6,
-    width: 14, height: 14, borderRadius: 7,
-    borderWidth: 2.5, borderColor: '#FFF',
-    elevation: 9,
+    position: 'absolute', 
+    bottom: 6, 
+    right: 6,
+    width: 14, 
+    height: 14, 
+    borderRadius: 7,
+    borderWidth: 2.5, 
+    borderColor: COLORS.white,
+    ...SHADOWS.sm,
   },
 
   // ── Name bubble ──
   nameBubble: {
-    marginTop: 5,
+    marginTop: SPACING.xs,
     backgroundColor: 'rgba(0,0,0,0.72)',
-    paddingHorizontal: 8, paddingVertical: 3,
-    borderRadius: 10, maxWidth: 110,
+    paddingHorizontal: SPACING.sm, 
+    paddingVertical: SPACING.xs,
+    borderRadius: RADIUS.sm, 
+    maxWidth: 110,
   },
-  nameLabel: { color: '#FFF', fontSize: 11, fontWeight: '600', textAlign: 'center' },
+  nameLabel: { 
+    color: COLORS.white, 
+    fontSize: FONT_SIZE.xs, 
+    fontWeight: FONT_WEIGHT.semibold, 
+    textAlign: 'center' 
+  },
 
   // ── Badge ──
   badge: {
     position: 'absolute',
-    left: 16,
-    flexDirection: 'row', alignItems: 'center', gap: 6,
+    left: SPACING.lg,
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    gap: SPACING.xs,
     backgroundColor: 'rgba(67,97,238,0.92)',
-    paddingHorizontal: 12, paddingVertical: 7,
-    borderRadius: 22, elevation: 6,
+    paddingHorizontal: SPACING.md, 
+    paddingVertical: SPACING.sm,
+    borderRadius: RADIUS.round, 
+    ...SHADOWS.md,
   },
-  badgeText: { color: '#FFF', fontSize: 12, fontWeight: '700' },
+  badgeText: { 
+    color: COLORS.white, 
+    fontSize: FONT_SIZE.sm, 
+    fontWeight: FONT_WEIGHT.bold 
+  },
 
   // ── Notification Bell ──
   notificationBtn: {
     position: 'absolute',
-    right: 16,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    right: SPACING.lg,
+    width: DIMENSIONS.buttonHeight - 8,
+    height: DIMENSIONS.buttonHeight - 8,
+    borderRadius: (DIMENSIONS.buttonHeight - 8) / 2,
     backgroundColor: 'rgba(0,0,0,0.60)',
     justifyContent: 'center',
     alignItems: 'center',
-    elevation: 6,
+    ...SHADOWS.md,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.15)',
   },
@@ -977,108 +1053,169 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -6,
     right: -8,
-    backgroundColor: '#EF4444',
-    borderRadius: 10,
+    backgroundColor: COLORS.error,
+    borderRadius: RADIUS.sm,
     minWidth: 18,
     height: 18,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 4,
+    paddingHorizontal: SPACING.xs,
     borderWidth: 2,
-    borderColor: '#000',
+    borderColor: COLORS.black,
   },
   notificationBadgeText: {
-    color: '#FFF',
-    fontSize: 10,
-    fontWeight: '700',
+    color: COLORS.white,
+    fontSize: FONT_SIZE.xs,
+    fontWeight: FONT_WEIGHT.bold,
   },
 
   // ── Sharing FAB ──
   fab: {
     position: 'absolute',
-    right: 20,
-    width: 56, height: 56, borderRadius: 28,
-    justifyContent: 'center', alignItems: 'center',
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
+    right: SPACING.xl,
+    width: DIMENSIONS.avatarLG, 
+    height: DIMENSIONS.avatarLG, 
+    borderRadius: DIMENSIONS.avatarLG / 2,
+    justifyContent: 'center', 
+    alignItems: 'center',
+    ...SHADOWS.lg,
   },
-  fabOn: { backgroundColor: '#22C55E' },
-  fabOff: { backgroundColor: 'rgba(107,114,128,0.90)' },
+  fabOn: { backgroundColor: COLORS.success },
+  fabOff: { backgroundColor: COLORS.gray500 },
 
   // ── My Location Button ──
   myLocationBtn: {
     position: 'absolute',
-    right: 20,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#FFF',
+    right: SPACING.xl,
+    width: DIMENSIONS.avatarLG,
+    height: DIMENSIONS.avatarLG,
+    borderRadius: DIMENSIONS.avatarLG / 2,
+    backgroundColor: COLORS.white,
     justifyContent: 'center',
     alignItems: 'center',
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
+    ...SHADOWS.lg,
     borderWidth: 1,
     borderColor: 'rgba(67,97,238,0.15)',
   },
 
   sharingPanel: {
     position: 'absolute',
-    left: 20, right: 20,
-    borderRadius: 20, overflow: 'hidden',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)',
-    elevation: 10,
+    left: SPACING.xl, 
+    right: SPACING.xl,
+    borderRadius: RADIUS.xl, 
+    overflow: 'hidden',
+    borderWidth: 1, 
+    borderColor: 'rgba(255,255,255,0.15)',
+    ...SHADOWS.xl,
   },
   sharingBlur: {
-    padding: 16,
+    padding: SPACING.lg,
     backgroundColor: Platform.OS === 'android' ? 'rgba(15,15,25,0.93)' : 'transparent',
   },
-  sharingRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  sharingIconBox: { width: 42, height: 42, borderRadius: 13, justifyContent: 'center', alignItems: 'center' },
-  sharingTitle: { color: '#FFF', fontSize: 15, fontWeight: '700', marginBottom: 2 },
-  sharingSubtitle: { color: 'rgba(255,255,255,0.50)', fontSize: 12 },
+  sharingRow: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    gap: SPACING.md 
+  },
+  sharingIconBox: { 
+    width: 42, 
+    height: 42, 
+    borderRadius: RADIUS.md, 
+    justifyContent: 'center', 
+    alignItems: 'center' 
+  },
+  sharingTitle: { 
+    color: COLORS.white, 
+    fontSize: FONT_SIZE.md, 
+    fontWeight: FONT_WEIGHT.bold, 
+    marginBottom: 2 
+  },
+  sharingSubtitle: { 
+    color: COLORS.gray400, 
+    fontSize: FONT_SIZE.sm 
+  },
 
   // ── Detail card ──
   detailCard: {
     position: 'absolute',
     bottom: 80,
-    left: 20,
-    right: 20,
-    borderRadius: 24, overflow: 'hidden',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)',
-    elevation: 12,
+    left: SPACING.xl,
+    right: SPACING.xl,
+    borderRadius: RADIUS.xxl, 
+    overflow: 'hidden',
+    borderWidth: 1, 
+    borderColor: 'rgba(255,255,255,0.15)',
+    ...SHADOWS.xl,
   },
   detailBlur: {
-    padding: 16,
+    padding: SPACING.lg,
     backgroundColor: Platform.OS === 'android' ? 'rgba(18,18,30,0.93)' : 'transparent',
   },
-  detailRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  detailAvatarBorder: {
-    width: 60, height: 60, borderRadius: 30,
-    borderWidth: 2.5, borderColor: '#4361EE',
-    overflow: 'hidden', backgroundColor: '#1C1C2E',
+  detailRow: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    gap: SPACING.md 
   },
-  detailInfo: { flex: 1, gap: 3 },
-  detailName: { color: '#FFF', fontSize: 16, fontWeight: '700' },
-  detailUsername: { color: 'rgba(255,255,255,0.50)', fontSize: 13 },
-  coordRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
-  coordText: { color: 'rgba(255,255,255,0.40)', fontSize: 11 },
+  detailAvatarBorder: {
+    width: 60, 
+    height: 60, 
+    borderRadius: 30,
+    borderWidth: 2.5, 
+    borderColor: COLORS.primary,
+    overflow: 'hidden', 
+    backgroundColor: COLORS.gray800,
+  },
+  detailInfo: { 
+    flex: 1, 
+    gap: SPACING.xs 
+  },
+  detailName: { 
+    color: COLORS.white, 
+    fontSize: FONT_SIZE.lg, 
+    fontWeight: FONT_WEIGHT.bold 
+  },
+  detailUsername: { 
+    color: COLORS.gray400, 
+    fontSize: FONT_SIZE.sm 
+  },
+  coordRow: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    gap: SPACING.xs, 
+    marginTop: 2 
+  },
+  coordText: { 
+    color: COLORS.gray500, 
+    fontSize: FONT_SIZE.xs 
+  },
   closeBtn: {
-    width: 32, height: 32, borderRadius: 16,
+    width: 32, 
+    height: 32, 
+    borderRadius: RADIUS.lg,
     backgroundColor: 'rgba(255,255,255,0.10)',
-    justifyContent: 'center', alignItems: 'center',
+    justifyContent: 'center', 
+    alignItems: 'center',
   },
   statusRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    marginTop: 12, paddingTop: 12,
-    borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.10)',
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    gap: SPACING.xs,
+    marginTop: SPACING.md, 
+    paddingTop: SPACING.md,
+    borderTopWidth: 1, 
+    borderTopColor: 'rgba(255,255,255,0.10)',
   },
-  statusDotSmall: { width: 8, height: 8, borderRadius: 4 },
-  statusText: { color: 'rgba(255,255,255,0.55)', fontSize: 12 },
-  statusTime: { color: 'rgba(255,255,255,0.35)', fontSize: 12 },
+  statusDotSmall: { 
+    width: 8, 
+    height: 8, 
+    borderRadius: 4 
+  },
+  statusText: { 
+    color: COLORS.gray400, 
+    fontSize: FONT_SIZE.sm 
+  },
+  statusTime: { 
+    color: COLORS.gray500, 
+    fontSize: FONT_SIZE.sm 
+  },
 });

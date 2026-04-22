@@ -14,7 +14,14 @@ import { Ionicons } from '@expo/vector-icons';
 import MapLibreGL from '@maplibre/maplibre-react-native';
 import { getApiUrl, getBaseUrl, buildMomentImageUrl } from '../config/api';
 
-MapLibreGL.setAccessToken(null);
+try { MapLibreGL.setAccessToken(null); } catch (_) {}
+
+// Detect if MapLibreGL native module is available
+let isMapNativeAvailable = false;
+try {
+  const { NativeModules } = require('react-native');
+  isMapNativeAvailable = !!(NativeModules.MLRNModule || NativeModules.RNMBXModule || NativeModules.MapboxGL);
+} catch (_) {}
 
 const defaultMapStyle = JSON.stringify({
   version: 8,
@@ -112,6 +119,35 @@ export default function MomentMapScreen({
       });
     }
   };
+
+  // Fallback when MapLibreGL native module is not available (Expo Go)
+  if (!isMapNativeAvailable) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: '#1a1a2e', justifyContent: 'center', alignItems: 'center' }]}>
+        <StatusBar barStyle="light-content" />
+        <Ionicons name="map-outline" size={64} color="#4361EE" />
+        <Text style={{ color: '#FFF', fontSize: 18, fontWeight: '700', marginTop: 16, textAlign: 'center' }}>
+          {addressName || provinceName || 'Vị trí không xác định'}
+        </Text>
+        <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13, marginTop: 8, textAlign: 'center' }}>
+          Bản đồ không khả dụng trong Expo Go
+        </Text>
+        <TouchableOpacity
+          style={{ marginTop: 24, backgroundColor: '#4361EE', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 20, flexDirection: 'row', gap: 8, alignItems: 'center' }}
+          onPress={handleDirections}
+        >
+          <Ionicons name="navigate-outline" size={18} color="#FFF" />
+          <Text style={{ color: '#FFF', fontWeight: '700' }}>Mở Google Maps</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={{ marginTop: 16, padding: 12 }}
+          onPress={onBack}
+        >
+          <Text style={{ color: 'rgba(255,255,255,0.6)' }}>Quay lại</Text>
+        </TouchableOpacity>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <View style={styles.container}>

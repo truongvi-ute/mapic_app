@@ -438,6 +438,13 @@ export default function MomentCard({
         </View>
       )}
 
+      {/* Caption Section */}
+      {moment.content && (
+        <View style={styles.captionSection}>
+          <Text style={styles.captionText}>{moment.content}</Text>
+        </View>
+      )}
+
       <ShareTargetModal
         visible={shareModalVisible}
         onClose={() => setShareModalVisible(false)}
@@ -635,5 +642,16 @@ const styles = StyleSheet.create({
   indicatorDotActive: {
     backgroundColor: '#fff',
     width: 20,
+  },
+
+  // Caption Section
+  captionSection: {
+    padding: 16,
+    paddingTop: 12,
+  },
+  captionText: {
+    fontSize: 15,
+    lineHeight: 20,
+    color: '#1C1C1E',
   },
 });

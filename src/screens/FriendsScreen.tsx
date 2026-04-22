@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   StatusBar,
-  SafeAreaView,
   FlatList,
   ActivityIndicator,
   RefreshControl,
@@ -13,6 +12,10 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
+import { SPACING, COLORS, LIGHT_COLORS, DARK_COLORS, FONT_SIZE, FONT_WEIGHT, RADIUS, SHADOWS, DIMENSIONS } from '../constants/design';
+import { useThemeStore } from '../store/useThemeStore';
+import SafeContainer from '../components/ui/SafeContainer';
+import Spacer from '../components/ui/Spacer';
 import { useAuthStore } from '../store/useAuthStore';
 import { useAlert } from '../context/AlertContext';
 import chatService from '../api/chatService';
@@ -37,6 +40,9 @@ interface FriendsScreenProps {
 export default function FriendsScreen({ onPressProfile, onOpenChat }: FriendsScreenProps) {
   const token = useAuthStore((state) => state.token);
   const { showAlert } = useAlert();
+  const { mode } = useThemeStore();
+  const isDark = mode === 'dark';
+  const C = isDark ? DARK_COLORS : LIGHT_COLORS;
   
   const [friends, setFriends] = useState<Friend[]>([]);
   const [filteredFriends, setFilteredFriends] = useState<Friend[]>([]);
@@ -233,7 +239,7 @@ export default function FriendsScreen({ onPressProfile, onOpenChat }: FriendsScr
               ]);
             }}
           >
-            <Ionicons name="ellipsis-horizontal" size={24} color="#FFF" />
+            <Ionicons name="ellipsis-horizontal" size={DIMENSIONS.iconLG} color={COLORS.white} />
           </TouchableOpacity>
         </View>
       </TouchableOpacity>
@@ -260,16 +266,19 @@ export default function FriendsScreen({ onPressProfile, onOpenChat }: FriendsScr
 
     return (
       <View style={styles.emptyContainer}>
-        <Ionicons name="people-outline" size={64} color="#CCC" />
+        <Ionicons name="people-outline" size={64} color={COLORS.gray300} />
+        <Spacer size="lg" />
         <Text style={styles.emptyTitle}>Chưa có bạn bè</Text>
+        <Spacer size="sm" />
         <Text style={styles.emptyText}>
           Hãy bắt đầu kết nối với mọi người!
         </Text>
+        <Spacer size="xxl" />
         <TouchableOpacity
           style={styles.addFriendButton}
           onPress={() => setShowAddFriend(true)}
         >
-          <Ionicons name="person-add" size={20} color="#FFF" />
+          <Ionicons name="person-add" size={DIMENSIONS.iconSM} color={COLORS.white} />
           <Text style={styles.addFriendButtonText}>Thêm bạn bè</Text>
         </TouchableOpacity>
       </View>
@@ -293,11 +302,11 @@ export default function FriendsScreen({ onPressProfile, onOpenChat }: FriendsScr
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" />
+    <SafeContainer style={[styles.container, { backgroundColor: C.background }]}>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
       
-      <View style={styles.header}>
-        <Text style={styles.title}>Bạn bè</Text>
+      <View style={[styles.header, { backgroundColor: C.surface, borderBottomColor: C.border }]}>
+        <Text style={[styles.title, { color: C.textPrimary }]}>Bạn bè</Text>
         <View style={styles.headerButtons}>
           <TouchableOpacity
             style={styles.requestButton}
@@ -327,28 +336,29 @@ export default function FriendsScreen({ onPressProfile, onOpenChat }: FriendsScr
         </View>
       </View>
 
-      <View style={styles.searchContainer}>
+      <View style={[styles.searchContainer, { backgroundColor: C.surface, borderColor: C.border }]}>
         <Image
           source={require('../assets/images/search.png')}
           style={styles.searchIcon}
         />
         <TextInput
-          style={styles.searchInput}
+          style={[styles.searchInput, { color: C.textPrimary }]}
           placeholder="Tìm kiếm bạn bè..."
           value={searchQuery}
           onChangeText={setSearchQuery}
-          placeholderTextColor="#999"
+          placeholderTextColor={C.textTertiary}
         />
         {searchQuery.length > 0 && (
           <TouchableOpacity onPress={() => setSearchQuery('')}>
-            <Ionicons name="close-circle" size={20} color="#999" />
+            <Ionicons name="close-circle" size={DIMENSIONS.iconSM} color={COLORS.gray400} />
           </TouchableOpacity>
         )}
       </View>
 
       {loading && friends.length === 0 ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#007AFF" />
+          <ActivityIndicator size="large" color={COLORS.primary} />
+          <Spacer size="md" />
           <Text style={styles.loadingText}>Đang tải...</Text>
         </View>
       ) : (
@@ -365,23 +375,23 @@ export default function FriendsScreen({ onPressProfile, onOpenChat }: FriendsScr
           }
         />
       )}
-    </SafeAreaView>
+    </SafeContainer>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: COLORS.background,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
-    backgroundColor: '#FFFFFF',
+    padding: SPACING.lg,
+    backgroundColor: COLORS.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E5EA',
+    borderBottomColor: COLORS.gray200,
   },
   backButton: {
     width: 40,
@@ -390,17 +400,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   title: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#000',
+    fontSize: FONT_SIZE.xl,
+    fontWeight: FONT_WEIGHT.bold,
+    color: COLORS.gray900,
   },
   headerButtons: {
     flexDirection: 'row',
-    gap: 8,
+    gap: SPACING.sm,
   },
   headerIcon: {
-    width: 24,
-    height: 24,
+    width: DIMENSIONS.iconLG,
+    height: DIMENSIONS.iconLG,
   },
   requestButton: {
     width: 40,
@@ -413,18 +423,18 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 0,
     right: 0,
-    backgroundColor: '#FF3B30',
-    borderRadius: 10,
+    backgroundColor: COLORS.error,
+    borderRadius: RADIUS.sm,
     minWidth: 20,
     height: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 4,
+    paddingHorizontal: SPACING.xs,
   },
   badgeText: {
-    color: '#FFF',
-    fontSize: 11,
-    fontWeight: 'bold',
+    color: COLORS.white,
+    fontSize: FONT_SIZE.xs,
+    fontWeight: FONT_WEIGHT.bold,
   },
   addButton: {
     width: 40,
@@ -435,35 +445,36 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    margin: 16,
-    paddingHorizontal: 12,
-    borderRadius: 10,
+    backgroundColor: COLORS.surface,
+    margin: SPACING.lg,
+    paddingHorizontal: SPACING.md,
+    borderRadius: RADIUS.sm,
     borderWidth: 1,
-    borderColor: '#E5E5EA',
+    borderColor: COLORS.gray200,
   },
   searchIcon: {
-    width: 20,
-    height: 20,
-    marginRight: 8,
+    width: DIMENSIONS.iconSM,
+    height: DIMENSIONS.iconSM,
+    marginRight: SPACING.sm,
   },
   searchInput: {
     flex: 1,
-    height: 44,
-    fontSize: 16,
-    color: '#000',
+    height: DIMENSIONS.inputHeight,
+    fontSize: FONT_SIZE.lg,
+    color: COLORS.gray900,
   },
   listContent: {
     paddingBottom: 80,
   },
   friendItem: {
     height: 120,
-    backgroundColor: '#FFFFFF',
-    marginHorizontal: 16,
-    marginBottom: 12,
-    borderRadius: 16,
+    backgroundColor: COLORS.surface,
+    marginHorizontal: SPACING.lg,
+    marginBottom: SPACING.md,
+    borderRadius: RADIUS.lg,
     overflow: 'hidden',
     position: 'relative',
+    ...SHADOWS.md,
   },
   friendBackground: {
     width: '100%',
@@ -476,7 +487,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
+    padding: SPACING.lg,
   },
   friendInfo: {
     flexDirection: 'row',
@@ -487,17 +498,17 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    marginRight: 12,
+    marginRight: SPACING.md,
     borderWidth: 2,
-    borderColor: '#FFF',
+    borderColor: COLORS.white,
   },
   friendDetails: {
     flex: 1,
   },
   friendName: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#FFF',
+    fontSize: FONT_SIZE.xl,
+    fontWeight: FONT_WEIGHT.bold,
+    color: COLORS.white,
   },
   menuButton: {
     width: 40,
@@ -511,9 +522,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loadingText: {
-    marginTop: 12,
-    fontSize: 14,
-    color: '#666',
+    fontSize: FONT_SIZE.md,
+    color: COLORS.gray600,
   },
   emptyList: {
     flexGrow: 1,
@@ -522,7 +532,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 40,
+    padding: SPACING.huge,
     minHeight: 400,
   },
   emptyIcon: {
@@ -530,31 +540,28 @@ const styles = StyleSheet.create({
     height: 64,
   },
   emptyTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#000',
-    marginTop: 16,
-    marginBottom: 8,
+    fontSize: FONT_SIZE.xl,
+    fontWeight: FONT_WEIGHT.semibold,
+    color: COLORS.gray900,
   },
   emptyText: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: FONT_SIZE.md,
+    color: COLORS.gray600,
     textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: 24,
+    lineHeight: FONT_SIZE.md * 1.4,
   },
   addFriendButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#007AFF',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 24,
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: SPACING.xxl,
+    paddingVertical: SPACING.md,
+    borderRadius: RADIUS.round,
+    gap: SPACING.sm,
   },
   addFriendButtonText: {
-    color: '#FFF',
-    fontSize: 16,
-    fontWeight: '600',
-    marginLeft: 8,
+    color: COLORS.white,
+    fontSize: FONT_SIZE.lg,
+    fontWeight: FONT_WEIGHT.semibold,
   },
 });

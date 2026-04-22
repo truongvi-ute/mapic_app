@@ -8,12 +8,17 @@ import {
   StatusBar,
   Platform,
   ActivityIndicator,
+  Switch,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
+import { SPACING, COLORS, LIGHT_COLORS, DARK_COLORS, FONT_SIZE, FONT_WEIGHT, RADIUS, SHADOWS, DIMENSIONS } from '../constants/design';
+import SafeContainer from '../components/ui/SafeContainer';
+import Spacer from '../components/ui/Spacer';
 import { useAuthStore } from '../store/useAuthStore';
 import { useAlert } from '../context/AlertContext';
+import { useThemeStore } from '../store/useThemeStore';
 import authService from '../api/authService';
 import userService from '../api/userService';
 import { getApiUrl } from '../config/api';
@@ -29,6 +34,9 @@ export default function SettingsScreen({ onBack, onNavigateToEditProfile, onNavi
   const setUser = useAuthStore((state) => state.setUser);
   const logoutStore = useAuthStore((state) => state.logout);
   const { showAlert } = useAlert();
+  const { mode, toggleTheme } = useThemeStore();
+  const isDark = mode === 'dark';
+  const C = isDark ? DARK_COLORS : LIGHT_COLORS;
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
 
@@ -246,13 +254,13 @@ export default function SettingsScreen({ onBack, onNavigateToEditProfile, onNavi
   };
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#007AFF" />
+    <SafeContainer style={[styles.container, { backgroundColor: C.background }]}>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={C.primary} />
       
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: C.primary }]}>
         <TouchableOpacity onPress={onBack} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#fff" />
+          <Ionicons name="arrow-back" size={DIMENSIONS.iconLG} color={COLORS.white} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Cài đặt</Text>
         <View style={styles.placeholder} />
@@ -268,15 +276,15 @@ export default function SettingsScreen({ onBack, onNavigateToEditProfile, onNavi
             onPress={handleEditProfile}
           >
             <View style={styles.menuItemLeft}>
-              <View style={[styles.iconContainer, { backgroundColor: '#e3f2fd' }]}>
-                <Ionicons name="create-outline" size={22} color="#007AFF" />
+              <View style={[styles.iconContainer, { backgroundColor: COLORS.gray100 }]}>
+                <Ionicons name="create-outline" size={DIMENSIONS.iconMD} color={COLORS.primary} />
               </View>
               <View style={styles.menuItemContent}>
                 <Text style={styles.menuItemText}>Chỉnh sửa thông tin</Text>
                 <Text style={styles.menuItemDescription}>Cập nhật tên, bio, ngày sinh</Text>
               </View>
             </View>
-            <Ionicons name="chevron-forward" size={20} color="#999" />
+            <Ionicons name="chevron-forward" size={DIMENSIONS.iconSM} color={COLORS.gray400} />
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -285,8 +293,8 @@ export default function SettingsScreen({ onBack, onNavigateToEditProfile, onNavi
             disabled={uploading}
           >
             <View style={styles.menuItemLeft}>
-              <View style={[styles.iconContainer, { backgroundColor: '#f3e5f5' }]}>
-                <Ionicons name="image-outline" size={22} color="#9c27b0" />
+              <View style={[styles.iconContainer, { backgroundColor: COLORS.gray100 }]}>
+                <Ionicons name="image-outline" size={DIMENSIONS.iconMD} color={COLORS.info} />
               </View>
               <View style={styles.menuItemContent}>
                 <Text style={styles.menuItemText}>Đổi ảnh đại diện & bìa</Text>
@@ -294,9 +302,9 @@ export default function SettingsScreen({ onBack, onNavigateToEditProfile, onNavi
               </View>
             </View>
             {uploading ? (
-              <ActivityIndicator size="small" color="#007AFF" />
+              <ActivityIndicator size="small" color={COLORS.primary} />
             ) : (
-              <Ionicons name="chevron-forward" size={20} color="#999" />
+              <Ionicons name="chevron-forward" size={DIMENSIONS.iconSM} color={COLORS.gray400} />
             )}
           </TouchableOpacity>
 
@@ -306,15 +314,15 @@ export default function SettingsScreen({ onBack, onNavigateToEditProfile, onNavi
             disabled={loading}
           >
             <View style={styles.menuItemLeft}>
-              <View style={[styles.iconContainer, { backgroundColor: '#fff3e0' }]}>
-                <Ionicons name="lock-closed-outline" size={22} color="#ff9800" />
+              <View style={[styles.iconContainer, { backgroundColor: COLORS.gray100 }]}>
+                <Ionicons name="lock-closed-outline" size={DIMENSIONS.iconMD} color={COLORS.warning} />
               </View>
               <View style={styles.menuItemContent}>
                 <Text style={styles.menuItemText}>Đổi mật khẩu</Text>
                 <Text style={styles.menuItemDescription}>Thay đổi mật khẩu đăng nhập</Text>
               </View>
             </View>
-            <Ionicons name="chevron-forward" size={20} color="#999" />
+            <Ionicons name="chevron-forward" size={DIMENSIONS.iconSM} color={COLORS.gray400} />
           </TouchableOpacity>
         </View>
 
@@ -327,16 +335,42 @@ export default function SettingsScreen({ onBack, onNavigateToEditProfile, onNavi
             onPress={() => showAlert('Thông báo', 'Tính năng đang phát triển')}
           >
             <View style={styles.menuItemLeft}>
-              <View style={[styles.iconContainer, { backgroundColor: '#fce4ec' }]}>
-                <Ionicons name="notifications-outline" size={22} color="#e91e63" />
+              <View style={[styles.iconContainer, { backgroundColor: COLORS.gray100 }]}>
+                <Ionicons name="notifications-outline" size={DIMENSIONS.iconMD} color={COLORS.error} />
               </View>
               <View style={styles.menuItemContent}>
                 <Text style={styles.menuItemText}>Thông báo</Text>
                 <Text style={styles.menuItemDescription}>Quản lý thông báo push</Text>
               </View>
             </View>
-            <Ionicons name="chevron-forward" size={20} color="#999" />
+            <Ionicons name="chevron-forward" size={DIMENSIONS.iconSM} color={COLORS.gray400} />
           </TouchableOpacity>
+        </View>
+
+        {/* Appearance Section */}
+        <View style={[styles.section, { backgroundColor: C.surface }]}>
+          <Text style={[styles.sectionTitle, { color: C.textTertiary }]}>Giao diện</Text>
+
+          <View style={[styles.menuItem, { backgroundColor: C.surface }]}>
+            <View style={styles.menuItemLeft}>
+              <View style={[styles.iconContainer, { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#F3F4F6' }]}>
+                <Text style={{ fontSize: 20 }}>{isDark ? '🌙' : '☀️'}</Text>
+              </View>
+              <View style={styles.menuItemContent}>
+                <Text style={[styles.menuItemText, { color: C.textPrimary }]}>Chế độ tối</Text>
+                <Text style={[styles.menuItemDescription, { color: C.textTertiary }]}>
+                  {isDark ? 'Đang bật — nhấn để chuyển sáng' : 'Đang tắt — nhấn để chuyển tối'}
+                </Text>
+              </View>
+            </View>
+            <Switch
+              value={isDark}
+              onValueChange={toggleTheme}
+              trackColor={{ false: '#D1D5DB', true: '#4361EE' }}
+              thumbColor={isDark ? '#FFF' : '#FFF'}
+              ios_backgroundColor="#D1D5DB"
+            />
+          </View>
         </View>
 
         {/* About Section */}
@@ -348,15 +382,15 @@ export default function SettingsScreen({ onBack, onNavigateToEditProfile, onNavi
             onPress={() => showAlert('MAPIC', 'Version 1.0.0\n\nỨng dụng mạng xã hội dựa trên vị trí')}
           >
             <View style={styles.menuItemLeft}>
-              <View style={[styles.iconContainer, { backgroundColor: '#e0f2f1' }]}>
-                <Ionicons name="information-circle-outline" size={22} color="#009688" />
+              <View style={[styles.iconContainer, { backgroundColor: COLORS.gray100 }]}>
+                <Ionicons name="information-circle-outline" size={DIMENSIONS.iconMD} color={COLORS.success} />
               </View>
               <View style={styles.menuItemContent}>
                 <Text style={styles.menuItemText}>Thông tin ứng dụng</Text>
                 <Text style={styles.menuItemDescription}>Version 1.0.0</Text>
               </View>
             </View>
-            <Ionicons name="chevron-forward" size={20} color="#999" />
+            <Ionicons name="chevron-forward" size={DIMENSIONS.iconSM} color={COLORS.gray400} />
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -364,15 +398,15 @@ export default function SettingsScreen({ onBack, onNavigateToEditProfile, onNavi
             onPress={() => showAlert('Thông báo', 'Tính năng đang phát triển')}
           >
             <View style={styles.menuItemLeft}>
-              <View style={[styles.iconContainer, { backgroundColor: '#fff9c4' }]}>
-                <Ionicons name="help-circle-outline" size={22} color="#fbc02d" />
+              <View style={[styles.iconContainer, { backgroundColor: COLORS.gray100 }]}>
+                <Ionicons name="help-circle-outline" size={DIMENSIONS.iconMD} color={COLORS.warning} />
               </View>
               <View style={styles.menuItemContent}>
                 <Text style={styles.menuItemText}>Trợ giúp & Hỗ trợ</Text>
                 <Text style={styles.menuItemDescription}>Câu hỏi thường gặp, liên hệ</Text>
               </View>
             </View>
-            <Ionicons name="chevron-forward" size={20} color="#999" />
+            <Ionicons name="chevron-forward" size={DIMENSIONS.iconSM} color={COLORS.gray400} />
           </TouchableOpacity>
         </View>
 
@@ -381,38 +415,34 @@ export default function SettingsScreen({ onBack, onNavigateToEditProfile, onNavi
           style={styles.logoutButton}
           onPress={handleLogout}
         >
-          <Ionicons name="log-out-outline" size={24} color="#f44336" />
+          <Ionicons name="log-out-outline" size={DIMENSIONS.iconLG} color={COLORS.error} />
           <Text style={styles.logoutText}>Đăng xuất</Text>
         </TouchableOpacity>
 
-        {/* Spacer */}
-        <View style={styles.spacer} />
+        <Spacer size="xxxl" />
       </ScrollView>
-    </View>
+    </SafeContainer>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#007AFF',
-    paddingTop: 50,
-    paddingBottom: 16,
-    paddingHorizontal: 16,
+    paddingBottom: SPACING.lg,
+    paddingHorizontal: SPACING.lg,
   },
   backButton: {
-    padding: 8,
+    padding: SPACING.sm,
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#fff',
+    fontSize: FONT_SIZE.xl,
+    fontWeight: FONT_WEIGHT.bold,
+    color: COLORS.white,
   },
   placeholder: {
     width: 40,
@@ -421,37 +451,37 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   section: {
-    backgroundColor: '#fff',
-    marginTop: 16,
-    paddingVertical: 8,
+    backgroundColor: COLORS.surface,
+    marginTop: SPACING.lg,
+    paddingVertical: SPACING.sm,
   },
   sectionTitle: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#999',
+    fontSize: FONT_SIZE.sm,
+    fontWeight: FONT_WEIGHT.semibold,
+    color: COLORS.gray500,
     textTransform: 'uppercase',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
     letterSpacing: 0.5,
   },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    backgroundColor: '#fff',
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
+    backgroundColor: COLORS.surface,
   },
   menuItemLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
-    gap: 12,
+    gap: SPACING.md,
   },
   iconContainer: {
     width: 40,
     height: 40,
-    borderRadius: 20,
+    borderRadius: RADIUS.xl,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -459,35 +489,32 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   menuItemText: {
-    fontSize: 16,
-    color: '#333',
-    fontWeight: '500',
+    fontSize: FONT_SIZE.lg,
+    color: COLORS.gray800,
+    fontWeight: FONT_WEIGHT.medium,
     marginBottom: 2,
   },
   menuItemDescription: {
-    fontSize: 13,
-    color: '#999',
+    fontSize: FONT_SIZE.sm,
+    color: COLORS.gray500,
   },
   logoutButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#fff',
-    marginHorizontal: 16,
-    marginTop: 24,
-    paddingVertical: 16,
-    borderRadius: 12,
-    gap: 8,
+    backgroundColor: COLORS.surface,
+    marginHorizontal: SPACING.lg,
+    marginTop: SPACING.xxl,
+    paddingVertical: SPACING.lg,
+    borderRadius: RADIUS.md,
+    gap: SPACING.sm,
     borderWidth: 1,
-    borderColor: '#f44336',
+    borderColor: COLORS.error,
   },
   logoutText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#f44336',
-  },
-  spacer: {
-    height: 32,
+    fontSize: FONT_SIZE.lg,
+    fontWeight: FONT_WEIGHT.semibold,
+    color: COLORS.error,
   },
 });
 

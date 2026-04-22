@@ -5,13 +5,16 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  SafeAreaView,
   ActivityIndicator,
   Modal,
   TextInput,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
+import { SPACING, COLORS, LIGHT_COLORS, DARK_COLORS, FONT_SIZE, FONT_WEIGHT, RADIUS, SHADOWS, DIMENSIONS } from '../constants/design';
+import { useThemeStore } from '../store/useThemeStore';
+import SafeContainer from '../components/ui/SafeContainer';
+import Spacer from '../components/ui/Spacer';
 import { useAuthStore } from '../store/useAuthStore';
 import { useAlert } from '../context/AlertContext';
 import chatService, { ConversationDto } from '../api/chatService';
@@ -44,6 +47,9 @@ export default function ChatsListScreen({ onBack, onOpenChat, refreshTrigger, in
   const token = useAuthStore((s) => s.token) || '';
   const currentUser = useAuthStore((s) => s.user);
   const { showAlert } = useAlert();
+  const { mode } = useThemeStore();
+  const isDark = mode === 'dark';
+  const C = isDark ? DARK_COLORS : LIGHT_COLORS;
 
   const [tab, setTab] = useState<Tab>(initialTab || 'direct');
   const { conversations, setConversations } = useChatStore();
@@ -257,7 +263,7 @@ export default function ChatsListScreen({ onBack, onOpenChat, refreshTrigger, in
         : '';
 
       return (
-        <TouchableOpacity style={styles.item} onPress={() => onOpenChat(conv, tab)}>
+        <TouchableOpacity style={[styles.item, { backgroundColor: C.surface, borderBottomColor: C.borderSubtle }]} onPress={() => onOpenChat(conv, tab)}>
           <View style={styles.avatarWrap}>
             {avatarUrl ? (
               <Image source={{ uri: avatarUrl }} style={styles.avatar} />
@@ -267,10 +273,10 @@ export default function ChatsListScreen({ onBack, onOpenChat, refreshTrigger, in
           </View>
           <View style={styles.info}>
             <View style={styles.row}>
-              <Text style={styles.name} numberOfLines={1}>{title}</Text>
-              <Text style={styles.time}>{time}</Text>
+              <Text style={[styles.name, { color: C.textPrimary }]} numberOfLines={1}>{title}</Text>
+              <Text style={[styles.time, { color: C.textTertiary }]}>{time}</Text>
             </View>
-            <Text style={styles.lastMsg} numberOfLines={1}>{lastMsgText}</Text>
+            <Text style={[styles.lastMsg, { color: C.textSecondary }]} numberOfLines={1}>{lastMsgText}</Text>
           </View>
         </TouchableOpacity>
       );
@@ -297,7 +303,7 @@ export default function ChatsListScreen({ onBack, onOpenChat, refreshTrigger, in
         <View style={styles.info}>
           <View style={styles.row}>
             <Text style={styles.name} numberOfLines={1}>{friend.name || friend.username}</Text>
-            {isOpening && <ActivityIndicator size="small" color="#007AFF" />}
+            {isOpening && <ActivityIndicator size="small" color={COLORS.primary} />}
           </View>
           <Text style={[styles.lastMsg, styles.startChat]}>Nhắn tin</Text>
         </View>
@@ -344,27 +350,27 @@ export default function ChatsListScreen({ onBack, onOpenChat, refreshTrigger, in
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeContainer style={[styles.container, { backgroundColor: C.background }]}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: C.surface, borderBottomColor: C.border }]}>
         <TouchableOpacity onPress={onBack} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color="#007AFF" />
+          <Ionicons name="arrow-back" size={DIMENSIONS.iconLG} color={C.primary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Tin nhắn</Text>
+        <Text style={[styles.headerTitle, { color: C.textPrimary }]}>Tin nhắn</Text>
         {tab === 'group' && (
           <TouchableOpacity onPress={() => setShowCreateGroup(true)} style={styles.addBtn}>
-            <Ionicons name="add" size={26} color="#007AFF" />
+            <Ionicons name="add" size={DIMENSIONS.iconXL} color={COLORS.primary} />
           </TouchableOpacity>
         )}
       </View>
 
       {/* Tabs */}
-      <View style={styles.tabs}>
+      <View style={[styles.tabs, { backgroundColor: C.surface, borderBottomColor: C.border }]}>
         <TouchableOpacity
           style={[styles.tab, tab === 'direct' && styles.tabActive]}
           onPress={() => setTab('direct')}
         >
-          <Text style={[styles.tabText, tab === 'direct' && styles.tabTextActive]}>
+          <Text style={[styles.tabText, { color: C.textTertiary }, tab === 'direct' && { color: C.primary, fontWeight: FONT_WEIGHT.semibold }]}>
             Cá nhân
           </Text>
         </TouchableOpacity>
@@ -372,7 +378,7 @@ export default function ChatsListScreen({ onBack, onOpenChat, refreshTrigger, in
           style={[styles.tab, tab === 'group' && styles.tabActive]}
           onPress={() => setTab('group')}
         >
-          <Text style={[styles.tabText, tab === 'group' && styles.tabTextActive]}>
+          <Text style={[styles.tabText, { color: C.textTertiary }, tab === 'group' && { color: C.primary, fontWeight: FONT_WEIGHT.semibold }]}>
             Nhóm
           </Text>
         </TouchableOpacity>
@@ -381,7 +387,7 @@ export default function ChatsListScreen({ onBack, onOpenChat, refreshTrigger, in
       {/* Content */}
       {loading ? (
         <View style={styles.loadingCenter}>
-          <ActivityIndicator size="large" color="#007AFF" />
+          <ActivityIndicator size="large" color={COLORS.primary} />
         </View>
       ) : tab === 'direct' ? (
         <FlatList
@@ -393,8 +399,10 @@ export default function ChatsListScreen({ onBack, onOpenChat, refreshTrigger, in
           contentContainerStyle={styles.listContent}
           ListEmptyComponent={
             <View style={styles.emptyState}>
-              <Ionicons name="chatbubbles-outline" size={64} color="#C7C7CC" />
+              <Ionicons name="chatbubbles-outline" size={64} color={COLORS.gray300} />
+              <Spacer size="lg" />
               <Text style={styles.emptyText}>Chưa có bạn bè nào</Text>
+              <Spacer size="sm" />
               <Text style={styles.emptySubtext}>Kết bạn để bắt đầu nhắn tin</Text>
             </View>
           }
@@ -407,8 +415,10 @@ export default function ChatsListScreen({ onBack, onOpenChat, refreshTrigger, in
           contentContainerStyle={styles.listContent}
           ListEmptyComponent={
             <View style={styles.emptyState}>
-              <Ionicons name="people-outline" size={64} color="#C7C7CC" />
+              <Ionicons name="people-outline" size={64} color={COLORS.gray300} />
+              <Spacer size="lg" />
               <Text style={styles.emptyText}>Chưa có nhóm nào</Text>
+              <Spacer size="sm" />
               <Text style={styles.emptySubtext}>Nhấn + để tạo nhóm mới</Text>
             </View>
           }
@@ -458,7 +468,7 @@ export default function ChatsListScreen({ onBack, onOpenChat, refreshTrigger, in
                 disabled={!renameText.trim() || renaming}
               >
                 {renaming ? (
-                  <ActivityIndicator size="small" color="#fff" />
+                  <ActivityIndicator size="small" color={COLORS.white} />
                 ) : (
                   <Text style={styles.renameSaveText}>Lưu</Text>
                 )}
@@ -467,117 +477,196 @@ export default function ChatsListScreen({ onBack, onOpenChat, refreshTrigger, in
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+    </SafeContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F2F2F7' },
+  container: { 
+    flex: 1, 
+    backgroundColor: COLORS.background 
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
-    paddingHorizontal: 12,
-    paddingVertical: 12,
+    backgroundColor: COLORS.surface,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.md,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E5EA',
+    borderBottomColor: COLORS.gray200,
   },
-  backBtn: { padding: 4, marginRight: 8 },
-  headerTitle: { flex: 1, fontSize: 20, fontWeight: 'bold', color: '#000' },
-  addBtn: { padding: 4 },
+  backBtn: { 
+    padding: SPACING.xs, 
+    marginRight: SPACING.sm 
+  },
+  headerTitle: { 
+    flex: 1, 
+    fontSize: FONT_SIZE.xl, 
+    fontWeight: FONT_WEIGHT.bold, 
+    color: COLORS.gray900 
+  },
+  addBtn: { 
+    padding: SPACING.xs 
+  },
   tabs: {
     flexDirection: 'row',
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E5EA',
+    borderBottomColor: COLORS.gray200,
   },
   tab: {
     flex: 1,
-    paddingVertical: 12,
+    paddingVertical: SPACING.md,
     alignItems: 'center',
     borderBottomWidth: 2,
     borderBottomColor: 'transparent',
   },
-  tabActive: { borderBottomColor: '#007AFF' },
-  tabText: { fontSize: 15, color: '#8E8E93', fontWeight: '500' },
-  tabTextActive: { color: '#007AFF', fontWeight: '600' },
-  loadingCenter: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  listContent: { flexGrow: 1 },
+  tabActive: { 
+    borderBottomColor: COLORS.primary 
+  },
+  tabText: { 
+    fontSize: FONT_SIZE.md, 
+    color: COLORS.gray500, 
+    fontWeight: FONT_WEIGHT.medium 
+  },
+  tabTextActive: { 
+    color: COLORS.primary, 
+    fontWeight: FONT_WEIGHT.semibold 
+  },
+  loadingCenter: { 
+    flex: 1, 
+    justifyContent: 'center', 
+    alignItems: 'center' 
+  },
+  listContent: { 
+    flexGrow: 1 
+  },
   item: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    backgroundColor: COLORS.surface,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E5E5EA',
+    borderBottomColor: COLORS.gray200,
   },
-  avatarWrap: { marginRight: 12 },
+  avatarWrap: { 
+    marginRight: SPACING.md 
+  },
   groupAvatarWrap: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: '#007AFF',
+    width: DIMENSIONS.avatarLG,
+    height: DIMENSIONS.avatarLG,
+    borderRadius: DIMENSIONS.avatarLG / 2,
+    backgroundColor: COLORS.primary,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  avatar: { width: 52, height: 52, borderRadius: 26 },
-  info: { flex: 1 },
-  row: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 2 },
-  name: { fontSize: 16, fontWeight: '600', color: '#000', flex: 1, marginRight: 8 },
-  time: { fontSize: 12, color: '#8E8E93' },
-  lastMsg: { fontSize: 14, color: '#8E8E93' },
-  startChat: { color: '#007AFF', fontSize: 13 },
+  avatar: { 
+    width: DIMENSIONS.avatarLG, 
+    height: DIMENSIONS.avatarLG, 
+    borderRadius: DIMENSIONS.avatarLG / 2 
+  },
+  info: { 
+    flex: 1 
+  },
+  row: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    marginBottom: 2 
+  },
+  name: { 
+    fontSize: FONT_SIZE.lg, 
+    fontWeight: FONT_WEIGHT.semibold, 
+    color: COLORS.gray900, 
+    flex: 1, 
+    marginRight: SPACING.sm 
+  },
+  time: { 
+    fontSize: FONT_SIZE.sm, 
+    color: COLORS.gray500 
+  },
+  lastMsg: { 
+    fontSize: FONT_SIZE.md, 
+    color: COLORS.gray500 
+  },
+  startChat: { 
+    color: COLORS.primary, 
+    fontSize: FONT_SIZE.sm 
+  },
   emptyState: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     paddingVertical: 80,
-    paddingHorizontal: 32,
+    paddingHorizontal: SPACING.xxxl,
   },
-  emptyText: { fontSize: 18, fontWeight: '600', color: '#000', marginTop: 16, marginBottom: 8 },
-  emptySubtext: { fontSize: 14, color: '#8E8E93', textAlign: 'center' },
+  emptyText: { 
+    fontSize: FONT_SIZE.xl, 
+    fontWeight: FONT_WEIGHT.semibold, 
+    color: COLORS.gray900 
+  },
+  emptySubtext: { 
+    fontSize: FONT_SIZE.md, 
+    color: COLORS.gray500, 
+    textAlign: 'center' 
+  },
   // ── Rename modal ──────────────────────────────────────────────────────────
   renameOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
+    backgroundColor: COLORS.overlay,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 32,
+    paddingHorizontal: SPACING.xxxl,
   },
   renameBox: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 20,
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.lg,
+    padding: SPACING.xl,
     width: '100%',
   },
-  renameTitle: { fontSize: 17, fontWeight: '600', color: '#000', marginBottom: 14, textAlign: 'center' },
+  renameTitle: { 
+    fontSize: FONT_SIZE.lg, 
+    fontWeight: FONT_WEIGHT.semibold, 
+    color: COLORS.gray900, 
+    marginBottom: SPACING.md, 
+    textAlign: 'center' 
+  },
   renameInput: {
     borderWidth: 1,
-    borderColor: '#E5E5EA',
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    fontSize: 16,
-    color: '#000',
-    marginBottom: 16,
+    borderColor: COLORS.gray200,
+    borderRadius: RADIUS.sm,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    fontSize: FONT_SIZE.lg,
+    color: COLORS.gray900,
+    marginBottom: SPACING.lg,
   },
-  renameActions: { flexDirection: 'row', gap: 10 },
+  renameActions: { 
+    flexDirection: 'row', 
+    gap: SPACING.sm 
+  },
   renameCancelBtn: {
     flex: 1,
-    paddingVertical: 12,
-    borderRadius: 10,
+    paddingVertical: SPACING.md,
+    borderRadius: RADIUS.sm,
     borderWidth: 1,
-    borderColor: '#E5E5EA',
+    borderColor: COLORS.gray200,
     alignItems: 'center',
   },
-  renameCancelText: { fontSize: 16, color: '#8E8E93' },
+  renameCancelText: { 
+    fontSize: FONT_SIZE.lg, 
+    color: COLORS.gray500 
+  },
   renameSaveBtn: {
     flex: 1,
-    paddingVertical: 12,
-    borderRadius: 10,
-    backgroundColor: '#007AFF',
+    paddingVertical: SPACING.md,
+    borderRadius: RADIUS.sm,
+    backgroundColor: COLORS.primary,
     alignItems: 'center',
   },
-  renameSaveText: { fontSize: 16, color: '#fff', fontWeight: '600' },
+  renameSaveText: { 
+    fontSize: FONT_SIZE.lg, 
+    color: COLORS.white, 
+    fontWeight: FONT_WEIGHT.semibold 
+  },
 });

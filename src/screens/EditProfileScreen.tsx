@@ -12,6 +12,10 @@ import {
   StatusBar,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { SPACING, COLORS, LIGHT_COLORS, DARK_COLORS, FONT_SIZE, FONT_WEIGHT, RADIUS, SHADOWS, DIMENSIONS } from '../constants/design';
+import { useThemeStore } from '../store/useThemeStore';
+import SafeContainer from '../components/ui/SafeContainer';
+import Spacer from '../components/ui/Spacer';
 import { useAuthStore } from '../store/useAuthStore';
 import { useAlert } from '../context/AlertContext';
 import userService, { UpdateProfileData } from '../api/userService';
@@ -32,6 +36,9 @@ export default function EditProfileScreen({ onBack, onSaveSuccess }: EditProfile
   const user = useAuthStore((state) => state.user);
   const setUser = useAuthStore((state) => state.setUser);
   const { showAlert } = useAlert();
+  const { mode } = useThemeStore();
+  const isDark = mode === 'dark';
+  const C = isDark ? DARK_COLORS : LIGHT_COLORS;
   const [loading, setLoading] = useState(false);
   const [name, setName] = useState('');
   const [bio, setBio] = useState('');
@@ -238,20 +245,20 @@ export default function EditProfileScreen({ onBack, onSaveSuccess }: EditProfile
   };
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#007AFF" />
+    <SafeContainer style={[styles.container, { backgroundColor: C.background }]}>
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
       
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={onBack} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#fff" />
+          <Ionicons name="arrow-back" size={DIMENSIONS.iconLG} color={COLORS.white} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Chỉnh sửa thông tin</Text>
         <TouchableOpacity onPress={handleSave} disabled={loading} style={styles.saveButton}>
           {loading ? (
-            <ActivityIndicator color="#fff" size="small" />
+            <ActivityIndicator color={COLORS.white} size="small" />
           ) : (
-            <Ionicons name="checkmark" size={24} color="#fff" />
+            <Ionicons name="checkmark" size={DIMENSIONS.iconLG} color={COLORS.white} />
           )}
         </TouchableOpacity>
       </View>
@@ -259,28 +266,28 @@ export default function EditProfileScreen({ onBack, onSaveSuccess }: EditProfile
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Name Field */}
         <View style={styles.field}>
-          <Text style={styles.label}>Tên hiển thị <Text style={styles.required}>*</Text></Text>
+          <Text style={[styles.label, { color: C.textPrimary }]}>Tên hiển thị <Text style={styles.required}>*</Text></Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: C.surface, borderColor: C.border, color: C.textPrimary }]}
             value={name}
             onChangeText={setName}
             placeholder="Nhập tên của bạn"
-            placeholderTextColor="#999"
+            placeholderTextColor={C.textTertiary}
           />
-          <Text style={styles.hint}>Tên này sẽ hiển thị trên trang cá nhân của bạn</Text>
+          <Text style={[styles.hint, { color: C.textTertiary }]}>Tên này sẽ hiển thị trên trang cá nhân của bạn</Text>
         </View>
 
         {/* Phone Field */}
         <View style={styles.field}>
-          <Text style={styles.label}>Số điện thoại</Text>
-          <View style={styles.inputWithIcon}>
-            <Ionicons name="call-outline" size={20} color="#666" />
+          <Text style={[styles.label, { color: C.textPrimary }]}>Số điện thoại</Text>
+          <View style={[styles.inputWithIcon, { backgroundColor: C.surface, borderColor: C.border }]}>
+            <Ionicons name="call-outline" size={DIMENSIONS.iconSM} color={C.textTertiary} />
             <TextInput
-              style={styles.inputWithIconText}
+              style={[styles.inputWithIconText, { color: C.textPrimary }]}
               value={phone}
               onChangeText={setPhone}
               placeholder="Nhập số điện thoại"
-              placeholderTextColor="#999"
+              placeholderTextColor={C.textTertiary}
               keyboardType="phone-pad"
             />
           </View>
@@ -288,111 +295,90 @@ export default function EditProfileScreen({ onBack, onSaveSuccess }: EditProfile
 
         {/* Bio Field */}
         <View style={styles.field}>
-          <Text style={styles.label}>Tiểu sử</Text>
+          <Text style={[styles.label, { color: C.textPrimary }]}>Tiểu sử</Text>
           <TextInput
-            style={[styles.input, styles.textArea]}
+            style={[styles.input, styles.textArea, { backgroundColor: C.surface, borderColor: C.border, color: C.textPrimary }]}
             value={bio}
             onChangeText={setBio}
             placeholder="Viết gì đó về bạn..."
-            placeholderTextColor="#999"
+            placeholderTextColor={C.textTertiary}
             multiline
             numberOfLines={4}
             maxLength={500}
           />
-          <Text style={styles.charCount}>{bio.length}/500</Text>
+          <Text style={[styles.charCount, { color: C.textTertiary }]}>{bio.length}/500</Text>
         </View>
 
         {/* Gender Field */}
         <View style={styles.field}>
-          <Text style={styles.label}>Giới tính</Text>
+          <Text style={[styles.label, { color: C.textPrimary }]}>Giới tính</Text>
           <View style={styles.genderContainer}>
             <TouchableOpacity
-              style={[styles.genderButton, gender === 'MALE' && styles.genderButtonActive]}
+              style={[styles.genderButton, { backgroundColor: C.surface, borderColor: C.border }, gender === 'MALE' && styles.genderButtonActive]}
               onPress={() => setGender('MALE')}
             >
-              <Ionicons 
-                name="male" 
-                size={20} 
-                color={gender === 'MALE' ? '#fff' : '#007AFF'} 
-              />
-              <Text style={[styles.genderText, gender === 'MALE' && styles.genderTextActive]}>
-                Nam
-              </Text>
+              <Ionicons name="male" size={DIMENSIONS.iconSM} color={gender === 'MALE' ? COLORS.white : COLORS.primary} />
+              <Text style={[styles.genderText, { color: C.textSecondary }, gender === 'MALE' && styles.genderTextActive]}>Nam</Text>
             </TouchableOpacity>
             
             <TouchableOpacity
-              style={[styles.genderButton, gender === 'FEMALE' && styles.genderButtonActive]}
+              style={[styles.genderButton, { backgroundColor: C.surface, borderColor: C.border }, gender === 'FEMALE' && styles.genderButtonActive]}
               onPress={() => setGender('FEMALE')}
             >
-              <Ionicons 
-                name="female" 
-                size={20} 
-                color={gender === 'FEMALE' ? '#fff' : '#e91e63'} 
-              />
-              <Text style={[styles.genderText, gender === 'FEMALE' && styles.genderTextActive]}>
-                Nữ
-              </Text>
+              <Ionicons name="female" size={DIMENSIONS.iconSM} color={gender === 'FEMALE' ? COLORS.white : COLORS.error} />
+              <Text style={[styles.genderText, { color: C.textSecondary }, gender === 'FEMALE' && styles.genderTextActive]}>Nữ</Text>
             </TouchableOpacity>
             
             <TouchableOpacity
-              style={[styles.genderButton, gender === 'OTHER' && styles.genderButtonActive]}
+              style={[styles.genderButton, { backgroundColor: C.surface, borderColor: C.border }, gender === 'OTHER' && styles.genderButtonActive]}
               onPress={() => setGender('OTHER')}
             >
-              <Ionicons 
-                name="transgender" 
-                size={20} 
-                color={gender === 'OTHER' ? '#fff' : '#9c27b0'} 
-              />
-              <Text style={[styles.genderText, gender === 'OTHER' && styles.genderTextActive]}>
-                Khác
-              </Text>
+              <Ionicons name="transgender" size={DIMENSIONS.iconSM} color={gender === 'OTHER' ? COLORS.white : COLORS.info} />
+              <Text style={[styles.genderText, { color: C.textSecondary }, gender === 'OTHER' && styles.genderTextActive]}>Khác</Text>
             </TouchableOpacity>
           </View>
         </View>
 
         {/* Date of Birth Field */}
         <View style={styles.field}>
-          <Text style={styles.label}>Ngày sinh</Text>
+          <Text style={[styles.label, { color: C.textPrimary }]}>Ngày sinh</Text>
           
           {/* Date Display */}
-          <View style={styles.dateDisplayContainer}>
-            <Ionicons name="calendar-outline" size={20} color="#666" />
-            <Text style={styles.dateDisplayText}>{formatDateDisplay()}</Text>
+          <View style={[styles.dateDisplayContainer, { backgroundColor: C.surface, borderColor: C.border }]}>
+            <Ionicons name="calendar-outline" size={DIMENSIONS.iconSM} color={C.textTertiary} />
+            <Text style={[styles.dateDisplayText, { color: C.textSecondary }]}>{formatDateDisplay()}</Text>
           </View>
           
           {/* Date Dropdowns */}
           <View style={styles.dateDropdownsContainer}>
-            {/* Day Dropdown */}
             <TouchableOpacity
-              style={[styles.dateDropdown, { flex: 1 }]}
+              style={[styles.dateDropdown, { flex: 1, backgroundColor: C.surface, borderColor: C.border }]}
               onPress={() => setShowDayDropdown(true)}
             >
-              <Text style={styles.dateDropdownText}>
+              <Text style={[styles.dateDropdownText, { color: C.textPrimary }]}>
                 {selectedDay ? selectedDay.toString() : 'Ngày'}
               </Text>
-              <Ionicons name="chevron-down" size={16} color="#999" />
+              <Ionicons name="chevron-down" size={DIMENSIONS.iconXS} color={C.textTertiary} />
             </TouchableOpacity>
             
-            {/* Month Dropdown */}
             <TouchableOpacity
-              style={[styles.dateDropdown, { flex: 2 }]}
+              style={[styles.dateDropdown, { flex: 2, backgroundColor: C.surface, borderColor: C.border }]}
               onPress={() => setShowMonthDropdown(true)}
             >
-              <Text style={styles.dateDropdownText}>
+              <Text style={[styles.dateDropdownText, { color: C.textPrimary }]}>
                 {selectedMonth ? `Tháng ${selectedMonth}` : 'Tháng'}
               </Text>
-              <Ionicons name="chevron-down" size={16} color="#999" />
+              <Ionicons name="chevron-down" size={DIMENSIONS.iconXS} color={C.textTertiary} />
             </TouchableOpacity>
             
-            {/* Year Dropdown */}
             <TouchableOpacity
-              style={[styles.dateDropdown, { flex: 1.2 }]}
+              style={[styles.dateDropdown, { flex: 1.2, backgroundColor: C.surface, borderColor: C.border }]}
               onPress={() => setShowYearDropdown(true)}
             >
-              <Text style={styles.dateDropdownText}>
+              <Text style={[styles.dateDropdownText, { color: C.textPrimary }]}>
                 {selectedYear ? selectedYear.toString() : 'Năm'}
               </Text>
-              <Ionicons name="chevron-down" size={16} color="#999" />
+              <Ionicons name="chevron-down" size={DIMENSIONS.iconXS} color={C.textTertiary} />
             </TouchableOpacity>
           </View>
         </View>
@@ -426,162 +412,160 @@ export default function EditProfileScreen({ onBack, onSaveSuccess }: EditProfile
         )}
 
         {/* Info Box */}
-        <View style={styles.infoBox}>
-          <Ionicons name="information-circle-outline" size={20} color="#007AFF" />
-          <Text style={styles.infoText}>
+        <View style={[styles.infoBox, { backgroundColor: isDark ? 'rgba(67,97,238,0.12)' : '#EEF2FF', borderColor: isDark ? 'rgba(67,97,238,0.3)' : '#C7D2FE' }]}>
+          <Ionicons name="information-circle-outline" size={DIMENSIONS.iconSM} color={C.primary} />
+          <Text style={[styles.infoText, { color: C.textSecondary }]}>
             Thông tin của bạn sẽ được hiển thị công khai trên trang cá nhân.
           </Text>
         </View>
 
-        {/* Spacer */}
-        <View style={styles.spacer} />
+        <Spacer size="xxxl" />
       </ScrollView>
-    </View>
+    </SafeContainer>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: COLORS.background,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#007AFF',
-    paddingTop: 50,
-    paddingBottom: 16,
-    paddingHorizontal: 16,
+    backgroundColor: COLORS.primary,
+    paddingBottom: SPACING.lg,
+    paddingHorizontal: SPACING.lg,
   },
   backButton: {
-    padding: 8,
+    padding: SPACING.sm,
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#fff',
+    fontSize: FONT_SIZE.xl,
+    fontWeight: FONT_WEIGHT.bold,
+    color: COLORS.white,
   },
   saveButton: {
-    padding: 8,
+    padding: SPACING.sm,
   },
   content: {
     flex: 1,
-    padding: 16,
+    padding: SPACING.lg,
   },
   field: {
-    marginBottom: 24,
+    marginBottom: SPACING.xxl,
   },
   label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
+    fontSize: FONT_SIZE.md,
+    fontWeight: FONT_WEIGHT.semibold,
+    color: COLORS.gray800,
+    marginBottom: SPACING.sm,
   },
   required: {
-    color: '#f44336',
+    color: COLORS.error,
   },
   input: {
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    fontSize: 16,
-    color: '#333',
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.sm,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
+    fontSize: FONT_SIZE.lg,
+    color: COLORS.gray800,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: COLORS.gray200,
   },
   textArea: {
     height: 100,
     textAlignVertical: 'top',
   },
   hint: {
-    fontSize: 12,
-    color: '#999',
-    marginTop: 4,
+    fontSize: FONT_SIZE.sm,
+    color: COLORS.gray500,
+    marginTop: SPACING.xs,
   },
   charCount: {
-    fontSize: 12,
-    color: '#999',
-    marginTop: 4,
+    fontSize: FONT_SIZE.sm,
+    color: COLORS.gray500,
+    marginTop: SPACING.xs,
     textAlign: 'right',
   },
   genderContainer: {
     flexDirection: 'row',
-    gap: 12,
+    gap: SPACING.md,
   },
   genderButton: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#fff',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
+    backgroundColor: COLORS.surface,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
+    borderRadius: RADIUS.sm,
     borderWidth: 2,
-    borderColor: '#e0e0e0',
-    gap: 8,
+    borderColor: COLORS.gray200,
+    gap: SPACING.sm,
   },
   genderButtonActive: {
-    backgroundColor: '#007AFF',
-    borderColor: '#007AFF',
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
   },
   genderText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
+    fontSize: FONT_SIZE.md,
+    fontWeight: FONT_WEIGHT.semibold,
+    color: COLORS.gray800,
   },
   genderTextActive: {
-    color: '#fff',
+    color: COLORS.white,
   },
   dateDisplayContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f8f9fa',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
+    backgroundColor: COLORS.gray50,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
+    borderRadius: RADIUS.sm,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
-    gap: 12,
-    marginBottom: 12,
+    borderColor: COLORS.gray200,
+    gap: SPACING.md,
+    marginBottom: SPACING.md,
   },
   dateDisplayText: {
     flex: 1,
-    fontSize: 16,
-    color: '#333',
-    fontWeight: '500',
+    fontSize: FONT_SIZE.lg,
+    color: COLORS.gray800,
+    fontWeight: FONT_WEIGHT.medium,
   },
   dateDropdownsContainer: {
     flexDirection: 'row',
-    gap: 8,
+    gap: SPACING.sm,
   },
   dateDropdown: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#fff',
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    borderRadius: 8,
+    backgroundColor: COLORS.surface,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.md,
+    borderRadius: RADIUS.sm,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: COLORS.gray200,
   },
   dateDropdownText: {
-    fontSize: 14,
-    color: '#333',
-    fontWeight: '500',
+    fontSize: FONT_SIZE.md,
+    color: COLORS.gray800,
+    fontWeight: FONT_WEIGHT.medium,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: COLORS.overlay,
     justifyContent: 'center',
     alignItems: 'center',
   },
   dropdownContainer: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.md,
     width: '80%',
     maxHeight: '60%',
     overflow: 'hidden',
@@ -590,15 +574,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 16,
-    paddingHorizontal: 20,
+    paddingVertical: SPACING.lg,
+    paddingHorizontal: SPACING.xl,
     borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    borderBottomColor: COLORS.gray200,
   },
   dropdownTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
+    fontSize: FONT_SIZE.xl,
+    fontWeight: FONT_WEIGHT.semibold,
+    color: COLORS.gray800,
   },
   dropdownList: {
     maxHeight: 300,
@@ -607,54 +591,51 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.xl,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: COLORS.gray100,
   },
   dropdownItemSelected: {
-    backgroundColor: '#e3f2fd',
+    backgroundColor: COLORS.gray50,
   },
   dropdownItemText: {
-    fontSize: 16,
-    color: '#333',
+    fontSize: FONT_SIZE.lg,
+    color: COLORS.gray800,
   },
   dropdownItemTextSelected: {
-    color: '#007AFF',
-    fontWeight: '600',
+    color: COLORS.primary,
+    fontWeight: FONT_WEIGHT.semibold,
   },
   inputWithIcon: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    paddingHorizontal: 16,
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.sm,
+    paddingHorizontal: SPACING.lg,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
-    gap: 12,
+    borderColor: COLORS.gray200,
+    gap: SPACING.md,
   },
   inputWithIconText: {
     flex: 1,
-    paddingVertical: 12,
-    fontSize: 16,
-    color: '#333',
+    paddingVertical: SPACING.md,
+    fontSize: FONT_SIZE.lg,
+    color: COLORS.gray800,
   },
   infoBox: {
     flexDirection: 'row',
-    backgroundColor: '#e3f2fd',
-    padding: 12,
-    borderRadius: 8,
-    gap: 8,
-    marginTop: 8,
+    backgroundColor: COLORS.gray50,
+    padding: SPACING.md,
+    borderRadius: RADIUS.sm,
+    gap: SPACING.sm,
+    marginTop: SPACING.sm,
   },
   infoText: {
     flex: 1,
-    fontSize: 13,
-    color: '#007AFF',
-    lineHeight: 18,
-  },
-  spacer: {
-    height: 32,
+    fontSize: FONT_SIZE.sm,
+    color: COLORS.primary,
+    lineHeight: FONT_SIZE.sm * 1.4,
   },
 });
 

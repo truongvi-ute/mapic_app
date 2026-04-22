@@ -6,7 +6,6 @@ import {
   FlatList,
   TextInput,
   TouchableOpacity,
-  SafeAreaView,
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
@@ -16,12 +15,16 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { Image } from 'expo-image';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '../store/useAuthStore';
 import { useChatStore } from '../store/useChatStore';
 import { useAlert } from '../context/AlertContext';
 import chatService, { ConversationDto, MessageDto } from '../api/chatService';
 import { buildMediaUrl, buildAvatarUrl, getBaseUrl } from '../config/api';
 import GroupInfoModal from '../components/GroupInfoModal';
+import { SPACING, COLORS, LIGHT_COLORS, DARK_COLORS, FONT_SIZE, FONT_WEIGHT, RADIUS, SHADOWS, CHAT } from '../constants/design';
+import { useThemeStore } from '../store/useThemeStore';
+import Spacer from '../components/ui/Spacer';
 
 // ─── Reaction emoji toolbar ───
 const EMOJIS = ['❤️', '😂', '😮', '😢', '👍', '👎'];
@@ -47,11 +50,15 @@ export default function ChatRoomScreen({
 }: any) {
   const route = useRoute<any>();
   const navigation = useNavigation<any>();
+  const insets = useSafeAreaInsets();
   
   const currentUser = useAuthStore((s) => s.user);
   const token = useAuthStore((s) => s.token);
   const { subscribeToRoom, sendMessage, reactToMessage, isConnected, updateConversation } = useChatStore();
   const { showAlert } = useAlert();
+  const { mode } = useThemeStore();
+  const isDark = mode === 'dark';
+  const C = isDark ? DARK_COLORS : LIGHT_COLORS;
 
   // Use state to track conversation (can be updated after creation)
   const [conversation, setConversation] = useState<ConversationDto>(
@@ -382,26 +389,26 @@ export default function ChatRoomScreen({
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top, backgroundColor: isDark ? '#0D0D14' : COLORS.gray50 }]}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: C.surface, borderBottomColor: C.border }]}>
         <TouchableOpacity style={styles.backBtn} onPress={() => onBack ? onBack() : navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color="#007AFF" />
+          <Ionicons name="arrow-back" size={24} color={C.primary} />
         </TouchableOpacity>
         <TouchableOpacity 
           style={styles.headerInfo}
           onPress={() => conversation.isGroup && setShowGroupInfo(true)}
           disabled={!conversation.isGroup}
         >
-          <Text style={styles.headerName} numberOfLines={1}>{displayName}</Text>
+          <Text style={[styles.headerName, { color: C.textPrimary }]} numberOfLines={1}>{displayName}</Text>
           {conversation.isGroup && (
-            <Text style={styles.headerSub}>
+            <Text style={[styles.headerSub, { color: C.textTertiary }]}>
               {conversation.participants.length} thành viên • Nhấn để xem
             </Text>
           )}
         </TouchableOpacity>
         {!isConnected && (
-          <ActivityIndicator size="small" color="#FF3B30" style={{ marginRight: 8 }} />
+          <ActivityIndicator size="small" color={COLORS.error} style={{ marginRight: SPACING.sm }} />
         )}
       </View>
 
@@ -409,22 +416,22 @@ export default function ChatRoomScreen({
       <View style={{ flex: 1 }}>
         {loading ? (
           <View style={styles.loadingCenter}>
-            <ActivityIndicator size="large" color="#007AFF" />
+            <ActivityIndicator size="large" color={COLORS.primary} />
           </View>
         ) : (
           <View style={{ flex: 1 }}>
             {messages.length === 0 && (
-              <View style={styles.emptyState}>
-                <Image
-                  source={require('../assets/images/message.png')}
-                  style={styles.emptyIcon}
-                />
-                <Text style={styles.emptyTitle}>Bắt đầu trò chuyện ngay!</Text>
-                <Text style={styles.emptySubtitle}>
-                  Hãy gửi tin nhắn đầu tiên{'\n'}hoặc chia sẻ một khoảnh khắc
-                </Text>
-              </View>
-            )}
+            <View style={styles.emptyState}>
+              <Image
+                source={require('../assets/images/message.png')}
+                style={styles.emptyIcon}
+              />
+              <Text style={[styles.emptyTitle, { color: C.textSecondary }]}>Bắt đầu trò chuyện ngay!</Text>
+              <Text style={[styles.emptySubtitle, { color: C.textTertiary }]}>
+                Hãy gửi tin nhắn đầu tiên{'\n'}hoặc chia sẻ một khoảnh khắc
+              </Text>
+            </View>
+          )}
             <FlatList
               ref={flatListRef}
               data={messages}
@@ -446,10 +453,11 @@ export default function ChatRoomScreen({
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           keyboardVerticalOffset={0}
         >
-          <View style={styles.inputBar}>
+          <View style={[styles.inputBar, { paddingBottom: insets.bottom + SPACING.sm, backgroundColor: C.surface, borderTopColor: C.border }]}>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : COLORS.gray100, color: C.textPrimary }]}
               placeholder="Nhập tin nhắn..."
+              placeholderTextColor={C.textTertiary}
               value={inputText}
               onChangeText={setInputText}
               multiline
@@ -460,7 +468,7 @@ export default function ChatRoomScreen({
               onPress={handleSend}
               disabled={!inputText.trim()}
             >
-              <Ionicons name="send" size={20} color={inputText.trim() ? '#007AFF' : '#C7C7CC'} />
+              <Ionicons name="send" size={20} color={inputText.trim() ? COLORS.primary : COLORS.gray300} />
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
@@ -504,144 +512,146 @@ export default function ChatRoomScreen({
           }}
         />
       )}
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F2F2F7' },
+  container: { flex: 1, backgroundColor: COLORS.gray50 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    backgroundColor: COLORS.surface,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E5EA',
-    gap: 8,
+    borderBottomColor: COLORS.gray200,
+    gap: SPACING.sm,
+    ...SHADOWS.sm,
   },
-  backBtn: { padding: 4 },
+  backBtn: { padding: SPACING.xs },
   headerInfo: { flex: 1 },
-  headerName: { fontSize: 17, fontWeight: '600', color: '#000' },
-  headerSub: { fontSize: 12, color: '#8E8E93' },
+  headerName: { fontSize: FONT_SIZE.lg, fontWeight: FONT_WEIGHT.semibold, color: COLORS.gray900 },
+  headerSub: { fontSize: FONT_SIZE.xs, color: COLORS.gray500 },
   loadingCenter: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  messagesContent: { paddingHorizontal: 12, paddingTop: 12, paddingBottom: 12 },
+  messagesContent: { paddingHorizontal: SPACING.md, paddingTop: SPACING.md, paddingBottom: SPACING.md },
   emptyState: {
     position: 'absolute',
     top: 0, left: 0, right: 0, bottom: 0,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 32,
+    paddingHorizontal: SPACING.xxxl,
   },
   emptyIcon: {
     width: 80,
     height: 80,
     opacity: 0.35,
-    marginBottom: 16,
+    marginBottom: SPACING.lg,
   },
   emptyTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#3C3C43',
-    marginBottom: 8,
+    fontSize: FONT_SIZE.xl,
+    fontWeight: FONT_WEIGHT.semibold,
+    color: COLORS.gray700,
+    marginBottom: SPACING.sm,
     textAlign: 'center',
   },
   emptySubtitle: {
-    fontSize: 14,
-    color: '#8E8E93',
+    fontSize: FONT_SIZE.md,
+    color: COLORS.gray500,
     textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: FONT_SIZE.md * 1.4,
   },
-  messageRow: { marginVertical: 4, flexDirection: 'row', alignItems: 'flex-end' },
+  messageRow: { marginVertical: SPACING.xs, flexDirection: 'row', alignItems: 'flex-end' },
   messageRowLeft: { justifyContent: 'flex-start' },
   messageRowRight: { justifyContent: 'flex-end' },
-  avatarWrap: { marginRight: 6 },
-  avatar: { width: 28, height: 28, borderRadius: 14 },
-  avatarDefault: { backgroundColor: '#007AFF', justifyContent: 'center', alignItems: 'center' },
+  avatarWrap: { marginRight: SPACING.xs },
+  avatar: { width: CHAT.avatarSize, height: CHAT.avatarSize, borderRadius: CHAT.avatarSize / 2 },
+  avatarDefault: { backgroundColor: COLORS.primary, justifyContent: 'center', alignItems: 'center' },
   bubble: {
-    maxWidth: '75%',
-    borderRadius: 18,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    maxWidth: CHAT.bubbleMaxWidth,
+    borderRadius: CHAT.bubbleRadius,
+    paddingHorizontal: CHAT.bubblePadding.horizontal,
+    paddingVertical: CHAT.bubblePadding.vertical,
+    ...SHADOWS.sm,
   },
-  bubbleMe: { backgroundColor: '#007AFF', borderBottomRightRadius: 4 },
-  bubbleThem: { backgroundColor: '#fff', borderBottomLeftRadius: 4 },
-  senderName: { fontSize: 11, fontWeight: '600', color: '#007AFF', marginBottom: 2 },
-  messageText: { fontSize: 16, lineHeight: 22 },
-  messageTextMe: { color: '#fff' },
-  messageTextThem: { color: '#000' },
+  bubbleMe: { backgroundColor: COLORS.chatBubbleSent, borderBottomRightRadius: SPACING.xs },
+  bubbleThem: { backgroundColor: COLORS.chatBubbleReceived, borderBottomLeftRadius: SPACING.xs },
+  senderName: { fontSize: FONT_SIZE.xs, fontWeight: FONT_WEIGHT.semibold, color: COLORS.primary, marginBottom: 2 },
+  messageText: { fontSize: FONT_SIZE.lg, lineHeight: FONT_SIZE.lg * 1.4 },
+  messageTextMe: { color: COLORS.chatTextSent },
+  messageTextThem: { color: COLORS.chatTextReceived },
   shareCardRich: {
-    backgroundColor: '#F8F8F8',
-    borderRadius: 12,
+    backgroundColor: COLORS.gray100,
+    borderRadius: RADIUS.md,
     overflow: 'hidden',
     width: 200,
-    marginTop: 4,
+    marginTop: SPACING.xs,
     borderWidth: 1,
-    borderColor: '#E5E5EA',
+    borderColor: COLORS.gray200,
   },
-  shareImg: { width: '100%', height: 120, backgroundColor: '#E5E5EA' },
+  shareImg: { width: '100%', height: 120, backgroundColor: COLORS.gray200 },
   shareImgPlaceholder: { justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFE4EC' },
   shareImgAsset: { width: 56, height: 56, opacity: 0.5 },
-  shareAlbumIcon: { justifyContent: 'center', alignItems: 'center', backgroundColor: '#F0F8FF' },
-  shareInfo: { padding: 8 },
-  shareAuthor: { fontSize: 12, fontWeight: 'bold', color: '#007AFF', marginBottom: 2 },
-  shareText: { fontSize: 13, color: '#333' },
-  shareTitle: { fontSize: 14, fontWeight: 'bold', color: '#000' },
-  shareSub: { fontSize: 12, color: '#8E8E93' },
-  shareTap: { fontSize: 11, color: '#007AFF', marginTop: 4 },
-  msgTime: { fontSize: 10, marginTop: 2 },
+  shareAlbumIcon: { justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.primary + '10' },
+  shareInfo: { padding: SPACING.sm },
+  shareAuthor: { fontSize: FONT_SIZE.xs, fontWeight: FONT_WEIGHT.bold, color: COLORS.primary, marginBottom: 2 },
+  shareText: { fontSize: FONT_SIZE.sm, color: COLORS.gray700 },
+  shareTitle: { fontSize: FONT_SIZE.md, fontWeight: FONT_WEIGHT.bold, color: COLORS.gray900 },
+  shareSub: { fontSize: FONT_SIZE.xs, color: COLORS.gray500 },
+  shareTap: { fontSize: FONT_SIZE.xs, color: COLORS.primary, marginTop: SPACING.xs },
+  msgTime: { fontSize: FONT_SIZE.xs, marginTop: 2 },
   msgTimeMe: { color: 'rgba(255,255,255,0.7)', textAlign: 'right' },
-  msgTimeThem: { color: '#8E8E93' },
+  msgTimeThem: { color: COLORS.gray500 },
   shareCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    backgroundColor: 'rgba(0,122,255,0.08)',
-    borderRadius: 10,
-    padding: 10,
+    gap: SPACING.sm,
+    backgroundColor: COLORS.primary + '08',
+    borderRadius: RADIUS.sm,
+    padding: SPACING.sm,
   },
-  shareCardText: { fontSize: 14, color: '#007AFF', fontWeight: '500' },
+  shareCardText: { fontSize: FONT_SIZE.md, color: COLORS.primary, fontWeight: FONT_WEIGHT.medium },
   reactions: { flexDirection: 'row', flexWrap: 'wrap', gap: 2, marginTop: 2 },
-  reactionsRight: { justifyContent: 'flex-end', alignSelf: 'flex-end', marginRight: 4 },
+  reactionsRight: { justifyContent: 'flex-end', alignSelf: 'flex-end', marginRight: SPACING.xs },
   reactionsLeft: { marginLeft: 34 },
-  reactionChip: { fontSize: 12, backgroundColor: '#fff', borderRadius: 10, paddingHorizontal: 6, paddingVertical: 2 },
+  reactionChip: { fontSize: FONT_SIZE.xs, backgroundColor: COLORS.surface, borderRadius: RADIUS.sm, paddingHorizontal: SPACING.xs, paddingVertical: 2 },
   inputBar: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    backgroundColor: '#fff',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    backgroundColor: COLORS.surface,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
     borderTopWidth: 1,
-    borderTopColor: '#E5E5EA',
-    gap: 8,
+    borderTopColor: COLORS.gray200,
+    gap: SPACING.sm,
+    ...SHADOWS.sm,
   },
   input: {
     flex: 1,
-    backgroundColor: '#F2F2F7',
-    borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    fontSize: 16,
+    backgroundColor: COLORS.gray100,
+    borderRadius: RADIUS.xl,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    fontSize: FONT_SIZE.lg,
     maxHeight: 120,
+    color: COLORS.gray900,
   },
-  sendBtn: { padding: 8 },
+  sendBtn: { padding: SPACING.sm },
   sendBtnDisabled: {},
   reactionOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.3)',
+    backgroundColor: COLORS.overlay,
     justifyContent: 'center',
     alignItems: 'center',
   },
   reactionPicker: {
     flexDirection: 'row',
-    backgroundColor: '#fff',
-    borderRadius: 40,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    gap: 4,
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.huge,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    gap: SPACING.xs,
+    ...SHADOWS.lg,
     elevation: 8,
   },
   emojiBtn: { padding: 6 },

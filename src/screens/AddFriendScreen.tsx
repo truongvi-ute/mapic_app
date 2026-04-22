@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   StatusBar,
-  SafeAreaView,
   TouchableOpacity,
   TextInput,
   FlatList,
@@ -15,6 +14,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../store/useAuthStore';
 import { useAlert } from '../context/AlertContext';
 import { getApiUrl, buildAvatarUrl, buildCoverUrl } from '../config/api';
+import { SPACING, COLORS, LIGHT_COLORS, DARK_COLORS, FONT_SIZE, FONT_WEIGHT, RADIUS, SHADOWS, DIMENSIONS } from '../constants/design';
+import { useThemeStore } from '../store/useThemeStore';
+import SafeContainer from '../components/ui/SafeContainer';
+import Spacer from '../components/ui/Spacer';
 
 interface SearchResult {
   id: number;
@@ -33,6 +36,9 @@ interface AddFriendScreenProps {
 export default function AddFriendScreen({ onBack, onPressProfile }: AddFriendScreenProps) {
   const token = useAuthStore((state) => state.token);
   const { showAlert } = useAlert();
+  const { mode } = useThemeStore();
+  const isDark = mode === 'dark';
+  const C = isDark ? DARK_COLORS : LIGHT_COLORS;
 
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
@@ -151,7 +157,7 @@ export default function AddFriendScreen({ onBack, onPressProfile }: AddFriendScr
             style={styles.actionButton}
             onPress={() => handleSendRequest(user.id, user.name)}
           >
-            <Ionicons name="person-add" size={18} color="#FFF" />
+            <Ionicons name="person-add" size={DIMENSIONS.iconSM} color={COLORS.white} />
             <Text style={styles.actionButtonText}>Kết bạn</Text>
           </TouchableOpacity>
         );
@@ -172,7 +178,7 @@ export default function AddFriendScreen({ onBack, onPressProfile }: AddFriendScr
             style={[styles.actionButton, styles.actionButtonAccept]}
             onPress={() => handleAcceptRequest(user.id)}
           >
-            <Ionicons name="checkmark" size={18} color="#FFF" />
+            <Ionicons name="checkmark" size={DIMENSIONS.iconSM} color={COLORS.white} />
             <Text style={styles.actionButtonText}>Chấp nhận</Text>
           </TouchableOpacity>
         );
@@ -180,8 +186,8 @@ export default function AddFriendScreen({ onBack, onPressProfile }: AddFriendScr
       case 'FRIENDS':
         return (
           <View style={[styles.actionButton, styles.actionButtonDisabled]}>
-            <Ionicons name="checkmark-circle" size={18} color="#4CD964" />
-            <Text style={[styles.actionButtonTextDisabled, { color: '#4CD964' }]}>
+            <Ionicons name="checkmark-circle" size={DIMENSIONS.iconSM} color={COLORS.success} />
+            <Text style={[styles.actionButtonTextDisabled, { color: COLORS.success }]}>
               Bạn bè
             </Text>
           </View>
@@ -242,38 +248,35 @@ export default function AddFriendScreen({ onBack, onPressProfile }: AddFriendScr
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" />
+    <SafeContainer style={[styles.container, { backgroundColor: C.background }]}>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
       
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: C.surface, borderBottomColor: C.border }]}>
         <TouchableOpacity style={styles.backButton} onPress={onBack}>
-          <Ionicons name="arrow-back" size={24} color="#007AFF" />
+          <Ionicons name="arrow-back" size={DIMENSIONS.iconLG} color={C.primary} />
         </TouchableOpacity>
-        <Text style={styles.title}>Thêm bạn bè</Text>
+        <Text style={[styles.title, { color: C.textPrimary }]}>Thêm bạn bè</Text>
         <View style={styles.backButton} />
       </View>
 
       <View style={styles.tabContent}>
-        <View style={styles.searchContainer}>
-          <View style={styles.searchInputContainer}>
-            <Image
-              source={require('../assets/images/search.png')}
-              style={styles.searchIcon}
-            />
+        <View style={[styles.searchContainer, { backgroundColor: C.surface }]}>
+          <View style={[styles.searchInputContainer, { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : COLORS.gray50, borderColor: C.border }]}>
+            <Image source={require('../assets/images/search.png')} style={styles.searchIcon} />
             <TextInput
-              style={styles.searchInput}
+              style={[styles.searchInput, { color: C.textPrimary }]}
               placeholder="Nhập tên hoặc username..."
               value={searchQuery}
               onChangeText={setSearchQuery}
-              placeholderTextColor="#999"
+              placeholderTextColor={C.textTertiary}
               autoFocus
             />
             {searching && (
-              <ActivityIndicator size="small" color="#007AFF" style={{ marginRight: 8 }} />
+              <ActivityIndicator size="small" color={COLORS.primary} style={{ marginRight: SPACING.sm }} />
             )}
             {searchQuery.length > 0 && !searching && (
               <TouchableOpacity onPress={() => setSearchQuery('')}>
-                <Ionicons name="close-circle" size={20} color="#999" />
+                <Ionicons name="close-circle" size={DIMENSIONS.iconMD} color={COLORS.gray500} />
               </TouchableOpacity>
             )}
           </View>
@@ -292,7 +295,9 @@ export default function AddFriendScreen({ onBack, onPressProfile }: AddFriendScr
               source={require('../assets/images/search.png')}
               style={styles.emptyIcon}
             />
+            <Spacer size="lg" />
             <Text style={styles.emptyTitle}>Không tìm thấy</Text>
+            <Spacer size="sm" />
             <Text style={styles.emptyText}>
               Không có người dùng nào khớp với "{searchQuery}"
             </Text>
@@ -303,80 +308,84 @@ export default function AddFriendScreen({ onBack, onPressProfile }: AddFriendScr
               source={require('../assets/images/search.png')}
               style={styles.emptyIcon}
             />
+            <Spacer size="lg" />
             <Text style={styles.emptyTitle}>Tìm kiếm người dùng</Text>
+            <Spacer size="sm" />
             <Text style={styles.emptyText}>
               Nhập tên hoặc username để tìm kiếm bạn bè
             </Text>
           </View>
         )}
       </View>
-    </SafeAreaView>
+    </SafeContainer>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: COLORS.background,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
-    backgroundColor: '#FFFFFF',
+    padding: SPACING.lg,
+    backgroundColor: COLORS.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E5EA',
+    borderBottomColor: COLORS.gray200,
+    ...SHADOWS.sm,
   },
   backButton: {
-    width: 40,
-    height: 40,
+    width: DIMENSIONS.buttonHeight - SPACING.sm,
+    height: DIMENSIONS.buttonHeight - SPACING.sm,
     justifyContent: 'center',
     alignItems: 'center',
   },
   title: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#000',
+    fontSize: FONT_SIZE.xl,
+    fontWeight: FONT_WEIGHT.bold,
+    color: COLORS.gray900,
   },
   tabContent: {
     flex: 1,
   },
   searchContainer: {
-    padding: 16,
-    backgroundColor: '#FFFFFF',
+    padding: SPACING.lg,
+    backgroundColor: COLORS.surface,
   },
   searchInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F5F5F5',
-    paddingHorizontal: 12,
-    borderRadius: 10,
+    backgroundColor: COLORS.gray50,
+    paddingHorizontal: SPACING.md,
+    borderRadius: RADIUS.md,
     borderWidth: 1,
-    borderColor: '#E5E5EA',
+    borderColor: COLORS.gray200,
   },
   searchIcon: {
-    width: 20,
-    height: 20,
-    marginRight: 8,
+    width: DIMENSIONS.iconMD,
+    height: DIMENSIONS.iconMD,
+    marginRight: SPACING.sm,
   },
   searchInput: {
     flex: 1,
-    height: 44,
-    fontSize: 16,
-    color: '#000',
+    height: DIMENSIONS.inputHeight,
+    fontSize: FONT_SIZE.lg,
+    color: COLORS.gray900,
   },
   resultsList: {
-    padding: 16,
-    paddingBottom: 80,
+    padding: SPACING.lg,
+    paddingBottom: SPACING.huge * 2,
   },
   resultItem: {
     height: 120,
-    backgroundColor: '#FFFFFF',
-    marginBottom: 12,
-    borderRadius: 16,
+    backgroundColor: COLORS.surface,
+    marginBottom: SPACING.md,
+    borderRadius: RADIUS.lg,
     overflow: 'hidden',
     position: 'relative',
+    ...SHADOWS.md,
   },
   resultBackground: {
     width: '100%',
@@ -385,11 +394,11 @@ const styles = StyleSheet.create({
   },
   resultOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    backgroundColor: COLORS.overlay,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
+    padding: SPACING.lg,
   },
   resultInfo: {
     flexDirection: 'row',
@@ -397,67 +406,66 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   avatar: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    marginRight: 12,
+    width: DIMENSIONS.avatarLG,
+    height: DIMENSIONS.avatarLG,
+    borderRadius: DIMENSIONS.avatarLG / 2,
+    marginRight: SPACING.md,
     borderWidth: 2,
-    borderColor: '#FFF',
+    borderColor: COLORS.white,
   },
   resultDetails: {
     flex: 1,
   },
   resultName: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#FFF',
+    fontSize: FONT_SIZE.xl,
+    fontWeight: FONT_WEIGHT.bold,
+    color: COLORS.white,
   },
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#007AFF',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    gap: 4,
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.sm,
+    borderRadius: RADIUS.xl,
+    gap: SPACING.xs,
+    ...SHADOWS.sm,
   },
   actionButtonText: {
-    color: '#FFF',
-    fontSize: 14,
-    fontWeight: '600',
+    color: COLORS.white,
+    fontSize: FONT_SIZE.md,
+    fontWeight: FONT_WEIGHT.semibold,
   },
   actionButtonDisabled: {
-    backgroundColor: '#F0F0F0',
+    backgroundColor: COLORS.gray100,
   },
   actionButtonTextDisabled: {
-    color: '#999',
-    fontSize: 14,
-    fontWeight: '600',
+    color: COLORS.gray500,
+    fontSize: FONT_SIZE.md,
+    fontWeight: FONT_WEIGHT.semibold,
   },
   actionButtonAccept: {
-    backgroundColor: '#4CD964',
+    backgroundColor: COLORS.success,
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 40,
+    padding: SPACING.xxxl + SPACING.sm,
   },
   emptyIcon: {
-    width: 64,
-    height: 64,
+    width: DIMENSIONS.avatarXL - SPACING.lg,
+    height: DIMENSIONS.avatarXL - SPACING.lg,
   },
   emptyTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#000',
-    marginTop: 16,
-    marginBottom: 8,
+    fontSize: FONT_SIZE.xl,
+    fontWeight: FONT_WEIGHT.semibold,
+    color: COLORS.gray900,
   },
   emptyText: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: FONT_SIZE.md,
+    color: COLORS.gray600,
     textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: FONT_SIZE.md * 1.4,
   },
 });

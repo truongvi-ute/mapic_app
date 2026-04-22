@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  SafeAreaView,
   FlatList,
   ActivityIndicator,
   Modal,
@@ -29,6 +28,10 @@ import CreateAlbumModal from '../components/CreateAlbumModal';
 import ShareTargetModal from '../components/ShareTargetModal';
 import CommentModal from '../components/CommentModal';
 import { getBaseUrl } from '../config/api';
+import { SPACING, COLORS, LIGHT_COLORS, DARK_COLORS, FONT_SIZE, FONT_WEIGHT, RADIUS, SHADOWS, DIMENSIONS } from '../constants/design';
+import { useThemeStore } from '../store/useThemeStore';
+import SafeContainer from '../components/ui/SafeContainer';
+import Spacer from '../components/ui/Spacer';
 
 const { width } = Dimensions.get('window');
 
@@ -48,6 +51,9 @@ interface AlbumsScreenProps {
 export default function AlbumsScreen({ onBack, onOpenAlbum, onOpenMap, onOpenProfile }: AlbumsScreenProps) {
   const token = useAuthStore((state) => state.token);
   const { showAlert } = useAlert();
+  const { mode } = useThemeStore();
+  const isDark = mode === 'dark';
+  const C = isDark ? DARK_COLORS : LIGHT_COLORS;
 
   const [albums, setAlbums] = useState<Album[]>([]);
   const [loading, setLoading] = useState(true);
@@ -233,25 +239,22 @@ export default function AlbumsScreen({ onBack, onOpenAlbum, onOpenMap, onOpenPro
 
   const renderAlbumCard = ({ item }: { item: Album }) => {
     return (
-      <View style={styles.albumCard}>
+      <View style={[styles.albumCard, { backgroundColor: C.surface }]}>
         {/* Album Header */}
         <View style={styles.albumHeader}>
           <View style={styles.albumHeaderInfo}>
             <View style={styles.albumTitleRow}>
-              <Image
-                source={require('../assets/images/album.png')}
-                style={styles.albumHeaderIcon}
-              />
+              <Image source={require('../assets/images/album.png')} style={styles.albumHeaderIcon} />
               <View style={styles.albumHeaderText}>
-                <Text style={styles.albumTitle}>{item.title}</Text>
+                <Text style={[styles.albumTitle, { color: C.textPrimary }]}>{item.title}</Text>
                 {item.description && (
-                  <Text style={styles.albumDescription} numberOfLines={2}>
+                  <Text style={[styles.albumDescription, { color: C.textSecondary }]} numberOfLines={2}>
                     {item.description}
                   </Text>
                 )}
               </View>
             </View>
-            <Text style={styles.albumCount}>
+            <Text style={[styles.albumCount, { color: C.textTertiary }]}>
               {item.itemCount} moment{item.itemCount !== 1 ? 's' : ''}
             </Text>
           </View>
@@ -293,7 +296,7 @@ export default function AlbumsScreen({ onBack, onOpenAlbum, onOpenMap, onOpenPro
               showAlert('Tùy chọn', `Chọn hành động với album "${item.title}"`, menuOptions);
             }}
           >
-            <Ionicons name="ellipsis-horizontal" size={24} color="#666" />
+            <Ionicons name="ellipsis-horizontal" size={DIMENSIONS.iconLG} color={COLORS.gray600} />
           </TouchableOpacity>
         </View>
 
@@ -324,7 +327,8 @@ export default function AlbumsScreen({ onBack, onOpenAlbum, onOpenMap, onOpenPro
             </ScrollView>
           ) : (
             <View style={styles.emptyAlbum}>
-              <Ionicons name="add-circle-outline" size={64} color="#C7C7CC" />
+              <Ionicons name="add-circle-outline" size={DIMENSIONS.avatarXL - SPACING.lg} color={COLORS.gray300} />
+              <Spacer size="md" />
               <Text style={styles.emptyText}>Album chưa có moment nào</Text>
             </View>
           )}
@@ -334,22 +338,23 @@ export default function AlbumsScreen({ onBack, onOpenAlbum, onOpenMap, onOpenPro
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeContainer style={[styles.container, { backgroundColor: C.background }]}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: C.surface, borderBottomColor: C.border }]}>
         <TouchableOpacity onPress={onBack} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#007AFF" />
+          <Ionicons name="arrow-back" size={DIMENSIONS.iconLG} color={C.primary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Albums</Text>
+        <Text style={[styles.headerTitle, { color: C.textPrimary }]}>Albums</Text>
         <TouchableOpacity onPress={handleCreateAlbum} style={styles.createButton}>
-          <Ionicons name="add" size={28} color="#007AFF" />
+          <Ionicons name="add" size={DIMENSIONS.iconXL - SPACING.xs} color={C.primary} />
         </TouchableOpacity>
       </View>
 
       {/* Content */}
       {loading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#007AFF" />
+          <ActivityIndicator size="large" color={COLORS.primary} />
+          <Spacer size="md" />
           <Text style={styles.loadingText}>Đang tải albums...</Text>
         </View>
       ) : (
@@ -365,15 +370,18 @@ export default function AlbumsScreen({ onBack, onOpenAlbum, onOpenMap, onOpenPro
                 source={require('../assets/images/album.png')}
                 style={styles.emptyIcon}
               />
+              <Spacer size="lg" />
               <Text style={styles.emptyStateText}>Chưa có album nào</Text>
+              <Spacer size="sm" />
               <Text style={styles.emptyStateSubtext}>
                 Tạo album đầu tiên để tổ chức moments của bạn
               </Text>
+              <Spacer size="xl" />
               <TouchableOpacity
                 style={styles.createFirstButton}
                 onPress={handleCreateAlbum}
               >
-                <Ionicons name="add" size={20} color="#fff" />
+                <Ionicons name="add" size={DIMENSIONS.iconMD} color={COLORS.white} />
                 <Text style={styles.createFirstButtonText}>Tạo Album</Text>
               </TouchableOpacity>
             </View>
@@ -537,61 +545,55 @@ export default function AlbumsScreen({ onBack, onOpenAlbum, onOpenMap, onOpenPro
           }}
         />
       )}
-    </SafeAreaView>
+    </SafeContainer>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: COLORS.background,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    backgroundColor: COLORS.surface,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E5EA',
+    borderBottomColor: COLORS.gray200,
+    ...SHADOWS.sm,
   },
   backButton: {
-    padding: 8,
+    padding: SPACING.sm,
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#000',
+    fontSize: FONT_SIZE.xl,
+    fontWeight: FONT_WEIGHT.bold,
+    color: COLORS.gray900,
   },
   createButton: {
-    padding: 8,
+    padding: SPACING.sm,
   },
   content: {
     flexGrow: 1,
-    paddingBottom: 16,
+    paddingBottom: SPACING.lg,
   },
   albumCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    marginHorizontal: 16,
-    marginTop: 16,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.md,
+    marginHorizontal: SPACING.lg,
+    marginTop: SPACING.lg,
     overflow: 'hidden',
+    ...SHADOWS.md,
   },
   albumHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    padding: 16,
-    paddingBottom: 12,
+    padding: SPACING.lg,
+    paddingBottom: SPACING.md,
   },
   albumHeaderInfo: {
     flex: 1,
@@ -599,60 +601,59 @@ const styles = StyleSheet.create({
   albumTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: SPACING.sm,
   },
   albumHeaderIcon: {
-    width: 32,
-    height: 32,
-    marginRight: 12,
+    width: DIMENSIONS.iconXL,
+    height: DIMENSIONS.iconXL,
+    marginRight: SPACING.md,
   },
   albumHeaderText: {
     flex: 1,
   },
   albumTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#000',
-    marginBottom: 4,
+    fontSize: FONT_SIZE.xl,
+    fontWeight: FONT_WEIGHT.bold,
+    color: COLORS.gray900,
+    marginBottom: SPACING.xs,
   },
   albumDescription: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: FONT_SIZE.md,
+    color: COLORS.gray600,
   },
   albumCount: {
-    fontSize: 12,
-    color: '#999',
-    fontWeight: '500',
+    fontSize: FONT_SIZE.sm,
+    color: COLORS.gray500,
+    fontWeight: FONT_WEIGHT.medium,
   },
   menuButton: {
-    padding: 8,
+    padding: SPACING.sm,
   },
   albumContent: {
-    height: width * 0.45 + 16, // Height to fit square card + padding
+    height: width * 0.45 + SPACING.lg, // Height to fit square card + padding
   },
   momentsScroll: {
     flex: 1,
   },
   momentsContainer: {
-    paddingHorizontal: 8,
-    paddingVertical: 8,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.sm,
   },
   momentCardContainer: {
     width: width * 0.45,
     height: width * 0.45,
-    paddingHorizontal: 4,
+    paddingHorizontal: SPACING.xs,
   },
   emptyAlbum: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F8F9FA',
+    backgroundColor: COLORS.gray50,
   },
   emptyText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: '#999',
-    fontWeight: '500',
+    fontSize: FONT_SIZE.lg,
+    color: COLORS.gray500,
+    fontWeight: FONT_WEIGHT.medium,
   },
   loadingContainer: {
     flex: 1,
@@ -660,46 +661,43 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loadingText: {
-    marginTop: 12,
-    fontSize: 14,
-    color: '#666',
+    fontSize: FONT_SIZE.md,
+    color: COLORS.gray600,
   },
   emptyState: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 60,
-    paddingHorizontal: 32,
+    paddingVertical: SPACING.huge + SPACING.xl,
+    paddingHorizontal: SPACING.xxxl,
   },
   emptyIcon: {
-    width: 80,
-    height: 80,
-    marginBottom: 16,
+    width: DIMENSIONS.avatarXL,
+    height: DIMENSIONS.avatarXL,
   },
   emptyStateText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#000',
-    marginBottom: 8,
+    fontSize: FONT_SIZE.xl,
+    fontWeight: FONT_WEIGHT.semibold,
+    color: COLORS.gray900,
   },
   emptyStateSubtext: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: FONT_SIZE.md,
+    color: COLORS.gray600,
     textAlign: 'center',
-    marginBottom: 24,
   },
   createFirstButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#007AFF',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 24,
-    gap: 8,
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: SPACING.xl,
+    paddingVertical: SPACING.md,
+    borderRadius: RADIUS.xl,
+    gap: SPACING.sm,
+    ...SHADOWS.sm,
   },
   createFirstButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#fff',
+    fontSize: FONT_SIZE.lg,
+    fontWeight: FONT_WEIGHT.semibold,
+    color: COLORS.white,
   },
   momentModalOverlay: {
     flex: 1,
@@ -708,8 +706,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   submitButtonText: {
-    color: '#fff',
-    fontWeight: '600',
+    color: COLORS.white,
+    fontWeight: FONT_WEIGHT.semibold,
   },
   disabledButton: {
     opacity: 0.5,

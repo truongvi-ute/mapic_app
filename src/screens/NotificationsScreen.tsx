@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   StatusBar,
   FlatList,
   TouchableOpacity,
@@ -13,6 +12,10 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import { SPACING, COLORS, LIGHT_COLORS, DARK_COLORS, FONT_SIZE, FONT_WEIGHT, RADIUS, SHADOWS, DIMENSIONS } from '../constants/design';
+import { useThemeStore } from '../store/useThemeStore';
+import SafeContainer from '../components/ui/SafeContainer';
+import Spacer from '../components/ui/Spacer';
 import { useNotificationStore } from '../store/useNotificationStore';
 import { useMainNavigationStore } from '../store/useMainNavigationStore';
 import { NotificationDTO } from '../api/notificationService';
@@ -42,6 +45,9 @@ export default function NotificationsScreen() {
     markAllAsRead 
   } = useNotificationStore();
   const { setActiveScreen } = useMainNavigationStore();
+  const { mode } = useThemeStore();
+  const isDark = mode === 'dark';
+  const C = isDark ? DARK_COLORS : LIGHT_COLORS;
 
   useEffect(() => {
     fetchNotifications();
@@ -69,26 +75,26 @@ export default function NotificationsScreen() {
   const getIcon = (type: string) => {
     switch (type) {
       case 'FRIEND_REQUEST':
-        return { name: 'person-add', color: '#007AFF' };
+        return { name: 'person-add', color: COLORS.primary };
       case 'FRIEND_ACCEPT':
-        return { name: 'people', color: '#34C759' };
+        return { name: 'people', color: COLORS.success };
       case 'MOMENT_REACTION':
-        return { name: 'heart', color: '#FF2D55' };
+        return { name: 'heart', color: COLORS.error };
       case 'MOMENT_COMMENT':
-        return { name: 'chatbubble', color: '#5856D6' };
+        return { name: 'chatbubble', color: COLORS.info };
       case 'NEW_MESSAGE':
-        return { name: 'mail', color: '#FF9500' };
+        return { name: 'mail', color: COLORS.warning };
       case 'SOS_ALERT':
-        return { name: 'warning', color: '#FF3B30' };
+        return { name: 'warning', color: COLORS.error };
       default:
-        return { name: 'notifications', color: '#8E8E93' };
+        return { name: 'notifications', color: COLORS.gray500 };
     }
   };
 
   const getPriorityStyle = (priority: string) => {
     switch (priority) {
       case 'HIGH':
-        return { borderLeftColor: '#FF3B30', borderLeftWidth: 4 };
+        return { borderLeftColor: COLORS.error, borderLeftWidth: 4 };
       case 'NORMAL':
         return {};
       case 'LOW':
@@ -106,8 +112,8 @@ export default function NotificationsScreen() {
     return (
       <TouchableOpacity 
         style={[
-          styles.notificationItem, 
-          !item.isRead && styles.unreadItem,
+          styles.notificationItem,
+          { backgroundColor: item.isRead ? C.surface : (isDark ? 'rgba(67,97,238,0.12)' : C.gray50) },
           priorityStyle
         ]}
         onPress={() => handleNotificationPress(item)}
@@ -126,7 +132,7 @@ export default function NotificationsScreen() {
             <Image source={{ uri: item.actorAvatar }} style={styles.avatar} />
           ) : (
             <View style={[styles.avatarPlaceholder, { backgroundColor: icon.color }]}>
-              <Ionicons name={icon.name as any} size={24} color="#FFF" />
+              <Ionicons name={icon.name as any} size={DIMENSIONS.iconLG} color={COLORS.white} />
             </View>
           )}
           {!item.isRead && <View style={styles.unreadDot} />}
@@ -134,8 +140,8 @@ export default function NotificationsScreen() {
 
         {/* Content */}
         <View style={styles.infoContainer}>
-          <Text style={styles.messageText}>
-            <Text style={styles.actorName}>{item.actorName}</Text>{' '}
+          <Text style={[styles.messageText, { color: C.textSecondary }]}>
+            <Text style={[styles.actorName, { color: C.textPrimary }]}>{item.actorName}</Text>{' '}
             {item.message.replace(item.actorName, '').trim()}
           </Text>
           
@@ -151,30 +157,30 @@ export default function NotificationsScreen() {
 
         {/* Type icon */}
         <View style={styles.typeIcon}>
-           <Ionicons name={icon.name as any} size={16} color={icon.color} />
+           <Ionicons name={icon.name as any} size={DIMENSIONS.iconSM} color={icon.color} />
         </View>
       </TouchableOpacity>
     );
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" />
-      <View style={styles.header}>
+    <SafeContainer style={[styles.container, { backgroundColor: C.background }]}>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
+      <View style={[styles.header, { backgroundColor: C.surface, borderBottomColor: C.border }]}>
         <View>
-          <Text style={styles.title}>Thông báo</Text>
+          <Text style={[styles.title, { color: C.textPrimary }]}>Thông báo</Text>
           {unreadCount > 0 && (
-            <Text style={styles.subtitle}>Bạn có {unreadCount} thông báo mới</Text>
+            <Text style={[styles.subtitle, { color: C.textSecondary }]}>Bạn có {unreadCount} thông báo mới</Text>
           )}
         </View>
         <TouchableOpacity onPress={markAllAsRead}>
-          <Text style={styles.markAllText}>Đánh dấu tất cả</Text>
+          <Text style={[styles.markAllText, { color: C.primary }]}>Đánh dấu tất cả</Text>
         </TouchableOpacity>
       </View>
 
       {isLoading && notifications.length === 0 ? (
         <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color="#007AFF" />
+          <ActivityIndicator size="large" color={COLORS.primary} />
         </View>
       ) : (
         <FlatList
@@ -187,85 +193,82 @@ export default function NotificationsScreen() {
           }
           ListEmptyComponent={
             <View style={styles.centerContainer}>
-              <Ionicons name="notifications-off-outline" size={64} color="#C7C7CC" />
+              <Ionicons name="notifications-off-outline" size={64} color={COLORS.gray300} />
+              <Spacer size="md" />
               <Text style={styles.emptyText}>Chưa có thông báo nào</Text>
             </View>
           }
         />
       )}
-    </SafeAreaView>
+    </SafeContainer>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F2F2F7',
+    backgroundColor: COLORS.background,
   },
   header: {
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    backgroundColor: '#FFFFFF',
+    paddingHorizontal: SPACING.xl,
+    paddingVertical: SPACING.md,
+    backgroundColor: COLORS.surface,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-end',
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E5EA',
+    borderBottomColor: COLORS.gray200,
   },
   title: {
-    fontSize: 34,
-    fontWeight: 'bold',
-    color: '#000000',
+    fontSize: FONT_SIZE.massive,
+    fontWeight: FONT_WEIGHT.bold,
+    color: COLORS.gray900,
   },
   subtitle: {
-    fontSize: 14,
-    color: '#8E8E93',
+    fontSize: FONT_SIZE.md,
+    color: COLORS.gray500,
     marginTop: 2,
   },
   markAllText: {
-    fontSize: 15,
-    color: '#007AFF',
-    fontWeight: '600',
-    marginBottom: 5,
+    fontSize: FONT_SIZE.md,
+    color: COLORS.primary,
+    fontWeight: FONT_WEIGHT.semibold,
+    marginBottom: SPACING.xs,
   },
   listContent: {
-    paddingVertical: 10,
+    paddingVertical: SPACING.sm,
   },
   notificationItem: {
     flexDirection: 'row',
-    padding: 15,
-    backgroundColor: '#FFFFFF',
-    marginHorizontal: 10,
-    marginVertical: 5,
-    borderRadius: 12,
+    padding: SPACING.md,
+    backgroundColor: COLORS.surface,
+    marginHorizontal: SPACING.sm,
+    marginVertical: SPACING.xs,
+    borderRadius: RADIUS.md,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
+    ...SHADOWS.sm,
   },
   unreadItem: {
-    backgroundColor: '#F0F7FF',
+    backgroundColor: COLORS.gray50,
   },
   thumbnail: {
-    width: 50,
-    height: 50,
-    borderRadius: 8,
-    marginRight: 10,
+    width: DIMENSIONS.avatarLG,
+    height: DIMENSIONS.avatarLG,
+    borderRadius: RADIUS.sm,
+    marginRight: SPACING.sm,
   },
   avatarContainer: {
     position: 'relative',
   },
   avatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: DIMENSIONS.avatarLG,
+    height: DIMENSIONS.avatarLG,
+    borderRadius: DIMENSIONS.avatarLG / 2,
   },
   avatarPlaceholder: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: DIMENSIONS.avatarLG,
+    height: DIMENSIONS.avatarLG,
+    borderRadius: DIMENSIONS.avatarLG / 2,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -276,37 +279,37 @@ const styles = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: '#007AFF',
+    backgroundColor: COLORS.primary,
     borderWidth: 2,
-    borderColor: '#FFFFFF',
+    borderColor: COLORS.surface,
   },
   infoContainer: {
     flex: 1,
-    marginLeft: 12,
+    marginLeft: SPACING.md,
   },
   actorName: {
-    fontWeight: 'bold',
-    color: '#000000',
+    fontWeight: FONT_WEIGHT.bold,
+    color: COLORS.gray900,
   },
   messageText: {
-    fontSize: 15,
-    color: '#3A3A3C',
-    lineHeight: 20,
+    fontSize: FONT_SIZE.md,
+    color: COLORS.gray700,
+    lineHeight: FONT_SIZE.md * 1.4,
   },
   contentPreview: {
-    fontSize: 13,
-    color: '#8E8E93',
+    fontSize: FONT_SIZE.sm,
+    color: COLORS.gray500,
     fontStyle: 'italic',
-    marginTop: 4,
-    lineHeight: 18,
+    marginTop: SPACING.xs,
+    lineHeight: FONT_SIZE.sm * 1.4,
   },
   timeText: {
-    fontSize: 12,
-    color: '#8E8E93',
-    marginTop: 4,
+    fontSize: FONT_SIZE.sm,
+    color: COLORS.gray500,
+    marginTop: SPACING.xs,
   },
   typeIcon: {
-    marginLeft: 10,
+    marginLeft: SPACING.sm,
   },
   centerContainer: {
     flex: 1,
@@ -315,8 +318,7 @@ const styles = StyleSheet.create({
     paddingTop: 100,
   },
   emptyText: {
-    fontSize: 16,
-    color: '#8E8E93',
-    marginTop: 10,
+    fontSize: FONT_SIZE.lg,
+    color: COLORS.gray500,
   },
 });

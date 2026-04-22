@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   StatusBar,
   FlatList,
   TouchableOpacity,
@@ -14,6 +13,7 @@ import {
   Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '../store/useAuthStore';
 import { useAlert } from '../context/AlertContext';
 import reportService from '../api/reportService';
@@ -25,6 +25,9 @@ import AlbumSelectModal from '../components/AlbumSelectModal';
 import CommentModal from '../components/CommentModal';
 import EditCaptionModal from '../components/EditCaptionModal';
 import albumService from '../api/albumService';
+import { SPACING, COLORS, LIGHT_COLORS, DARK_COLORS, FONT_SIZE, FONT_WEIGHT, RADIUS, SHADOWS } from '../constants/design';
+import { useThemeStore } from '../store/useThemeStore';
+import Spacer from '../components/ui/Spacer';
 
 type SortOption = 'newest' | 'popular';
 type CategoryOption = 'all' | 'LANDSCAPE' | 'PEOPLE' | 'FOOD' | 'ARCHITECTURE' | 'OTHER';
@@ -56,6 +59,10 @@ export default function ExploreScreen({ refreshTrigger, highlightMomentId, onBac
   const token = useAuthStore((state) => state.token);
   const currentUser = useAuthStore((state) => state.user);
   const { showAlert } = useAlert();
+  const { mode } = useThemeStore();
+  const isDark = mode === 'dark';
+  const C = isDark ? DARK_COLORS : LIGHT_COLORS;
+  const insets = useSafeAreaInsets();
 
   const [moments, setMoments] = useState<Moment[]>([]);
   const [loading, setLoading] = useState(false);
@@ -496,7 +503,8 @@ export default function ExploreScreen({ refreshTrigger, highlightMomentId, onBac
 
     return (
       <View style={styles.footerLoader}>
-        <ActivityIndicator size="small" color="#007AFF" />
+        <ActivityIndicator size="small" color={COLORS.primary} />
+        <Spacer size="sm" />
         <Text style={styles.footerText}>Đang tải thêm...</Text>
       </View>
     );
@@ -520,14 +528,14 @@ export default function ExploreScreen({ refreshTrigger, highlightMomentId, onBac
   };
 
   const renderHeader = () => (
-    <View style={styles.header}>
+    <View style={[styles.header, { backgroundColor: C.surface, borderBottomColor: C.border }]}>
       {onBack && (
         <TouchableOpacity onPress={onBack} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color="#007AFF" />
+          <Ionicons name="arrow-back" size={24} color={C.primary} />
         </TouchableOpacity>
       )}
-      <Text style={styles.title}>Khám phá</Text>
-      <Text style={styles.subtitle}>
+      <Text style={[styles.title, { color: C.primary }]}>Khám phá</Text>
+      <Text style={[styles.subtitle, { color: C.textTertiary }]}>
         {pageInfo ? `${pageInfo.totalElements} khoảnh khắc` : 'Đang tải...'}
       </Text>
     </View>
@@ -535,21 +543,22 @@ export default function ExploreScreen({ refreshTrigger, highlightMomentId, onBac
 
   if (loading && moments.length === 0) {
     return (
-      <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="dark-content" />
+      <View style={[styles.container, { paddingTop: insets.top, backgroundColor: C.background }]}>
+        <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
         {renderHeader()}
         {renderFilterBar()}
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#007AFF" />
-          <Text style={styles.loadingText}>Đang tải...</Text>
+          <ActivityIndicator size="large" color={C.primary} />
+          <Spacer size="md" />
+          <Text style={[styles.loadingText, { color: C.textSecondary }]}>Đang tải...</Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" />
+    <View style={[styles.container, { paddingTop: insets.top, backgroundColor: C.background }]}>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
       <FlatList
         ref={flatListRef}
         data={moments}
@@ -614,7 +623,10 @@ export default function ExploreScreen({ refreshTrigger, highlightMomentId, onBac
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         onEndReached={onEndReached}
         onEndReachedThreshold={0.5}
-        contentContainerStyle={moments.length === 0 ? styles.emptyList : undefined}
+        contentContainerStyle={[
+          moments.length === 0 ? styles.emptyList : undefined,
+          { paddingBottom: insets.bottom + SPACING.lg }
+        ]}
       />
       {renderProvinceModal()}
       {renderCategoryModal()}
@@ -651,65 +663,67 @@ export default function ExploreScreen({ refreshTrigger, highlightMomentId, onBac
           onSave={handleSaveCaption}
         />
       )}
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: COLORS.background,
   },
   header: {
-    padding: 20,
-    backgroundColor: '#FFFFFF',
+    padding: SPACING.xl,
+    backgroundColor: COLORS.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E5EA',
+    borderBottomColor: COLORS.gray200,
+    ...SHADOWS.sm,
   },
   backBtn: {
-    marginBottom: 8,
+    marginBottom: SPACING.sm,
   },
   title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#007AFF',
+    fontSize: FONT_SIZE.huge,
+    fontWeight: FONT_WEIGHT.bold,
+    color: COLORS.primary,
   },
   subtitle: {
-    fontSize: 14,
-    color: '#8E8E93',
-    marginTop: 4,
+    fontSize: FONT_SIZE.sm,
+    color: COLORS.gray500,
+    marginTop: SPACING.xs,
   },
   filterBar: {
-    backgroundColor: '#FFFFFF',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+    backgroundColor: COLORS.surface,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E5EA',
+    borderBottomColor: COLORS.gray200,
+    ...SHADOWS.sm,
   },
   filterButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: '#F0F0F0',
-    marginRight: 8,
-    gap: 6,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.sm,
+    borderRadius: RADIUS.xl,
+    backgroundColor: COLORS.gray100,
+    marginRight: SPACING.sm,
+    gap: SPACING.xs,
   },
   filterIcon: {
     width: 16,
     height: 16,
   },
   filterButtonActive: {
-    backgroundColor: '#007AFF',
+    backgroundColor: COLORS.primary,
   },
   filterButtonText: {
-    fontSize: 14,
-    color: '#007AFF',
-    fontWeight: '500',
+    fontSize: FONT_SIZE.md,
+    color: COLORS.primary,
+    fontWeight: FONT_WEIGHT.medium,
   },
   filterButtonTextActive: {
-    color: '#FFF',
+    color: COLORS.white,
   },
   loadingContainer: {
     flex: 1,
@@ -717,9 +731,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loadingText: {
-    marginTop: 12,
-    fontSize: 14,
-    color: '#666',
+    fontSize: FONT_SIZE.md,
+    color: COLORS.gray600,
   },
   emptyList: {
     flexGrow: 1,
@@ -728,7 +741,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 40,
+    padding: SPACING.huge,
     minHeight: 400,
   },
   emptyIcon: {
@@ -736,50 +749,51 @@ const styles = StyleSheet.create({
     height: 64,
   },
   emptyTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#000',
-    marginTop: 16,
-    marginBottom: 8,
+    fontSize: FONT_SIZE.xl,
+    fontWeight: FONT_WEIGHT.semibold,
+    color: COLORS.gray900,
+    marginTop: SPACING.lg,
+    marginBottom: SPACING.sm,
   },
   emptyText: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: FONT_SIZE.md,
+    color: COLORS.gray600,
     textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: FONT_SIZE.md * 1.5,
   },
   footerLoader: {
-    paddingVertical: 20,
+    paddingVertical: SPACING.xl,
     alignItems: 'center',
   },
   footerText: {
-    marginTop: 8,
-    fontSize: 14,
-    color: '#666',
+    marginTop: SPACING.sm,
+    fontSize: FONT_SIZE.md,
+    color: COLORS.gray600,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: COLORS.overlay,
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    backgroundColor: COLORS.surface,
+    borderTopLeftRadius: RADIUS.xl,
+    borderTopRightRadius: RADIUS.xl,
     maxHeight: '80%',
+    ...SHADOWS.xl,
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
+    padding: SPACING.xl,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E5EA',
+    borderBottomColor: COLORS.gray200,
   },
   modalTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#000',
+    fontSize: FONT_SIZE.xl,
+    fontWeight: FONT_WEIGHT.semibold,
+    color: COLORS.gray900,
   },
   modalList: {
     maxHeight: 500,
@@ -788,31 +802,31 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
+    padding: SPACING.lg,
     borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
+    borderBottomColor: COLORS.gray100,
   },
   modalItemActive: {
-    backgroundColor: '#F0F8FF',
+    backgroundColor: COLORS.primary + '10', // 10% opacity
   },
   modalItemLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: SPACING.md,
   },
   modalItemText: {
-    fontSize: 16,
-    color: '#000',
+    fontSize: FONT_SIZE.lg,
+    color: COLORS.gray900,
   },
   modalItemTextActive: {
-    color: '#007AFF',
-    fontWeight: '500',
+    color: COLORS.primary,
+    fontWeight: FONT_WEIGHT.medium,
   },
   highlightedMoment: {
     borderWidth: 2,
-    borderColor: '#007AFF',
-    borderRadius: 12,
-    marginHorizontal: 4,
+    borderColor: COLORS.primary,
+    borderRadius: RADIUS.md,
+    marginHorizontal: SPACING.xs,
     overflow: 'hidden',
   },
 });
