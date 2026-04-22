@@ -206,7 +206,10 @@ export default function UserProfileScreen({ userId, onBack, onOpenMap }: UserPro
             onPress={handleMessage}
             disabled={actionLoading}
           >
-            <Ionicons name="chatbubble" size={20} color="#fff" />
+            <Image
+              source={require('../assets/images/message.png')}
+              style={styles.actionIcon}
+            />
             <Text style={styles.messageButtonText}>Nhắn tin</Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -214,7 +217,10 @@ export default function UserProfileScreen({ userId, onBack, onOpenMap }: UserPro
             onPress={handleUnfriend}
             disabled={actionLoading}
           >
-            <Ionicons name="person-remove" size={20} color="#FF3B30" />
+            <Image
+              source={require('../assets/images/unfriend.png')}
+              style={styles.unfriendIcon}
+            />
           </TouchableOpacity>
         </View>
       );
@@ -262,15 +268,11 @@ export default function UserProfileScreen({ userId, onBack, onOpenMap }: UserPro
     <>
       {/* Cover Image */}
       <View style={styles.coverContainer}>
-        {user?.coverImageUrl ? (
-          <Image
-            source={{ uri: buildMediaUrl(user.coverImageUrl) || undefined }}
-            style={styles.coverImage}
-            contentFit="cover"
-          />
-        ) : (
-          <View style={[styles.coverImage, styles.coverPlaceholder]} />
-        )}
+        <Image
+          source={user?.coverImageUrl ? { uri: buildMediaUrl(user.coverImageUrl) || undefined } : require('../assets/images/cover-default.jpg')}
+          style={styles.coverImage}
+          contentFit="cover"
+        />
       </View>
 
       {/* Profile Info */}
@@ -301,19 +303,19 @@ export default function UserProfileScreen({ userId, onBack, onOpenMap }: UserPro
         <View style={styles.infoRow}>
           {user?.gender && (
             <View style={styles.infoItem}>
-              <Ionicons name="person-outline" size={16} color="#666" />
+              <Ionicons name="person-outline" size={20} color="#666" />
               <Text style={styles.infoText}>{GENDER_LABELS[user.gender]}</Text>
             </View>
           )}
           {user?.dateOfBirth && (
             <View style={styles.infoItem}>
-              <Ionicons name="calendar-outline" size={16} color="#666" />
+              <Ionicons name="calendar-outline" size={20} color="#666" />
               <Text style={styles.infoText}>{formatDate(user.dateOfBirth)}</Text>
             </View>
           )}
           {user?.phone && (
             <View style={styles.infoItem}>
-              <Ionicons name="call-outline" size={16} color="#666" />
+              <Ionicons name="call-outline" size={20} color="#666" />
               <Text style={styles.infoText}>{user.phone}</Text>
             </View>
           )}
@@ -324,7 +326,10 @@ export default function UserProfileScreen({ userId, onBack, onOpenMap }: UserPro
 
       {/* Moments Header */}
       <View style={styles.momentsHeader}>
-        <Ionicons name="grid-outline" size={24} color="#007AFF" />
+        <Image
+          source={require('../assets/images/moment.png')}
+          style={styles.momentIcon}
+        />
         <Text style={styles.momentsHeaderText}>Khoảnh khắc</Text>
       </View>
     </>
@@ -332,7 +337,10 @@ export default function UserProfileScreen({ userId, onBack, onOpenMap }: UserPro
 
   const renderEmptyComponent = () => (
     <View style={styles.emptyContainer}>
-      <Ionicons name="images-outline" size={64} color="#ccc" />
+      <Image
+        source={require('../assets/images/moment.png')}
+        style={styles.emptyIcon}
+      />
       <Text style={styles.emptyText}>
         {user?.friendshipStatus === 'FRIENDS'
           ? 'Chưa có khoảnh khắc nào'
@@ -370,7 +378,7 @@ export default function UserProfileScreen({ userId, onBack, onOpenMap }: UserPro
           <MomentCard
             moment={item}
             baseUrl={baseUrl}
-            token={token}
+            token={token || ''}
             onPressMap={() => {
               if (item.location && onOpenMap) {
                 const provinceName = item.province?.name || item.district?.name || '';
@@ -382,7 +390,6 @@ export default function UserProfileScreen({ userId, onBack, onOpenMap }: UserPro
                   addressName: item.location.address || item.location.name,
                   provinceName,
                   imageUrl: firstImage,
-                  caption: item.caption,
                 });
               }
             }}
@@ -495,7 +502,7 @@ const styles = StyleSheet.create({
   infoItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 6,
   },
   infoText: {
     fontSize: 14,
@@ -505,6 +512,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 12,
     width: '100%',
+  },
+  actionIcon: {
+    width: 20,
+    height: 20,
+  },
+  unfriendIcon: {
+    width: 24,
+    height: 24,
+  },
+  momentIcon: {
+    width: 24,
+    height: 24,
+  },
+  emptyIcon: {
+    width: 80,
+    height: 80,
   },
   addFriendButton: {
     flex: 1,

@@ -27,9 +27,10 @@ interface FriendRequest {
 
 interface FriendRequestsScreenProps {
   onBack: () => void;
+  onPressProfile?: (userId: number) => void;
 }
 
-export default function FriendRequestsScreen({ onBack }: FriendRequestsScreenProps) {
+export default function FriendRequestsScreen({ onBack, onPressProfile }: FriendRequestsScreenProps) {
   const token = useAuthStore((state) => state.token);
   const { showAlert } = useAlert();
 
@@ -166,36 +167,55 @@ export default function FriendRequestsScreen({ onBack }: FriendRequestsScreenPro
       : null;
 
     return (
-      <View style={styles.requestItem}>
-        <View style={styles.requestInfo}>
-          {avatarUri ? (
-            <Image source={{ uri: avatarUri }} style={styles.avatar} />
-          ) : (
-            <Image 
-              source={require('../assets/images/avatar-default.png')} 
-              style={styles.avatar}
-            />
-          )}
-          <View style={styles.requestDetails}>
-            <Text style={styles.requestName}>{item.senderName}</Text>
-            <Text style={styles.requestTime}>{getTimeAgo(item.createdAt)}</Text>
+      <TouchableOpacity 
+        style={styles.requestItem}
+        onPress={() => onPressProfile?.(item.senderId)}
+        activeOpacity={0.9}
+      >
+        {/* Cover Background */}
+        <Image 
+          source={require('../assets/images/cover-default.jpg')} 
+          style={styles.requestBackground}
+        />
+        
+        {/* Overlay */}
+        <View style={styles.requestOverlay}>
+          <View style={styles.requestInfo}>
+            {avatarUri ? (
+              <Image source={{ uri: avatarUri }} style={styles.avatar} />
+            ) : (
+              <Image 
+                source={require('../assets/images/avatar-default.png')} 
+                style={styles.avatar}
+              />
+            )}
+            <View style={styles.requestDetails}>
+              <Text style={styles.requestName}>{item.senderName}</Text>
+              <Text style={styles.requestTime}>{getTimeAgo(item.createdAt)}</Text>
+            </View>
+          </View>
+          <View style={styles.actionButtons}>
+            <TouchableOpacity
+              style={styles.acceptButton}
+              onPress={(e) => {
+                e.stopPropagation();
+                handleAccept(item.id, item.senderName);
+              }}
+            >
+              <Ionicons name="checkmark" size={24} color="#FFF" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.rejectButton}
+              onPress={(e) => {
+                e.stopPropagation();
+                handleReject(item.id, item.senderName);
+              }}
+            >
+              <Ionicons name="close" size={24} color="#FFF" />
+            </TouchableOpacity>
           </View>
         </View>
-        <View style={styles.actionButtons}>
-          <TouchableOpacity
-            style={styles.acceptButton}
-            onPress={() => handleAccept(item.id, item.senderName)}
-          >
-            <Ionicons name="checkmark" size={20} color="#FFF" />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.rejectButton}
-            onPress={() => handleReject(item.id, item.senderName)}
-          >
-            <Ionicons name="close" size={20} color="#FFF" />
-          </TouchableOpacity>
-        </View>
-      </View>
+      </TouchableOpacity>
     );
   };
 
@@ -278,13 +298,25 @@ const styles = StyleSheet.create({
     paddingBottom: 80,
   },
   requestItem: {
+    height: 140,
+    backgroundColor: '#FFFFFF',
+    marginBottom: 12,
+    borderRadius: 16,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  requestBackground: {
+    width: '100%',
+    height: '100%',
+    position: 'absolute',
+  },
+  requestOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
     padding: 16,
-    marginBottom: 8,
-    borderRadius: 12,
   },
   requestInfo: {
     flexDirection: 'row',
@@ -292,40 +324,43 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   avatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 70,
+    height: 70,
+    borderRadius: 35,
     marginRight: 12,
+    borderWidth: 2,
+    borderColor: '#FFF',
   },
   requestDetails: {
     flex: 1,
   },
   requestName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#000',
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#FFF',
     marginBottom: 4,
   },
   requestTime: {
     fontSize: 12,
-    color: '#999',
+    color: '#FFF',
+    opacity: 0.8,
   },
   actionButtons: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 12,
   },
   acceptButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     backgroundColor: '#4CD964',
     justifyContent: 'center',
     alignItems: 'center',
   },
   rejectButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     backgroundColor: '#FF3B30',
     justifyContent: 'center',
     alignItems: 'center',

@@ -11,9 +11,12 @@ import {
   Linking,
   FlatList,
   RefreshControl,
+  Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import { useAuthStore } from '../store/useAuthStore';
@@ -57,7 +60,7 @@ export default function ProfileScreen({ onNavigateToSettings, onOpenMap }: Profi
   const setUser = useAuthStore((state) => state.setUser);
   const logoutStore = useAuthStore((state) => state.logout);
   const { showAlert } = useAlert();
-  const [activeTab, setActiveTab] = useState<'my-moments' | 'saved' | 'albums'>('my-moments');
+  const [activeTab, setActiveTab] = useState<'my-moments' | 'albums'>('my-moments');
   const [avatarVersion, setAvatarVersion] = useState(Date.now());
   const [coverVersion, setCoverVersion] = useState(Date.now());
   const [isLoading, setIsLoading] = useState(false);
@@ -364,21 +367,18 @@ export default function ProfileScreen({ onNavigateToSettings, onOpenMap }: Profi
     <>
       {/* Cover Image */}
       <View style={styles.coverContainer}>
-        {coverUrl ? (
-          <Image
-            source={{ uri: `${coverUrl}?v=${coverVersion}` }}
-            style={styles.coverImage}
-            contentFit="cover"
-            cachePolicy="none"
-          />
-        ) : (
-          <View style={[styles.coverImage, styles.coverPlaceholder]} />
-        )}
+        <Image
+          source={coverUrl ? { uri: `${coverUrl}?v=${coverVersion}` } : require('../assets/images/cover-default.jpg')}
+          style={styles.coverImage}
+          contentFit="cover"
+          cachePolicy={coverUrl ? "none" : "memory-disk"}
+        />
       </View>
 
       {/* Profile Info */}
       <View style={styles.profileInfo}>
         <View style={styles.profileHeader}>
+          {/* Avatar - left aligned, half screen width */}
           <View style={styles.avatarContainer}>
             {avatarUrl ? (
               <Image
@@ -395,42 +395,39 @@ export default function ProfileScreen({ onNavigateToSettings, onOpenMap }: Profi
             )}
           </View>
 
-          <View style={styles.nameContainer}>
-            <Text style={styles.name}>{user?.name || 'Người dùng'}</Text>
-          </View>
+          {/* Settings Button - below cover, right aligned */}
+          <TouchableOpacity style={styles.settingsButton} onPress={onNavigateToSettings}>
+            <Image
+              source={require('../assets/images/setting.png')}
+              style={styles.settingIcon}
+            />
+          </TouchableOpacity>
         </View>
+
+        {/* Name - centered below avatar and settings */}
+        <Text style={styles.name}>{user?.name || 'Người dùng'}</Text>
 
         {user?.bio && <Text style={styles.bio}>{user.bio}</Text>}
 
         <View style={styles.infoRow}>
           {user?.gender && (
             <View style={styles.infoItem}>
-              <Ionicons name="person-outline" size={16} color="#666" />
+              <Ionicons name="person-outline" size={20} color="#666" />
               <Text style={styles.infoText}>{GENDER_LABELS[user.gender]}</Text>
             </View>
           )}
           {user?.dateOfBirth && (
             <View style={styles.infoItem}>
-              <Ionicons name="calendar-outline" size={16} color="#666" />
+              <Ionicons name="calendar-outline" size={20} color="#666" />
               <Text style={styles.infoText}>{formatDate(user.dateOfBirth)}</Text>
             </View>
           )}
           {user?.phone && (
             <View style={styles.infoItem}>
-              <Ionicons name="call-outline" size={16} color="#666" />
+              <Ionicons name="call-outline" size={20} color="#666" />
               <Text style={styles.infoText}>{user.phone}</Text>
             </View>
           )}
-        </View>
-
-        <View style={styles.actionButtons}>
-          <TouchableOpacity style={styles.editButton} onPress={onNavigateToSettings}>
-            <Ionicons name="create-outline" size={20} color="#fff" />
-            <Text style={styles.editButtonText}>Chỉnh sửa</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.settingsButton} onPress={onNavigateToSettings}>
-            <Ionicons name="settings-outline" size={20} color="#007AFF" />
-          </TouchableOpacity>
         </View>
       </View>
 
@@ -448,30 +445,18 @@ export default function ProfileScreen({ onNavigateToSettings, onOpenMap }: Profi
           style={[styles.tab, activeTab === 'my-moments' && styles.activeTab]}
           onPress={() => setActiveTab('my-moments')}
         >
-          <Ionicons
-            name="grid-outline"
-            size={24}
-            color={activeTab === 'my-moments' ? '#007AFF' : '#666'}
-          />
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'saved' && styles.activeTab]}
-          onPress={() => setActiveTab('saved')}
-        >
-          <Ionicons
-            name="bookmark-outline"
-            size={24}
-            color={activeTab === 'saved' ? '#007AFF' : '#666'}
+          <Image
+            source={require('../assets/images/moment.png')}
+            style={styles.tabIcon}
           />
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.tab, activeTab === 'albums' && styles.activeTab]}
           onPress={() => setActiveTab('albums')}
         >
-          <Ionicons
-            name="albums-outline"
-            size={24}
-            color={activeTab === 'albums' ? '#007AFF' : '#666'}
+          <Image
+            source={require('../assets/images/album.png')}
+            style={styles.tabIcon}
           />
         </TouchableOpacity>
       </View>
@@ -480,10 +465,12 @@ export default function ProfileScreen({ onNavigateToSettings, onOpenMap }: Profi
 
   const renderEmptyComponent = () => (
     <View style={styles.emptyContainer}>
-      <Ionicons name="images-outline" size={64} color="#ccc" />
+      <Image
+        source={require('../assets/images/album.png')}
+        style={styles.emptyIcon}
+      />
       <Text style={styles.emptyText}>
         {activeTab === 'my-moments' && 'Chưa có khoảnh khắc nào'}
-        {activeTab === 'saved' && 'Chưa có khoảnh khắc đã lưu'}
         {activeTab === 'albums' && 'Chưa có album nào'}
       </Text>
     </View>
@@ -510,6 +497,7 @@ export default function ProfileScreen({ onNavigateToSettings, onOpenMap }: Profi
             <MomentCard
               moment={item}
               baseUrl={baseUrl}
+              token={token || ''}
               onPressMap={() => {
                 if (item.location && onOpenMap) {
                   const provinceName = item.province?.name || item.district?.name || '';
@@ -568,7 +556,6 @@ const styles = StyleSheet.create({
   },
   coverContainer: {
     height: 200,
-    position: 'relative',
   },
   coverImage: {
     width: '100%',
@@ -583,18 +570,32 @@ const styles = StyleSheet.create({
   },
   profileHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
     marginBottom: 12,
   },
   avatarContainer: {
     marginTop: -60,
   },
   avatar: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+    width: SCREEN_WIDTH * 0.5,
+    height: SCREEN_WIDTH * 0.5,
+    borderRadius: (SCREEN_WIDTH * 0.5) / 2,
     borderWidth: 4,
     borderColor: '#fff',
+  },
+  settingsButton: {
+    marginTop: 8,
+    width: 44,
+    height: 44,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  settingIcon: {
+    width: 28,
+    height: 28,
   },
   nameContainer: {
     flex: 1,
@@ -605,6 +606,8 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     color: '#000',
+    textAlign: 'center',
+    marginTop: 8,
   },
   bio: {
     fontSize: 14,
@@ -623,40 +626,11 @@ const styles = StyleSheet.create({
   infoItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 6,
   },
   infoText: {
     fontSize: 14,
     color: '#666',
-  },
-  actionButtons: {
-    flexDirection: 'row',
-    gap: 12,
-    width: '100%',
-  },
-  editButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#007AFF',
-    paddingVertical: 10,
-    borderRadius: 8,
-    gap: 6,
-  },
-  editButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  settingsButton: {
-    width: 44,
-    height: 44,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#007AFF',
-    borderRadius: 8,
   },
   uploadProgress: {
     flexDirection: 'row',
@@ -683,6 +657,14 @@ const styles = StyleSheet.create({
   },
   activeTab: {
     borderBottomColor: '#007AFF',
+  },
+  tabIcon: {
+    width: 28,
+    height: 28,
+  },
+  emptyIcon: {
+    width: 80,
+    height: 80,
   },
   content: {
     padding: 16,

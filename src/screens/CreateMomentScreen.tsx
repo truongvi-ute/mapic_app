@@ -48,10 +48,6 @@ export default function CreateMomentScreen() {
     { id: 'PEOPLE', label: 'Con người', icon: 'people-outline' },
     { id: 'FOOD', label: 'Món ăn', icon: 'restaurant-outline' },
     { id: 'ARCHITECTURE', label: 'Kiến trúc', icon: 'business-outline' },
-    { id: 'CULTURE', label: 'Văn hóa', icon: 'color-palette-outline' },
-    { id: 'NATURE', label: 'Thiên nhiên', icon: 'leaf-outline' },
-    { id: 'URBAN', label: 'Đô thị', icon: 'city-outline' },
-    { id: 'EVENT', label: 'Sự kiện', icon: 'calendar-outline' },
     { id: 'OTHER', label: 'Khác', icon: 'ellipsis-horizontal-outline' },
   ];
 
@@ -328,10 +324,9 @@ export default function CreateMomentScreen() {
           style={[styles.tab, activeTab === 'quick' && styles.activeTab]}
           onPress={() => setActiveTab('quick')}
         >
-          <Ionicons
-            name="camera"
-            size={20}
-            color={activeTab === 'quick' ? '#007AFF' : '#666'}
+          <Image
+            source={require('../assets/images/camera.png')}
+            style={styles.tabIcon}
           />
           <Text style={[styles.tabText, activeTab === 'quick' && styles.activeTabText]}>
             Chụp nhanh
@@ -341,10 +336,9 @@ export default function CreateMomentScreen() {
           style={[styles.tab, activeTab === 'library' && styles.activeTab]}
           onPress={() => setActiveTab('library')}
         >
-          <Ionicons
-            name="images"
-            size={20}
-            color={activeTab === 'library' ? '#007AFF' : '#666'}
+          <Image
+            source={require('../assets/images/folder-management.png')}
+            style={styles.tabIcon}
           />
           <Text style={[styles.tabText, activeTab === 'library' && styles.activeTabText]}>
             Thư viện
@@ -357,7 +351,10 @@ export default function CreateMomentScreen() {
         {activeTab === 'quick' && (
           <View style={styles.locationCard}>
             <View style={styles.locationHeader}>
-              <Ionicons name="location" size={20} color="#007AFF" />
+              <Image
+                source={require('../assets/images/location.png')}
+                style={styles.locationIcon}
+              />
               <Text style={styles.locationTitle}>Vị trí hiện tại</Text>
               {loading && <ActivityIndicator size="small" color="#007AFF" />}
               {!loading && (
@@ -380,7 +377,10 @@ export default function CreateMomentScreen() {
         {activeTab === 'library' && (
           <View style={styles.locationCard}>
             <View style={styles.locationHeader}>
-              <Ionicons name="location" size={20} color="#007AFF" />
+              <Image
+                source={require('../assets/images/location.png')}
+                style={styles.locationIcon}
+              />
               <Text style={styles.locationTitle}>Địa điểm</Text>
             </View>
             <TouchableOpacity
@@ -423,10 +423,13 @@ export default function CreateMomentScreen() {
               style={styles.addMediaButton}
               onPress={activeTab === 'quick' ? handleTakePhoto : handlePickFromLibrary}
             >
-              <Ionicons
-                name={activeTab === 'quick' ? 'camera' : 'images'}
-                size={32}
-                color="#007AFF"
+              <Image
+                source={
+                  activeTab === 'quick'
+                    ? require('../assets/images/camera.png')
+                    : require('../assets/images/folder-management.png')
+                }
+                style={styles.addMediaIcon}
               />
               <Text style={styles.addMediaText}>
                 {activeTab === 'quick' ? 'Chụp ảnh' : 'Chọn ảnh'}
@@ -519,7 +522,10 @@ export default function CreateMomentScreen() {
             <ActivityIndicator size="small" color="#fff" />
           ) : (
             <>
-              <Ionicons name="send" size={20} color="#fff" />
+              <Image
+                source={require('../assets/images/share.png')}
+                style={styles.postIcon}
+              />
               <Text style={styles.postButtonText}>Đăng</Text>
             </>
           )}
@@ -638,6 +644,10 @@ const styles = StyleSheet.create({
   activeTab: {
     borderBottomColor: '#007AFF',
   },
+  tabIcon: {
+    width: 20,
+    height: 20,
+  },
   tabText: {
     fontSize: 14,
     color: '#666',
@@ -666,6 +676,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     marginBottom: 8,
+  },
+  locationIcon: {
+    width: 20,
+    height: 20,
   },
   locationTitle: {
     fontSize: 16,
@@ -747,6 +761,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     gap: 4,
+  },
+  addMediaIcon: {
+    width: 32,
+    height: 32,
   },
   addMediaText: {
     fontSize: 12,
@@ -832,6 +850,10 @@ const styles = StyleSheet.create({
   postButtonDisabled: {
     opacity: 0.6,
   },
+  postIcon: {
+    width: 35,
+    height: 35,
+  },
   postButtonText: {
     fontSize: 16,
     fontWeight: '600',
@@ -887,4 +909,3 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
-

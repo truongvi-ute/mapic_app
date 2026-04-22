@@ -14,7 +14,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../store/useAuthStore';
 import { useAlert } from '../context/AlertContext';
-import { getApiUrl, getBaseUrl } from '../config/api';
+import { getApiUrl, getBaseUrl, buildAvatarUrl } from '../config/api';
 
 interface SearchResult {
   id: number;
@@ -26,9 +26,10 @@ interface SearchResult {
 
 interface AddFriendScreenProps {
   onBack: () => void;
+  onPressProfile?: (userId: number) => void;
 }
 
-export default function AddFriendScreen({ onBack }: AddFriendScreenProps) {
+export default function AddFriendScreen({ onBack, onPressProfile }: AddFriendScreenProps) {
   const token = useAuthStore((state) => state.token);
   const { showAlert } = useAlert();
 
@@ -192,25 +193,40 @@ export default function AddFriendScreen({ onBack }: AddFriendScreenProps) {
   };
 
   const renderSearchResult = ({ item }: { item: SearchResult }) => {
-    const avatarUri = item.avatarUrl ? `${baseUrl}${item.avatarUrl}` : null;
+    const avatarUri = buildAvatarUrl(item.avatarUrl);
 
     return (
-      <View style={styles.resultItem}>
-        <View style={styles.resultInfo}>
-          {avatarUri ? (
-            <Image source={{ uri: avatarUri }} style={styles.avatar} />
-          ) : (
-            <Image 
-              source={require('../assets/images/avatar-default.png')} 
-              style={styles.avatar}
-            />
-          )}
-          <View style={styles.resultDetails}>
-            <Text style={styles.resultName}>{item.name}</Text>
+      <TouchableOpacity 
+        style={styles.resultItem}
+        onPress={() => onPressProfile?.(item.id)}
+        activeOpacity={0.9}
+      >
+        {/* Cover Background */}
+        <Image 
+          source={require('../assets/images/cover-default.jpg')} 
+          style={styles.resultBackground}
+        />
+        
+        {/* Overlay */}
+        <View style={styles.resultOverlay}>
+          <View style={styles.resultInfo}>
+            {avatarUri ? (
+              <Image source={{ uri: avatarUri }} style={styles.avatar} />
+            ) : (
+              <Image 
+                source={require('../assets/images/avatar-default.png')} 
+                style={styles.avatar}
+              />
+            )}
+            <View style={styles.resultDetails}>
+              <Text style={styles.resultName}>{item.name}</Text>
+            </View>
+          </View>
+          <View onClick={(e) => e.stopPropagation()}>
+            {renderActionButton(item)}
           </View>
         </View>
-        {renderActionButton(item)}
-      </View>
+      </TouchableOpacity>
     );
   };
 
@@ -229,7 +245,10 @@ export default function AddFriendScreen({ onBack }: AddFriendScreenProps) {
       <View style={styles.tabContent}>
         <View style={styles.searchContainer}>
           <View style={styles.searchInputContainer}>
-            <Ionicons name="search" size={20} color="#999" style={styles.searchIcon} />
+            <Image
+              source={require('../assets/images/search.png')}
+              style={styles.searchIcon}
+            />
             <TextInput
               style={styles.searchInput}
               placeholder="Nhập tên hoặc username..."
@@ -258,7 +277,10 @@ export default function AddFriendScreen({ onBack }: AddFriendScreenProps) {
           />
         ) : searchQuery.trim().length >= 2 && !searching ? (
           <View style={styles.emptyContainer}>
-            <Ionicons name="search-outline" size={64} color="#CCC" />
+            <Image
+              source={require('../assets/images/search.png')}
+              style={styles.emptyIcon}
+            />
             <Text style={styles.emptyTitle}>Không tìm thấy</Text>
             <Text style={styles.emptyText}>
               Không có người dùng nào khớp với "{searchQuery}"
@@ -266,7 +288,10 @@ export default function AddFriendScreen({ onBack }: AddFriendScreenProps) {
           </View>
         ) : (
           <View style={styles.emptyContainer}>
-            <Ionicons name="search-outline" size={64} color="#CCC" />
+            <Image
+              source={require('../assets/images/search.png')}
+              style={styles.emptyIcon}
+            />
             <Text style={styles.emptyTitle}>Tìm kiếm người dùng</Text>
             <Text style={styles.emptyText}>
               Nhập tên hoặc username để tìm kiếm bạn bè
@@ -320,6 +345,8 @@ const styles = StyleSheet.create({
     borderColor: '#E5E5EA',
   },
   searchIcon: {
+    width: 20,
+    height: 20,
     marginRight: 8,
   },
   searchInput: {
@@ -333,13 +360,25 @@ const styles = StyleSheet.create({
     paddingBottom: 80,
   },
   resultItem: {
+    height: 120,
+    backgroundColor: '#FFFFFF',
+    marginBottom: 12,
+    borderRadius: 16,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  resultBackground: {
+    width: '100%',
+    height: '100%',
+    position: 'absolute',
+  },
+  resultOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
     padding: 16,
-    marginBottom: 8,
-    borderRadius: 12,
   },
   resultInfo: {
     flexDirection: 'row',
@@ -347,23 +386,20 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   avatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     marginRight: 12,
+    borderWidth: 2,
+    borderColor: '#FFF',
   },
   resultDetails: {
     flex: 1,
   },
   resultName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#000',
-    marginBottom: 4,
-  },
-  resultUsername: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#FFF',
   },
   actionButton: {
     flexDirection: 'row',
@@ -395,6 +431,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 40,
+  },
+  emptyIcon: {
+    width: 64,
+    height: 64,
   },
   emptyTitle: {
     fontSize: 20,

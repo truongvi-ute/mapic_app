@@ -167,44 +167,53 @@ export default function FriendsScreen({ onPressProfile }: FriendsScreenProps) {
       <TouchableOpacity 
         style={styles.friendItem}
         onPress={() => onPressProfile?.(item.id)}
-        activeOpacity={0.7}
+        activeOpacity={0.9}
       >
-        <View style={styles.friendInfo}>
-          {avatarUri ? (
-            <Image source={{ uri: avatarUri }} style={styles.avatar} />
-          ) : (
-            <Image 
-              source={require('../assets/images/avatar-default.png')} 
-              style={styles.avatar}
-            />
-          )}
-          <View style={styles.friendDetails}>
-            <Text style={styles.friendName}>{item.name}</Text>
+        {/* Cover Background - using cover-default if no cover */}
+        <Image 
+          source={require('../assets/images/cover-default.jpg')} 
+          style={styles.friendBackground}
+        />
+        
+        {/* Overlay */}
+        <View style={styles.friendOverlay}>
+          <View style={styles.friendInfo}>
+            {avatarUri ? (
+              <Image source={{ uri: avatarUri }} style={styles.avatar} />
+            ) : (
+              <Image 
+                source={require('../assets/images/avatar-default.png')} 
+                style={styles.avatar}
+              />
+            )}
+            <View style={styles.friendDetails}>
+              <Text style={styles.friendName}>{item.name}</Text>
+            </View>
           </View>
+          <TouchableOpacity
+            style={styles.menuButton}
+            onPress={() => {
+              showAlert('Tùy chọn', `Chọn hành động với ${item.name}`, [
+                {
+                  text: 'Nhắn tin',
+                  onPress: () => console.log('Message:', item.id),
+                },
+                {
+                  text: 'Xem trang cá nhân',
+                  onPress: () => onPressProfile?.(item.id),
+                },
+                {
+                  text: 'Hủy kết bạn',
+                  style: 'destructive',
+                  onPress: () => handleUnfriend(item.id, item.name),
+                },
+                { text: 'Đóng', style: 'cancel' },
+              ]);
+            }}
+          >
+            <Ionicons name="ellipsis-horizontal" size={24} color="#FFF" />
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity
-          style={styles.menuButton}
-          onPress={() => {
-            showAlert('Tùy chọn', `Chọn hành động với ${item.name}`, [
-              {
-                text: 'Nhắn tin',
-                onPress: () => console.log('Message:', item.id),
-              },
-              {
-                text: 'Xem trang cá nhân',
-                onPress: () => onPressProfile?.(item.id),
-              },
-              {
-                text: 'Hủy kết bạn',
-                style: 'destructive',
-                onPress: () => handleUnfriend(item.id, item.name),
-              },
-              { text: 'Đóng', style: 'cancel' },
-            ]);
-          }}
-        >
-          <Ionicons name="ellipsis-horizontal" size={24} color="#666" />
-        </TouchableOpacity>
       </TouchableOpacity>
     );
   };
@@ -215,7 +224,10 @@ export default function FriendsScreen({ onPressProfile }: FriendsScreenProps) {
     if (searchQuery.trim()) {
       return (
         <View style={styles.emptyContainer}>
-          <Ionicons name="search" size={64} color="#CCC" />
+          <Image
+            source={require('../assets/images/search.png')}
+            style={styles.emptyIcon}
+          />
           <Text style={styles.emptyTitle}>Không tìm thấy</Text>
           <Text style={styles.emptyText}>
             Không có bạn bè nào khớp với "{searchQuery}"
@@ -243,7 +255,7 @@ export default function FriendsScreen({ onPressProfile }: FriendsScreenProps) {
   };
 
   if (showAddFriend) {
-    return <AddFriendScreen onBack={() => setShowAddFriend(false)} />;
+    return <AddFriendScreen onBack={() => setShowAddFriend(false)} onPressProfile={onPressProfile} />;
   }
 
   if (showRequests) {
@@ -253,6 +265,7 @@ export default function FriendsScreen({ onPressProfile }: FriendsScreenProps) {
           setShowRequests(false);
           loadPendingRequestsCount();
         }}
+        onPressProfile={onPressProfile}
       />
     );
   }
@@ -268,7 +281,10 @@ export default function FriendsScreen({ onPressProfile }: FriendsScreenProps) {
             style={styles.requestButton}
             onPress={() => setShowRequests(true)}
           >
-            <Ionicons name="mail" size={24} color="#007AFF" />
+            <Image
+              source={require('../assets/images/letter.png')}
+              style={styles.headerIcon}
+            />
             {pendingRequestsCount > 0 && (
               <View style={styles.badge}>
                 <Text style={styles.badgeText}>
@@ -281,13 +297,19 @@ export default function FriendsScreen({ onPressProfile }: FriendsScreenProps) {
             style={styles.addButton}
             onPress={() => setShowAddFriend(true)}
           >
-            <Ionicons name="person-add" size={24} color="#007AFF" />
+            <Image
+              source={require('../assets/images/add-friend.png')}
+              style={styles.headerIcon}
+            />
           </TouchableOpacity>
         </View>
       </View>
 
       <View style={styles.searchContainer}>
-        <Ionicons name="search" size={20} color="#999" style={styles.searchIcon} />
+        <Image
+          source={require('../assets/images/search.png')}
+          style={styles.searchIcon}
+        />
         <TextInput
           style={styles.searchInput}
           placeholder="Tìm kiếm bạn bè..."
@@ -354,6 +376,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
   },
+  headerIcon: {
+    width: 24,
+    height: 24,
+  },
   requestButton: {
     width: 40,
     height: 40,
@@ -395,6 +421,8 @@ const styles = StyleSheet.create({
     borderColor: '#E5E5EA',
   },
   searchIcon: {
+    width: 20,
+    height: 20,
     marginRight: 8,
   },
   searchInput: {
@@ -407,14 +435,26 @@ const styles = StyleSheet.create({
     paddingBottom: 80,
   },
   friendItem: {
+    height: 120,
+    backgroundColor: '#FFFFFF',
+    marginHorizontal: 16,
+    marginBottom: 12,
+    borderRadius: 16,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  friendBackground: {
+    width: '100%',
+    height: '100%',
+    position: 'absolute',
+  },
+  friendOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
     padding: 16,
-    marginHorizontal: 16,
-    marginBottom: 8,
-    borderRadius: 12,
   },
   friendInfo: {
     flexDirection: 'row',
@@ -422,26 +462,26 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   avatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     marginRight: 12,
+    borderWidth: 2,
+    borderColor: '#FFF',
   },
   friendDetails: {
     flex: 1,
   },
   friendName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#000',
-    marginBottom: 4,
-  },
-  friendUsername: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#FFF',
   },
   menuButton: {
-    padding: 8,
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   loadingContainer: {
     flex: 1,
@@ -462,6 +502,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 40,
     minHeight: 400,
+  },
+  emptyIcon: {
+    width: 64,
+    height: 64,
   },
   emptyTitle: {
     fontSize: 20,

@@ -11,6 +11,7 @@ import {
   RefreshControl,
   ScrollView,
   Modal,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../store/useAuthStore';
@@ -20,7 +21,7 @@ import { vietnamLocations } from '../data/vietnamLocations';
 import { getApiUrl, getBaseUrl } from '../config/api';
 
 type SortOption = 'newest' | 'popular';
-type CategoryOption = 'all' | 'food' | 'travel' | 'nature' | 'urban' | 'people' | 'other';
+type CategoryOption = 'all' | 'landscape' | 'people' | 'food' | 'architecture' | 'other';
 
 interface PageInfo {
   pageNumber: number;
@@ -66,11 +67,10 @@ export default function ExploreScreen({ refreshTrigger, onOpenMap, onPressProfil
 
   const categories = [
     { id: 'all', label: 'Tất cả', icon: 'apps' },
-    { id: 'food', label: 'Ẩm thực', icon: 'restaurant' },
-    { id: 'travel', label: 'Du lịch', icon: 'airplane' },
-    { id: 'nature', label: 'Thiên nhiên', icon: 'leaf' },
-    { id: 'urban', label: 'Đô thị', icon: 'business' },
+    { id: 'landscape', label: 'Phong cảnh', icon: 'image' },
     { id: 'people', label: 'Con người', icon: 'people' },
+    { id: 'food', label: 'Món ăn', icon: 'restaurant' },
+    { id: 'architecture', label: 'Kiến trúc', icon: 'business' },
     { id: 'other', label: 'Khác', icon: 'ellipsis-horizontal' },
   ];
 
@@ -194,10 +194,9 @@ export default function ExploreScreen({ refreshTrigger, onOpenMap, onPressProfil
           style={[styles.filterButton, selectedProvince && styles.filterButtonActive]}
           onPress={() => setShowProvinceModal(true)}
         >
-          <Ionicons
-            name="location"
-            size={16}
-            color={selectedProvince ? '#FFF' : '#007AFF'}
+          <Image
+            source={require('../assets/images/province.png')}
+            style={styles.filterIcon}
           />
           <Text style={[styles.filterButtonText, selectedProvince && styles.filterButtonTextActive]}>
             {selectedProvince
@@ -216,10 +215,9 @@ export default function ExploreScreen({ refreshTrigger, onOpenMap, onPressProfil
           style={[styles.filterButton, selectedCategory !== 'all' && styles.filterButtonActive]}
           onPress={() => setShowCategoryModal(true)}
         >
-          <Ionicons
-            name={categories.find((c) => c.id === selectedCategory)?.icon as any}
-            size={16}
-            color={selectedCategory !== 'all' ? '#FFF' : '#007AFF'}
+          <Image
+            source={require('../assets/images/category.png')}
+            style={styles.filterIcon}
           />
           <Text style={[styles.filterButtonText, selectedCategory !== 'all' && styles.filterButtonTextActive]}>
             {categories.find((c) => c.id === selectedCategory)?.label}
@@ -231,7 +229,10 @@ export default function ExploreScreen({ refreshTrigger, onOpenMap, onPressProfil
           style={[styles.filterButton, sortBy === 'newest' && styles.filterButtonActive]}
           onPress={() => setSortBy('newest')}
         >
-          <Ionicons name="time" size={16} color={sortBy === 'newest' ? '#FFF' : '#007AFF'} />
+          <Image
+            source={require('../assets/images/recent.png')}
+            style={styles.filterIcon}
+          />
           <Text style={[styles.filterButtonText, sortBy === 'newest' && styles.filterButtonTextActive]}>
             Mới nhất
           </Text>
@@ -241,7 +242,10 @@ export default function ExploreScreen({ refreshTrigger, onOpenMap, onPressProfil
           style={[styles.filterButton, sortBy === 'popular' && styles.filterButtonActive]}
           onPress={() => setSortBy('popular')}
         >
-          <Ionicons name="flame" size={16} color={sortBy === 'popular' ? '#FFF' : '#007AFF'} />
+          <Image
+            source={require('../assets/images/trending.png')}
+            style={styles.filterIcon}
+          />
           <Text style={[styles.filterButtonText, sortBy === 'popular' && styles.filterButtonTextActive]}>
             Phổ biến
           </Text>
@@ -364,7 +368,10 @@ export default function ExploreScreen({ refreshTrigger, onOpenMap, onPressProfil
 
     return (
       <View style={styles.emptyContainer}>
-        <Ionicons name="search-outline" size={64} color="#CCC" />
+        <Image
+          source={require('../assets/images/search.png')}
+          style={styles.emptyIcon}
+        />
         <Text style={styles.emptyTitle}>Không tìm thấy khoảnh khắc</Text>
         <Text style={styles.emptyText}>
           Thử thay đổi bộ lọc để xem thêm kết quả
@@ -492,6 +499,10 @@ const styles = StyleSheet.create({
     marginRight: 8,
     gap: 6,
   },
+  filterIcon: {
+    width: 16,
+    height: 16,
+  },
   filterButtonActive: {
     backgroundColor: '#007AFF',
   },
@@ -522,6 +533,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 40,
     minHeight: 400,
+  },
+  emptyIcon: {
+    width: 64,
+    height: 64,
   },
   emptyTitle: {
     fontSize: 20,
