@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   SafeAreaView,
   ActivityIndicator,
+  Modal,
+  TextInput,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
@@ -14,7 +16,7 @@ import { useAuthStore } from '../store/useAuthStore';
 import { useAlert } from '../context/AlertContext';
 import chatService, { ConversationDto } from '../api/chatService';
 import { useChatStore } from '../store/useChatStore';
-import { buildMediaUrl, getApiUrl } from '../config/api';
+import { buildMediaUrl, buildAvatarUrl, getApiUrl } from '../config/api';
 import CreateGroupModal from '../components/CreateGroupModal';
 
 type Tab = 'direct' | 'group';
@@ -33,21 +35,25 @@ type DirectItem =
 
 interface ChatsListScreenProps {
   onBack: () => void;
-  onOpenChat: (conversation: ConversationDto) => void;
+  onOpenChat: (conversation: ConversationDto, currentTab?: Tab) => void;
   refreshTrigger?: number;
+  initialTab?: Tab;
 }
 
-export default function ChatsListScreen({ onBack, onOpenChat, refreshTrigger }: ChatsListScreenProps) {
+export default function ChatsListScreen({ onBack, onOpenChat, refreshTrigger, initialTab }: ChatsListScreenProps) {
   const token = useAuthStore((s) => s.token) || '';
   const currentUser = useAuthStore((s) => s.user);
   const { showAlert } = useAlert();
 
-  const [tab, setTab] = useState<Tab>('direct');
+  const [tab, setTab] = useState<Tab>(initialTab || 'direct');
   const { conversations, setConversations } = useChatStore();
   const [friends, setFriends] = useState<FriendItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [openingId, setOpeningId] = useState<number | null>(null);
   const [showCreateGroup, setShowCreateGroup] = useState(false);
+  const [renameModal, setRenameModal] = useState<{ conv: ConversationDto } | null>(null);
+  const [renameText, setRenameText] = useState('');
+  const [renaming, setRenaming] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -112,14 +118,110 @@ export default function ChatsListScreen({ onBack, onOpenChat, refreshTrigger }: 
     try {
       setOpeningId(friend.id);
       const conv = await chatService.openDirectChat(friend.id, token);
-      // Add to store so it appears next time
       setConversations([conv, ...conversations.filter((c) => c.id !== conv.id)]);
-      onOpenChat(conv);
+      onOpenChat(conv, tab);
     } catch {
       showAlert('Lỗi', 'Không thể mở cuộc trò chuyện');
     } finally {
       setOpeningId(null);
     }
+  };
+
+  // ── Group management (long press) ──────────────────────────────────────────
+  const handleLongPressGroup = (conv: ConversationDto) => {
+    const isAdmin = conv.creatorId === currentUser?.id;
+    const options: any[] = [];
+
+    if (isAdmin) {
+      options.push({
+        text: 'Đổi tên nhóm',
+        onPress: () => {
+          setRenameText(conv.title || '');
+          setRenameModal({ conv });
+        },
+      });
+      options.push({
+        text: 'Xóa thành viên',
+        onPress: () => handleRemoveMember(conv),
+      });
+      options.push({
+        text: 'Giải tán nhóm',
+        style: 'destructive',
+        onPress: () => handleDeleteGroup(conv),
+      });
+    }
+    options.push({ text: 'Đóng', style: 'cancel' });
+
+    if (options.length > 1) {
+      showAlert('Quản lý nhóm', conv.title || 'Nhóm chat', options);
+    }
+  };
+
+  const handleRenameGroup = async () => {
+    if (!renameModal || !renameText.trim()) return;
+    try {
+      setRenaming(true);
+      const updated = await chatService.renameGroup(renameModal.conv.id, renameText.trim(), token);
+      setConversations(conversations.map((c) => (c.id === updated.id ? updated : c)));
+      setRenameModal(null);
+    } catch (e: any) {
+      showAlert('Lỗi', e.message || 'Không thể đổi tên nhóm');
+    } finally {
+      setRenaming(false);
+    }
+  };
+
+  const handleRemoveMember = (conv: ConversationDto) => {
+    const members = conv.participants.filter((p) => p.userId !== currentUser?.id);
+    if (members.length === 0) return;
+
+    const memberOptions = members.map((p) => ({
+      text: p.fullName || p.username,
+      onPress: () => confirmRemoveMember(conv, p.userId, p.fullName || p.username),
+    }));
+    memberOptions.push({ text: 'Đóng', style: 'cancel' });
+    showAlert('Xóa thành viên', 'Chọn thành viên cần xóa', memberOptions);
+  };
+
+  const confirmRemoveMember = (conv: ConversationDto, userId: number, name: string) => {
+    showAlert('Xác nhận', `Xóa ${name} khỏi nhóm?`, [
+      { text: 'Hủy', style: 'cancel' },
+      {
+        text: 'Xóa',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await chatService.removeMember(conv.id, userId, token);
+            // Cập nhật participants trong store
+            const updated = {
+              ...conv,
+              participants: conv.participants.filter((p) => p.userId !== userId),
+            };
+            setConversations(conversations.map((c) => (c.id === conv.id ? updated : c)));
+          } catch (e: any) {
+            showAlert('Lỗi', e.message || 'Không thể xóa thành viên');
+          }
+        },
+      },
+    ]);
+  };
+
+  const handleDeleteGroup = (conv: ConversationDto) => {
+    showAlert('Giải tán nhóm', `Bạn chắc chắn muốn giải tán nhóm "${conv.title || 'Nhóm chat'}"? Hành động này không thể hoàn tác.`, [
+      { text: 'Hủy', style: 'cancel' },
+      {
+        text: 'Giải tán',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await chatService.deleteGroup(conv.id, token);
+            setConversations(conversations.filter((c) => c.id !== conv.id));
+          } catch (e: any) {
+            showAlert('Lỗi', e.message || 'Không thể giải tán nhóm');
+          }
+        },
+      },
+    ]);
   };
 
   // ── Helpers ────────────────────────────────────────────────────────────────
@@ -132,7 +234,7 @@ export default function ChatsListScreen({ onBack, onOpenChat, refreshTrigger }: 
   const getConversationAvatar = (conv: ConversationDto): string | null => {
     if (conv.isGroup) return null;
     const other = conv.participants.find((p) => p.userId !== currentUser?.id);
-    return other?.avatarUrl ? buildMediaUrl(other.avatarUrl) : null;
+    return other?.avatarUrl ? buildAvatarUrl(other.avatarUrl) : null;
   };
 
   // ── Render helpers ─────────────────────────────────────────────────────────
@@ -155,7 +257,7 @@ export default function ChatsListScreen({ onBack, onOpenChat, refreshTrigger }: 
         : '';
 
       return (
-        <TouchableOpacity style={styles.item} onPress={() => onOpenChat(conv)}>
+        <TouchableOpacity style={styles.item} onPress={() => onOpenChat(conv, tab)}>
           <View style={styles.avatarWrap}>
             {avatarUrl ? (
               <Image source={{ uri: avatarUrl }} style={styles.avatar} />
@@ -176,7 +278,7 @@ export default function ChatsListScreen({ onBack, onOpenChat, refreshTrigger }: 
 
     // kind === 'friend' — no conversation yet
     const friend = item.data;
-    const avatarUrl = friend.avatarUrl ? buildMediaUrl(friend.avatarUrl) : null;
+    const avatarUrl = friend.avatarUrl ? buildAvatarUrl(friend.avatarUrl) : null;
     const isOpening = openingId === friend.id;
 
     return (
@@ -218,9 +320,17 @@ export default function ChatsListScreen({ onBack, onOpenChat, refreshTrigger }: 
       : '';
 
     return (
-      <TouchableOpacity style={styles.item} onPress={() => onOpenChat(item)}>
-        <View style={[styles.avatarWrap, styles.groupAvatarWrap]}>
-          <Ionicons name="people" size={26} color="#fff" />
+      <TouchableOpacity
+        style={styles.item}
+        onPress={() => onOpenChat(item, tab)}
+        onLongPress={() => handleLongPressGroup(item)}
+        delayLongPress={400}
+      >
+        <View style={styles.avatarWrap}>
+          <Image 
+            source={require('../assets/images/friend.png')} 
+            style={styles.avatar}
+          />
         </View>
         <View style={styles.info}>
           <View style={styles.row}>
@@ -255,7 +365,7 @@ export default function ChatsListScreen({ onBack, onOpenChat, refreshTrigger }: 
           onPress={() => setTab('direct')}
         >
           <Text style={[styles.tabText, tab === 'direct' && styles.tabTextActive]}>
-            Cá nhân ({directItems.length})
+            Cá nhân
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -263,7 +373,7 @@ export default function ChatsListScreen({ onBack, onOpenChat, refreshTrigger }: 
           onPress={() => setTab('group')}
         >
           <Text style={[styles.tabText, tab === 'group' && styles.tabTextActive]}>
-            Nhóm ({groupConversations.length})
+            Nhóm
           </Text>
         </TouchableOpacity>
       </View>
@@ -309,10 +419,54 @@ export default function ChatsListScreen({ onBack, onOpenChat, refreshTrigger }: 
         visible={showCreateGroup}
         onClose={() => setShowCreateGroup(false)}
         onSuccess={(conv) => {
+          // Thêm conversation mới vào store ngay lập tức để tab nhóm hiển thị
+          setConversations([conv, ...conversations.filter((c) => c.id !== conv.id)]);
           setShowCreateGroup(false);
-          onOpenChat(conv);
+          setTab('group'); // Chuyển sang tab nhóm
+          onOpenChat(conv, 'group');
         }}
       />
+
+      {/* Rename group modal */}
+      <Modal
+        visible={!!renameModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setRenameModal(null)}
+      >
+        <View style={styles.renameOverlay}>
+          <View style={styles.renameBox}>
+            <Text style={styles.renameTitle}>Đổi tên nhóm</Text>
+            <TextInput
+              style={styles.renameInput}
+              value={renameText}
+              onChangeText={setRenameText}
+              placeholder="Tên nhóm mới..."
+              autoFocus
+              maxLength={50}
+            />
+            <View style={styles.renameActions}>
+              <TouchableOpacity
+                style={styles.renameCancelBtn}
+                onPress={() => setRenameModal(null)}
+              >
+                <Text style={styles.renameCancelText}>Hủy</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.renameSaveBtn, !renameText.trim() && { opacity: 0.4 }]}
+                onPress={handleRenameGroup}
+                disabled={!renameText.trim() || renaming}
+              >
+                {renaming ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.renameSaveText}>Lưu</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -383,4 +537,47 @@ const styles = StyleSheet.create({
   },
   emptyText: { fontSize: 18, fontWeight: '600', color: '#000', marginTop: 16, marginBottom: 8 },
   emptySubtext: { fontSize: 14, color: '#8E8E93', textAlign: 'center' },
+  // ── Rename modal ──────────────────────────────────────────────────────────
+  renameOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 32,
+  },
+  renameBox: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 20,
+    width: '100%',
+  },
+  renameTitle: { fontSize: 17, fontWeight: '600', color: '#000', marginBottom: 14, textAlign: 'center' },
+  renameInput: {
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    fontSize: 16,
+    color: '#000',
+    marginBottom: 16,
+  },
+  renameActions: { flexDirection: 'row', gap: 10 },
+  renameCancelBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
+    alignItems: 'center',
+  },
+  renameCancelText: { fontSize: 16, color: '#8E8E93' },
+  renameSaveBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 10,
+    backgroundColor: '#007AFF',
+    alignItems: 'center',
+  },
+  renameSaveText: { fontSize: 16, color: '#fff', fontWeight: '600' },
 });

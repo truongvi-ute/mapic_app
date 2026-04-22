@@ -14,13 +14,14 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../store/useAuthStore';
 import { useAlert } from '../context/AlertContext';
-import { getApiUrl, getBaseUrl, buildAvatarUrl } from '../config/api';
+import { getApiUrl, buildAvatarUrl, buildCoverUrl } from '../config/api';
 
 interface SearchResult {
   id: number;
   username: string;
   name: string;
   avatarUrl: string | null;
+  coverImageUrl: string | null;
   friendshipStatus: 'NONE' | 'PENDING_SENT' | 'PENDING_RECEIVED' | 'FRIENDS';
 }
 
@@ -39,7 +40,6 @@ export default function AddFriendScreen({ onBack, onPressProfile }: AddFriendScr
   const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
 
   const API_URL = getApiUrl();
-  const baseUrl = getBaseUrl();
 
   // Realtime search with debounce
   useEffect(() => {
@@ -194,6 +194,7 @@ export default function AddFriendScreen({ onBack, onPressProfile }: AddFriendScr
 
   const renderSearchResult = ({ item }: { item: SearchResult }) => {
     const avatarUri = buildAvatarUrl(item.avatarUrl);
+    const coverUri = buildCoverUrl(item.coverImageUrl);
 
     return (
       <TouchableOpacity 
@@ -201,17 +202,27 @@ export default function AddFriendScreen({ onBack, onPressProfile }: AddFriendScr
         onPress={() => onPressProfile?.(item.id)}
         activeOpacity={0.9}
       >
-        {/* Cover Background */}
-        <Image 
-          source={require('../assets/images/cover-default.jpg')} 
-          style={styles.resultBackground}
-        />
+        {/* Cover Background - dùng ảnh bìa thật nếu có, fallback về cover-default */}
+        {coverUri ? (
+          <Image 
+            source={{ uri: coverUri }} 
+            style={styles.resultBackground}
+          />
+        ) : (
+          <Image 
+            source={require('../assets/images/cover-default.jpg')} 
+            style={styles.resultBackground}
+          />
+        )}
         
         {/* Overlay */}
         <View style={styles.resultOverlay}>
           <View style={styles.resultInfo}>
             {avatarUri ? (
-              <Image source={{ uri: avatarUri }} style={styles.avatar} />
+              <Image 
+                source={{ uri: avatarUri }} 
+                style={styles.avatar}
+              />
             ) : (
               <Image 
                 source={require('../assets/images/avatar-default.png')} 

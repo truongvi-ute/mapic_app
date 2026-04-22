@@ -15,7 +15,7 @@ import { Image } from 'expo-image';
 import { useAuthStore } from '../store/useAuthStore';
 import { useAlert } from '../context/AlertContext';
 import chatService, { ConversationDto } from '../api/chatService';
-import { buildMediaUrl, getApiUrl } from '../config/api';
+import { buildMediaUrl, buildAvatarUrl, buildCoverUrl, getApiUrl } from '../config/api';
 
 interface Props {
   visible: boolean;
@@ -29,6 +29,7 @@ interface UserItem {
   name: string;
   username: string;
   avatarUrl?: string;
+  coverImageUrl?: string;
 }
 
 export default function ShareTargetModal({ visible, onClose, shareType, referenceId }: Props) {
@@ -157,6 +158,7 @@ export default function ShareTargetModal({ visible, onClose, shareType, referenc
                 
                 let title = 'Người dùng';
                 let avatar = null;
+                let cover = null;
                 let subtitle = '';
 
                 if (isConv) {
@@ -168,14 +170,18 @@ export default function ShareTargetModal({ visible, onClose, shareType, referenc
                     const other = conv.participants?.find(p => p.userId !== currentUser?.id) || conv.participants?.[0];
                     title = other?.fullName || other?.username || 'Người dùng';
                     avatar = other?.avatarUrl;
+                    cover = other?.coverImageUrl;  // Thêm cover từ conversation participant
                     subtitle = other?.username ? `@${other.username}` : '';
                   }
                 } else {
                   const friend = item as any;
                   title = friend.name || friend.fullName || friend.username || 'Người dùng';
                   avatar = friend.avatarUrl;
+                  cover = friend.coverImageUrl;
                   subtitle = friend.username ? `@${friend.username}` : '';
                 }
+
+                const coverUri = buildCoverUrl(cover);  // Sử dụng buildCoverUrl thay vì buildMediaUrl
 
                 return (
                   <TouchableOpacity 
@@ -183,15 +189,26 @@ export default function ShareTargetModal({ visible, onClose, shareType, referenc
                     activeOpacity={0.9}
                     onPress={() => isConv ? handleShareToConversation(item as any) : handleShareToFriend(item as any)}
                   >
-                    <Image 
-                      source={require('../assets/images/cover-default.jpg')} 
-                      style={styles.friendBackground}
-                    />
+                    {/* Cover - dùng ảnh bìa thật nếu có, fallback về cover-default */}
+                    {coverUri ? (
+                      <Image 
+                        source={{ uri: coverUri }} 
+                        style={styles.friendBackground}
+                      />
+                    ) : (
+                      <Image 
+                        source={require('../assets/images/cover-default.jpg')} 
+                        style={styles.friendBackground}
+                      />
+                    )}
                     
                     <View style={styles.friendOverlay}>
                       <View style={styles.friendInfo}>
                         {avatar ? (
-                          <Image source={{ uri: buildMediaUrl(avatar) }} style={styles.avatar} />
+                          <Image 
+                            source={{ uri: buildAvatarUrl(avatar) || undefined }} 
+                            style={styles.avatar}
+                          />
                         ) : (
                           <Image 
                             source={require('../assets/images/avatar-default.png')} 

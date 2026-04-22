@@ -10,21 +10,22 @@ import {
   RefreshControl,
   TextInput,
   TouchableOpacity,
-  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { useAuthStore } from '../store/useAuthStore';
 import { useAlert } from '../context/AlertContext';
 import chatService from '../api/chatService';
 import AddFriendScreen from './AddFriendScreen';
 import FriendRequestsScreen from './FriendRequestsScreen';
-import { getApiUrl, getBaseUrl } from '../config/api';
+import { getApiUrl, buildAvatarUrl, buildCoverUrl } from '../config/api';
 
 interface Friend {
   id: number;
   username: string;
   name: string;
   avatarUrl: string | null;
+  coverImageUrl: string | null;
   friendsSince: string;
 }
 
@@ -47,7 +48,8 @@ export default function FriendsScreen({ onPressProfile, onOpenChat }: FriendsScr
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
 
   const API_URL = getApiUrl();
-  const baseUrl = getBaseUrl();
+
+  const [refreshKey, setRefreshKey] = useState(Date.now());
 
   useEffect(() => {
     loadFriends();
@@ -75,6 +77,7 @@ export default function FriendsScreen({ onPressProfile, onOpenChat }: FriendsScr
       if (response.ok) {
         const result = await response.json();
         setFriends(result.data || []);
+        setRefreshKey(Date.now()); // Update refresh key when data loads
       } else {
         showAlert('Lỗi', 'Không thể tải danh sách bạn bè');
       }
@@ -161,9 +164,8 @@ export default function FriendsScreen({ onPressProfile, onOpenChat }: FriendsScr
   };
 
   const renderFriendItem = ({ item }: { item: Friend }) => {
-    const avatarUri = item.avatarUrl
-      ? `${baseUrl}${item.avatarUrl}`
-      : null;
+    const avatarUri = buildAvatarUrl(item.avatarUrl);
+    const coverUri = buildCoverUrl(item.coverImageUrl);
 
     return (
       <TouchableOpacity 
@@ -171,17 +173,27 @@ export default function FriendsScreen({ onPressProfile, onOpenChat }: FriendsScr
         onPress={() => onPressProfile?.(item.id)}
         activeOpacity={0.9}
       >
-        {/* Cover Background - using cover-default if no cover */}
-        <Image 
-          source={require('../assets/images/cover-default.jpg')} 
-          style={styles.friendBackground}
-        />
+        {/* Cover — dùng ảnh bìa thật nếu có, fallback về cover-default */}
+        {coverUri ? (
+          <Image 
+            source={{ uri: coverUri }} 
+            style={styles.friendBackground}
+          />
+        ) : (
+          <Image 
+            source={require('../assets/images/cover-default.jpg')} 
+            style={styles.friendBackground}
+          />
+        )}
         
         {/* Overlay */}
         <View style={styles.friendOverlay}>
           <View style={styles.friendInfo}>
             {avatarUri ? (
-              <Image source={{ uri: avatarUri }} style={styles.avatar} />
+              <Image 
+                source={{ uri: avatarUri }} 
+                style={styles.avatar}
+              />
             ) : (
               <Image 
                 source={require('../assets/images/avatar-default.png')} 

@@ -12,10 +12,12 @@ import {
 import { useAuthStore } from '../store/useAuthStore';
 import { useAlert } from '../context/AlertContext';
 import reportService from '../api/reportService';
+import momentService from '../api/momentService';
 import MomentCard, { Moment } from '../components/MomentCard';
 import { getApiUrl, getBaseUrl } from '../config/api';
 import AlbumSelectModal from '../components/AlbumSelectModal';
 import CommentModal from '../components/CommentModal';
+import EditCaptionModal from '../components/EditCaptionModal';
 import albumService from '../api/albumService';
 
 interface PageInfo {
@@ -57,6 +59,8 @@ export default function HomeScreen({ refreshTrigger, onOpenMap, onPressProfile }
   const [selectedMomentId, setSelectedMomentId] = useState<number | null>(null);
   const [commentModalVisible, setCommentModalVisible] = useState(false);
   const [selectedMomentForComment, setSelectedMomentForComment] = useState<number | null>(null);
+  const [editCaptionModalVisible, setEditCaptionModalVisible] = useState(false);
+  const [editingMoment, setEditingMoment] = useState<Moment | null>(null);
 
   const API_URL = getApiUrl();
   const baseUrl = getBaseUrl();
@@ -186,6 +190,60 @@ export default function HomeScreen({ refreshTrigger, onOpenMap, onPressProfile }
     }
   };
 
+  const handleDeleteMoment = async (momentId: number) => {
+    if (!token) return;
+
+    console.log('[HomeScreen] Delete moment:', momentId);
+
+    showAlert('Xác nhận', 'Bạn có chắc muốn xóa moment này?', [
+      { text: 'Hủy', style: 'cancel' },
+      {
+        text: 'Xóa',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            console.log('[HomeScreen] Calling deleteMoment API for moment:', momentId);
+            await momentService.deleteMoment(momentId, token);
+            console.log('[HomeScreen] Delete successful, removing from local state');
+            // Remove from local state
+            setMoments(prev => prev.filter(m => m.id !== momentId));
+            showAlert('Thành công', 'Đã xóa moment');
+          } catch (error: any) {
+            console.error('[HomeScreen] Delete failed:', error);
+            showAlert('Lỗi', error.message || 'Không thể xóa moment');
+          }
+        },
+      },
+    ]);
+  };
+
+  const handleEditCaption = (moment: Moment) => {
+    setEditingMoment(moment);
+    setEditCaptionModalVisible(true);
+  };
+
+  const handleSaveCaption = async (newCaption: string) => {
+    if (!editingMoment || !token) return;
+
+    try {
+      const updatedMoment = await momentService.updateMomentContent(
+        editingMoment.id,
+        newCaption,
+        token
+      );
+      
+      // Update local state
+      setMoments(prev =>
+        prev.map(m => (m.id === editingMoment.id ? { ...m, content: newCaption } : m))
+      );
+      
+      showAlert('Thành công', 'Đã cập nhật caption');
+    } catch (error: any) {
+      showAlert('Lỗi', error.message || 'Không thể cập nhật caption');
+      throw error;
+    }
+  };
+
   const renderFooter = () => {
     if (!loadingMore) return null;
     
@@ -265,15 +323,26 @@ export default function HomeScreen({ refreshTrigger, onOpenMap, onPressProfile }
             onPressComment={() => handleOpenComment(item.id)}
             onPressShare={() => console.log('Share moment:', item.id)}
             onPressMenu={() => {
-              showAlert(
-                'Tùy chọn',
-                'Chọn hành động',
-                [
+              const isOwnMoment = item.author.id === user?.id;
+              
+              const menuOptions: any[] = [];
+              
+              if (isOwnMoment) {
+                menuOptions.push(
+                  { text: 'Chỉnh sửa caption', onPress: () => handleEditCaption(item) },
                   { text: 'Thêm vào album', onPress: () => handleAddToAlbum(item.id) },
-                  { text: 'Báo cáo', onPress: () => showReportDialog(item.id), style: 'destructive' },
-                  { text: 'Hủy', style: 'cancel' },
-                ]
-              );
+                  { text: 'Xóa', onPress: () => handleDeleteMoment(item.id), style: 'destructive' }
+                );
+              } else {
+                menuOptions.push(
+                  { text: 'Thêm vào album', onPress: () => handleAddToAlbum(item.id) },
+                  { text: 'Báo cáo', onPress: () => showReportDialog(item.id), style: 'destructive' }
+                );
+              }
+              
+              menuOptions.push({ text: 'Hủy', style: 'cancel' });
+              
+              showAlert('Tùy chọn', 'Chọn hành động', menuOptions);
             }}
           />
         )}
@@ -311,6 +380,18 @@ export default function HomeScreen({ refreshTrigger, onOpenMap, onPressProfile }
                 : m
             ));
           }}
+        />
+      )}
+
+      {editingMoment && (
+        <EditCaptionModal
+          visible={editCaptionModalVisible}
+          initialCaption={editingMoment.content}
+          onClose={() => {
+            setEditCaptionModalVisible(false);
+            setEditingMoment(null);
+          }}
+          onSave={handleSaveCaption}
         />
       )}
     </SafeAreaView>
