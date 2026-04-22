@@ -81,8 +81,10 @@ interface MomentCardProps {
   onPressComment?: () => void;
   onPressShare?: () => void;
   onPressMenu?: () => void;
+  onPressAddToAlbum?: () => void;
   baseUrl?: string;
   token?: string;
+  showAddToAlbum?: boolean;
 }
 
 const CATEGORY_LABELS: { [key: string]: string} = {
@@ -105,8 +107,10 @@ export default function MomentCard({
   onPressComment,
   onPressShare,
   onPressMenu,
+  onPressAddToAlbum,
   baseUrl,
   token,
+  showAddToAlbum = false,
 }: MomentCardProps) {
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
   const [liked, setLiked] = useState(moment.userReacted || false);
@@ -387,6 +391,21 @@ export default function MomentCard({
                 />
               </TouchableOpacity>
             )}
+            
+            {/* Add to Album Button - Chỉ hiện khi showAddToAlbum = true */}
+            {showAddToAlbum && onPressAddToAlbum && (
+              <TouchableOpacity
+                style={styles.overlayButton}
+                onPress={onPressAddToAlbum}
+                activeOpacity={0.7}
+              >
+                <Image
+                  source={require('../assets/images/album.png')}
+                  style={styles.albumIconInteraction}
+                  resizeMode="contain"
+                />
+              </TouchableOpacity>
+            )}
           </View>
           
           {/* Lottie Love Animation - Always mounted, controlled by opacity */}
@@ -561,6 +580,11 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   mapIconInteraction: {
+    width: 24,
+    height: 24,
+    tintColor: '#FFFFFF',
+  },
+  albumIconInteraction: {
     width: 24,
     height: 24,
     tintColor: '#FFFFFF',

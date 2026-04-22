@@ -19,6 +19,8 @@ import { useAlert } from '../context/AlertContext';
 import MomentCard, { Moment } from '../components/MomentCard';
 import { vietnamLocations } from '../data/vietnamLocations';
 import { getApiUrl, getBaseUrl } from '../config/api';
+import AlbumSelectModal from '../components/AlbumSelectModal';
+import albumService from '../api/albumService';
 
 type SortOption = 'newest' | 'popular';
 type CategoryOption = 'all' | 'landscape' | 'people' | 'food' | 'architecture' | 'other';
@@ -61,6 +63,8 @@ export default function ExploreScreen({ refreshTrigger, onOpenMap, onPressProfil
   const [sortBy, setSortBy] = useState<SortOption>('newest');
   const [showProvinceModal, setShowProvinceModal] = useState(false);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [albumModalVisible, setAlbumModalVisible] = useState(false);
+  const [selectedMomentId, setSelectedMomentId] = useState<number | null>(null);
 
   const API_URL = getApiUrl();
   const baseUrl = getBaseUrl();
@@ -184,6 +188,22 @@ export default function ExploreScreen({ refreshTrigger, onOpenMap, onPressProfil
   const handleCategorySelect = (category: CategoryOption) => {
     setSelectedCategory(category);
     setShowCategoryModal(false);
+  };
+
+  const handleAddToAlbum = (momentId: number) => {
+    setSelectedMomentId(momentId);
+    setAlbumModalVisible(true);
+  };
+
+  const handleSelectAlbum = async (albumId: number) => {
+    if (!selectedMomentId || !token) return;
+
+    try {
+      await albumService.addMomentToAlbum(albumId, selectedMomentId, token);
+      showAlert('Thành công', 'Đã thêm moment vào album');
+    } catch (error: any) {
+      showAlert('Lỗi', error.message || 'Không thể thêm moment vào album');
+    }
   };
 
   const renderFilterBar = () => (
@@ -423,9 +443,8 @@ export default function ExploreScreen({ refreshTrigger, onOpenMap, onPressProfil
                   latitude: item.location.latitude,
                   longitude: item.location.longitude,
                   addressName: item.location.address || item.location.name,
-                  provinceName,
+                  provinceName: provinceName || undefined,
                   imageUrl: firstImage,
-                  caption: item.caption,
                 });
               }
             }}
@@ -434,6 +453,7 @@ export default function ExploreScreen({ refreshTrigger, onOpenMap, onPressProfil
             onPressShare={() => console.log('Share moment:', item.id)}
             onPressMenu={() => {
               showAlert('Tùy chọn', 'Chọn hành động', [
+                { text: 'Thêm vào album', onPress: () => handleAddToAlbum(item.id) },
                 { text: 'Lưu', onPress: () => console.log('Save moment:', item.id) },
                 { text: 'Báo cáo', onPress: () => console.log('Report moment:', item.id), style: 'destructive' },
                 { text: 'Hủy', style: 'cancel' },
@@ -457,6 +477,12 @@ export default function ExploreScreen({ refreshTrigger, onOpenMap, onPressProfil
       />
       {renderProvinceModal()}
       {renderCategoryModal()}
+      <AlbumSelectModal
+        visible={albumModalVisible}
+        onClose={() => setAlbumModalVisible(false)}
+        onSelectAlbum={handleSelectAlbum}
+        token={token || ''}
+      />
     </SafeAreaView>
   );
 }

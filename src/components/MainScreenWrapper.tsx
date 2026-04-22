@@ -14,6 +14,7 @@ import SettingsScreen from '../screens/SettingsScreen';
 import EditProfileScreen from '../screens/EditProfileScreen';
 import MomentMapScreen from '../screens/MomentMapScreen';
 import UserProfileScreen from '../screens/UserProfileScreen';
+import AlbumsScreen from '../screens/AlbumsScreen';
 
 interface MapScreenParams {
   latitude: number;
@@ -127,6 +128,17 @@ export default function MainScreenWrapper() {
           <ProfileScreen 
             onNavigateToSettings={() => setActiveScreen('settings')}
             refreshTrigger={profileNeedsRefresh}
+            onOpenMap={(params) => {
+              setMapParams(params);
+              setActiveScreen('map');
+            }}
+            onOpenAlbums={() => setActiveScreen('albums')}
+          />
+        );
+      case 'albums':
+        return (
+          <AlbumsScreen
+            onBack={() => setActiveScreen('profile')}
             onOpenMap={(params) => {
               setMapParams(params);
               setActiveScreen('map');

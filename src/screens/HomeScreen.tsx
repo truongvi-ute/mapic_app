@@ -13,6 +13,8 @@ import { useAuthStore } from '../store/useAuthStore';
 import { useAlert } from '../context/AlertContext';
 import MomentCard, { Moment } from '../components/MomentCard';
 import { getApiUrl, getBaseUrl } from '../config/api';
+import AlbumSelectModal from '../components/AlbumSelectModal';
+import albumService from '../api/albumService';
 
 interface PageInfo {
   pageNumber: number;
@@ -49,6 +51,8 @@ export default function HomeScreen({ refreshTrigger, onOpenMap, onPressProfile }
   const [loadingMore, setLoadingMore] = useState(false);
   const [pageInfo, setPageInfo] = useState<PageInfo | null>(null);
   const [currentPage, setCurrentPage] = useState(0);
+  const [albumModalVisible, setAlbumModalVisible] = useState(false);
+  const [selectedMomentId, setSelectedMomentId] = useState<number | null>(null);
 
   const API_URL = getApiUrl();
   const baseUrl = getBaseUrl();
@@ -128,6 +132,22 @@ export default function HomeScreen({ refreshTrigger, onOpenMap, onPressProfile }
     }
   }, [pageInfo, loadingMore, currentPage]);
 
+  const handleAddToAlbum = (momentId: number) => {
+    setSelectedMomentId(momentId);
+    setAlbumModalVisible(true);
+  };
+
+  const handleSelectAlbum = async (albumId: number) => {
+    if (!selectedMomentId || !token) return;
+
+    try {
+      await albumService.addMomentToAlbum(albumId, selectedMomentId, token);
+      showAlert('Thành công', 'Đã thêm moment vào album');
+    } catch (error: any) {
+      showAlert('Lỗi', error.message || 'Không thể thêm moment vào album');
+    }
+  };
+
   const renderFooter = () => {
     if (!loadingMore) return null;
     
@@ -182,7 +202,7 @@ export default function HomeScreen({ refreshTrigger, onOpenMap, onPressProfile }
           <MomentCard
             moment={item}
             baseUrl={baseUrl}
-            token={token}
+            token={token || ''}
             onPressProfile={() => onPressProfile?.(item.author.id)}
             onPressMap={() => {
               if (item.location && onOpenMap) {
@@ -198,9 +218,8 @@ export default function HomeScreen({ refreshTrigger, onOpenMap, onPressProfile }
                   latitude: item.location.latitude,
                   longitude: item.location.longitude,
                   addressName: item.location.address || item.location.name,
-                  provinceName,
+                  provinceName: provinceName || undefined,
                   imageUrl: firstImage,
-                  caption: item.caption,
                 });
               }
             }}
@@ -212,6 +231,7 @@ export default function HomeScreen({ refreshTrigger, onOpenMap, onPressProfile }
                 'Tùy chọn',
                 'Chọn hành động',
                 [
+                  { text: 'Thêm vào album', onPress: () => handleAddToAlbum(item.id) },
                   { text: 'Lưu', onPress: () => console.log('Save moment:', item.id) },
                   { text: 'Báo cáo', onPress: () => console.log('Report moment:', item.id), style: 'destructive' },
                   { text: 'Hủy', style: 'cancel' },
@@ -230,6 +250,13 @@ export default function HomeScreen({ refreshTrigger, onOpenMap, onPressProfile }
         onEndReached={onEndReached}
         onEndReachedThreshold={0.5}
         contentContainerStyle={moments.length === 0 ? styles.emptyList : undefined}
+      />
+      
+      <AlbumSelectModal
+        visible={albumModalVisible}
+        onClose={() => setAlbumModalVisible(false)}
+        onSelectAlbum={handleSelectAlbum}
+        token={token || ''}
       />
     </SafeAreaView>
   );

@@ -52,15 +52,15 @@ interface ProfileScreenProps {
     provinceName?: string;
     imageUrl?: string;
   }) => void;
+  onOpenAlbums?: () => void;
 }
 
-export default function ProfileScreen({ onNavigateToSettings, onOpenMap }: ProfileScreenProps) {
+export default function ProfileScreen({ onNavigateToSettings, onOpenMap, onOpenAlbums }: ProfileScreenProps) {
   const user = useAuthStore((state) => state.user);
   const token = useAuthStore((state) => state.token);
   const setUser = useAuthStore((state) => state.setUser);
   const logoutStore = useAuthStore((state) => state.logout);
   const { showAlert } = useAlert();
-  const [activeTab, setActiveTab] = useState<'my-moments' | 'albums'>('my-moments');
   const [avatarVersion, setAvatarVersion] = useState(Date.now());
   const [coverVersion, setCoverVersion] = useState(Date.now());
   const [isLoading, setIsLoading] = useState(false);
@@ -75,13 +75,6 @@ export default function ProfileScreen({ onNavigateToSettings, onOpenMap }: Profi
     loadProfile();
     loadMoments();
   }, []);
-
-  // Load moments khi đổi tab
-  useEffect(() => {
-    if (activeTab === 'my-moments') {
-      loadMoments();
-    }
-  }, [activeTab]);
 
   const loadProfile = async () => {
     try {
@@ -402,6 +395,14 @@ export default function ProfileScreen({ onNavigateToSettings, onOpenMap }: Profi
               style={styles.settingIcon}
             />
           </TouchableOpacity>
+
+          {/* Albums Button - below cover, left of settings */}
+          <TouchableOpacity style={styles.albumsButton} onPress={onOpenAlbums}>
+            <Image
+              source={require('../assets/images/album.png')}
+              style={styles.settingIcon}
+            />
+          </TouchableOpacity>
         </View>
 
         {/* Name - centered below avatar and settings */}
@@ -438,41 +439,16 @@ export default function ProfileScreen({ onNavigateToSettings, onOpenMap }: Profi
           <Text style={styles.uploadText}>Đang tải lên... {progress}%</Text>
         </View>
       )}
-
-      {/* Tabs */}
-      <View style={styles.tabs}>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'my-moments' && styles.activeTab]}
-          onPress={() => setActiveTab('my-moments')}
-        >
-          <Image
-            source={require('../assets/images/moment.png')}
-            style={styles.tabIcon}
-          />
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'albums' && styles.activeTab]}
-          onPress={() => setActiveTab('albums')}
-        >
-          <Image
-            source={require('../assets/images/album.png')}
-            style={styles.tabIcon}
-          />
-        </TouchableOpacity>
-      </View>
     </>
   );
 
   const renderEmptyComponent = () => (
     <View style={styles.emptyContainer}>
       <Image
-        source={require('../assets/images/album.png')}
+        source={require('../assets/images/moment.png')}
         style={styles.emptyIcon}
       />
-      <Text style={styles.emptyText}>
-        {activeTab === 'my-moments' && 'Chưa có khoảnh khắc nào'}
-        {activeTab === 'albums' && 'Chưa có album nào'}
-      </Text>
+      <Text style={styles.emptyText}>Chưa có khoảnh khắc nào</Text>
     </View>
   );
 
@@ -490,61 +466,50 @@ export default function ProfileScreen({ onNavigateToSettings, onOpenMap }: Profi
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
-      {activeTab === 'my-moments' ? (
-        <FlatList
-          data={moments}
-          renderItem={({ item }) => (
-            <MomentCard
-              moment={item}
-              baseUrl={baseUrl}
-              token={token || ''}
-              onPressMap={() => {
-                if (item.location && onOpenMap) {
-                  const provinceName = item.province?.name || item.district?.name || '';
-                  const firstImage = item.media && item.media.length > 0 ? item.media[0].mediaUrl : undefined;
-                  onOpenMap({
-                    latitude: item.location.latitude,
-                    longitude: item.location.longitude,
-                    addressName: item.location.address || item.location.name,
-                    provinceName,
-                    imageUrl: firstImage,
-                  });
-                }
-              }}
-              onPressLike={() => console.log('Like moment:', item.id)}
-              onPressComment={() => console.log('Comment on moment:', item.id)}
-              onPressShare={() => console.log('Share moment:', item.id)}
-              onPressMenu={() => {
-                showAlert(
-                  'Tùy chọn',
-                  'Chọn hành động',
-                  [
-                    { text: 'Chỉnh sửa', onPress: () => console.log('Edit moment:', item.id) },
-                    { text: 'Xóa', onPress: () => console.log('Delete moment:', item.id), style: 'destructive' },
-                    { text: 'Hủy', style: 'cancel' },
-                  ]
-                );
-              }}
-            />
-          )}
-          keyExtractor={(item) => item.id.toString()}
-          ListHeaderComponent={renderHeader}
-          ListEmptyComponent={loadingMoments ? null : renderEmptyComponent}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }
-          contentContainerStyle={moments.length === 0 ? { flexGrow: 1 } : undefined}
-        />
-      ) : (
-        <ScrollView
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }
-        >
-          {renderHeader()}
-          {renderEmptyComponent()}
-        </ScrollView>
-      )}
+      <FlatList
+        data={moments}
+        renderItem={({ item }) => (
+          <MomentCard
+            moment={item}
+            baseUrl={baseUrl}
+            token={token || ''}
+            onPressMap={() => {
+              if (item.location && onOpenMap) {
+                const provinceName = item.province?.name || item.district?.name || '';
+                const firstImage = item.media && item.media.length > 0 ? item.media[0].mediaUrl : undefined;
+                onOpenMap({
+                  latitude: item.location.latitude,
+                  longitude: item.location.longitude,
+                  addressName: item.location.address || item.location.name,
+                  provinceName,
+                  imageUrl: firstImage,
+                });
+              }
+            }}
+            onPressLike={() => console.log('Like moment:', item.id)}
+            onPressComment={() => console.log('Comment on moment:', item.id)}
+            onPressShare={() => console.log('Share moment:', item.id)}
+            onPressMenu={() => {
+              showAlert(
+                'Tùy chọn',
+                'Chọn hành động',
+                [
+                  { text: 'Chỉnh sửa', onPress: () => console.log('Edit moment:', item.id) },
+                  { text: 'Xóa', onPress: () => console.log('Delete moment:', item.id), style: 'destructive' },
+                  { text: 'Hủy', style: 'cancel' },
+                ]
+              );
+            }}
+          />
+        )}
+        keyExtractor={(item) => item.id.toString()}
+        ListHeaderComponent={renderHeader}
+        ListEmptyComponent={loadingMoments ? null : renderEmptyComponent}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+        contentContainerStyle={moments.length === 0 ? { flexGrow: 1 } : undefined}
+      />
     </View>
   );
 }
@@ -586,6 +551,16 @@ const styles = StyleSheet.create({
   },
   settingsButton: {
     marginTop: 8,
+    width: 44,
+    height: 44,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  albumsButton: {
+    marginTop: 8,
+    marginRight: 8,
     width: 44,
     height: 44,
     backgroundColor: '#f0f0f0',
@@ -642,25 +617,6 @@ const styles = StyleSheet.create({
   uploadText: {
     fontSize: 14,
     color: '#666',
-  },
-  tabs: {
-    flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e1e8ed',
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: 12,
-    alignItems: 'center',
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
-  },
-  activeTab: {
-    borderBottomColor: '#007AFF',
-  },
-  tabIcon: {
-    width: 28,
-    height: 28,
   },
   emptyIcon: {
     width: 80,

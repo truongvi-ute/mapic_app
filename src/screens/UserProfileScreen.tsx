@@ -15,6 +15,8 @@ import { useAuthStore } from '../store/useAuthStore';
 import { useAlert } from '../context/AlertContext';
 import MomentCard, { Moment } from '../components/MomentCard';
 import { getApiUrl, getBaseUrl, buildMediaUrl } from '../config/api';
+import AlbumSelectModal from '../components/AlbumSelectModal';
+import albumService from '../api/albumService';
 
 const GENDER_LABELS: { [key: string]: string } = {
   MALE: 'Nam',
@@ -68,6 +70,8 @@ export default function UserProfileScreen({ userId, onBack, onOpenMap }: UserPro
   const [loadingMoments, setLoadingMoments] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
+  const [albumModalVisible, setAlbumModalVisible] = useState(false);
+  const [selectedMomentId, setSelectedMomentId] = useState<number | null>(null);
 
   const API_URL = getApiUrl();
   const baseUrl = getBaseUrl();
@@ -127,6 +131,22 @@ export default function UserProfileScreen({ userId, onBack, onOpenMap }: UserPro
     setRefreshing(true);
     loadUserProfile();
     loadUserMoments();
+  };
+
+  const handleAddToAlbum = (momentId: number) => {
+    setSelectedMomentId(momentId);
+    setAlbumModalVisible(true);
+  };
+
+  const handleSelectAlbum = async (albumId: number) => {
+    if (!selectedMomentId || !token) return;
+
+    try {
+      await albumService.addMomentToAlbum(albumId, selectedMomentId, token);
+      showAlert('Thành công', 'Đã thêm moment vào album');
+    } catch (error: any) {
+      showAlert('Lỗi', error.message || 'Không thể thêm moment vào album');
+    }
   };
 
   const handleSendFriendRequest = async () => {
@@ -401,6 +421,7 @@ export default function UserProfileScreen({ userId, onBack, onOpenMap }: UserPro
                 'Tùy chọn',
                 'Chọn hành động',
                 [
+                  { text: 'Thêm vào album', onPress: () => handleAddToAlbum(item.id) },
                   { text: 'Báo cáo', onPress: () => console.log('Report moment:', item.id), style: 'destructive' },
                   { text: 'Hủy', style: 'cancel' },
                 ]
@@ -415,6 +436,13 @@ export default function UserProfileScreen({ userId, onBack, onOpenMap }: UserPro
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
         contentContainerStyle={moments.length === 0 ? { flexGrow: 1 } : undefined}
+      />
+      
+      <AlbumSelectModal
+        visible={albumModalVisible}
+        onClose={() => setAlbumModalVisible(false)}
+        onSelectAlbum={handleSelectAlbum}
+        token={token || ''}
       />
     </View>
   );
