@@ -293,6 +293,8 @@ export default function MainScreenWrapper() {
               setChatListRefresh((n) => n + 1);
               setActiveScreen('chat');
             }}
+            onPressMoment={onPressMoment}
+            onPressAlbum={onPressAlbum}
           />
         );
       case 'profile':
@@ -300,7 +302,10 @@ export default function MainScreenWrapper() {
           <ProfileScreen 
             onNavigateToSettings={() => setActiveScreen('settings')}
             refreshTrigger={profileNeedsRefresh}
-            onOpenMap={(params) => setActiveScreen('map', params)}
+            onOpenMap={(params) => {
+              setMapParams(params);
+              setActiveScreen('map');
+            }}
             onOpenAlbums={() => setActiveScreen('albums')}
           />
         );
@@ -308,7 +313,10 @@ export default function MainScreenWrapper() {
         return (
           <AlbumsScreen
             onBack={() => setActiveScreen('profile')}
-            onOpenMap={(params) => setActiveScreen('map', params)}
+            onOpenMap={(params) => {
+              setMapParams(params);
+              setActiveScreen('map');
+            }}
           />
         );
       case 'settings':
@@ -336,6 +344,11 @@ export default function MainScreenWrapper() {
         );
       case 'map':
       case 'moment-map':
+        if (!mapParams) {
+          // If no map params, go back to home
+          setActiveScreen('home');
+          return null;
+        }
         return (
           <MomentMapScreen
             {...mapParams}
@@ -343,9 +356,14 @@ export default function MainScreenWrapper() {
           />
         );
       case 'userProfile':
+        if (!userProfileParams?.userId) {
+          // If no userId, go back to home
+          setActiveScreen('home');
+          return null;
+        }
         return (
           <UserProfileScreen 
-            userId={userProfileParams?.userId}
+            userId={userProfileParams.userId}
             onBack={() => setActiveScreen('home')}
           />
         );
