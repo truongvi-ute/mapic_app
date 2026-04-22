@@ -115,16 +115,24 @@ export default function MainScreenWrapper() {
           if (screenParams.momentId) setSharedMomentId(screenParams.momentId);
           break;
         case 'chat-room':
-          // If we only have userId, we might need to fetch the conversation
-          // or wrap it in a mock object if ChatRoomScreen can handle it.
-          // For now, assume it's a conversation object or userId.
-          if (screenParams.userId) {
+          // If we have a full conversation object, use it
+          if (screenParams.conversation) {
+            setChatParams(screenParams.conversation);
+          } 
+          // If we only have userId (from notification), create a minimal conversation
+          else if (screenParams.userId) {
             setChatParams({ 
-              id: 0, // Mock ID or fetch needed
-              participants: [{ user: { id: screenParams.userId } }] 
+              id: 0, // Will be created when first message is sent
+              isGroup: false,
+              participants: [
+                { userId: screenParams.userId }, // Friend
+                { userId: currentUser?.id } // Current user
+              ],
+              title: null,
+              creatorId: null,
+              createdAt: new Date().toISOString(),
+              lastMessage: null
             });
-          } else {
-            setChatParams(screenParams);
           }
           break;
         case 'map':
@@ -132,7 +140,7 @@ export default function MainScreenWrapper() {
           break;
       }
     }
-  }, [activeScreen, screenParams]);
+  }, [activeScreen, screenParams, currentUser?.id]);
 
   const menuItems = [
     {
@@ -285,10 +293,15 @@ export default function MainScreenWrapper() {
           />
         );
       case 'chat-room':
+        // Extract friendId from conversation participants (for direct chats)
+        const friendIdFromConv = chatParams?.participants?.find(
+          (p: any) => p.userId !== currentUser?.id
+        )?.userId;
+        
         return (
           <ChatRoomScreen
             conversation={chatParams}
-            friendId={chatParams?.userId}
+            friendId={friendIdFromConv}
             onBack={() => {
               setChatListRefresh((n) => n + 1);
               setActiveScreen('chat');
