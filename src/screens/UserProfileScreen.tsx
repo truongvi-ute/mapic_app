@@ -14,10 +14,13 @@ import { Image } from 'expo-image';
 import { useAuthStore } from '../store/useAuthStore';
 import { useAlert } from '../context/AlertContext';
 import reportService from '../api/reportService';
+import albumService from '../api/albumService';
+import momentService from '../api/momentService';
 import MomentCard, { Moment } from '../components/MomentCard';
 import { getApiUrl, getBaseUrl, buildMediaUrl } from '../config/api';
 import AlbumSelectModal from '../components/AlbumSelectModal';
-import commentService from '../api/commentService';
+import CommentModal from '../components/CommentModal';
+import EditCaptionModal from '../components/EditCaptionModal';
 import chatService from '../api/chatService';
 
 const GENDER_LABELS: { [key: string]: string } = {
@@ -65,6 +68,7 @@ interface UserProfileScreenProps {
 
 export default function UserProfileScreen({ userId, onBack, onOpenMap, onOpenChat }: UserProfileScreenProps) {
   const token = useAuthStore((state) => state.token);
+  const currentUser = useAuthStore((state) => state.user);
   const { showAlert } = useAlert();
 
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -77,6 +81,8 @@ export default function UserProfileScreen({ userId, onBack, onOpenMap, onOpenCha
   const [selectedMomentId, setSelectedMomentId] = useState<number | null>(null);
   const [commentModalVisible, setCommentModalVisible] = useState(false);
   const [selectedMomentForComment, setSelectedMomentForComment] = useState<number | null>(null);
+  const [editCaptionModalVisible, setEditCaptionModalVisible] = useState(false);
+  const [editingMoment, setEditingMoment] = useState<Moment | null>(null);
 
   const API_URL = getApiUrl();
   const baseUrl = getBaseUrl();
@@ -188,6 +194,60 @@ export default function UserProfileScreen({ userId, onBack, onOpenMap, onOpenCha
     }
   };
 
+  const handleDeleteMoment = async (momentId: number) => {
+    if (!token) return;
+
+    console.log('[UserProfileScreen] Delete moment:', momentId);
+
+    showAlert('Xác nhận', 'Bạn có chắc muốn xóa moment này?', [
+      { text: 'Hủy', style: 'cancel' },
+      {
+        text: 'Xóa',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            console.log('[UserProfileScreen] Calling deleteMoment API for moment:', momentId);
+            await momentService.deleteMoment(momentId, token);
+            console.log('[UserProfileScreen] Delete successful, removing from local state');
+            // Remove from local state
+            setMoments(prev => prev.filter(m => m.id !== momentId));
+            showAlert('Thành công', 'Đã xóa moment');
+          } catch (error: any) {
+            console.error('[UserProfileScreen] Delete failed:', error);
+            showAlert('Lỗi', error.message || 'Không thể xóa moment');
+          }
+        },
+      },
+    ]);
+  };
+
+  const handleEditCaption = (moment: Moment) => {
+    setEditingMoment(moment);
+    setEditCaptionModalVisible(true);
+  };
+
+  const handleSaveCaption = async (newCaption: string) => {
+    if (!editingMoment || !token) return;
+
+    try {
+      const updatedMoment = await momentService.updateMomentContent(
+        editingMoment.id,
+        newCaption,
+        token
+      );
+      
+      // Update local state
+      setMoments(prev =>
+        prev.map(m => (m.id === editingMoment.id ? { ...m, content: newCaption } : m))
+      );
+      
+      showAlert('Thành công', 'Đã cập nhật caption');
+    } catch (error: any) {
+      showAlert('Lỗi', error.message || 'Không thể cập nhật caption');
+      throw error;
+    }
+  };
+
   const handleSendFriendRequest = async () => {
     try {
       setActionLoading(true);
@@ -265,6 +325,14 @@ export default function UserProfileScreen({ userId, onBack, onOpenMap, onOpenCha
 
   const renderActionButtons = () => {
     if (!user) return null;
+
+    // Check if viewing own profile
+    const isOwnProfile = currentUser?.id === userId;
+    
+    // Don't show action buttons for own profile
+    if (isOwnProfile) {
+      return null;
+    }
 
     if (user.friendshipStatus === 'FRIENDS') {
       return (
@@ -403,19 +471,23 @@ export default function UserProfileScreen({ userId, onBack, onOpenMap, onOpenCha
     </>
   );
 
-  const renderEmptyComponent = () => (
-    <View style={styles.emptyContainer}>
-      <Image
-        source={require('../assets/images/moment.png')}
-        style={styles.emptyIcon}
-      />
-      <Text style={styles.emptyText}>
-        {user?.friendshipStatus === 'FRIENDS'
-          ? 'Chưa có khoảnh khắc nào'
-          : 'Chỉ bạn bè mới có thể xem khoảnh khắc'}
-      </Text>
-    </View>
-  );
+  const renderEmptyComponent = () => {
+    const isOwnProfile = currentUser?.id === userId;
+    
+    return (
+      <View style={styles.emptyContainer}>
+        <Image
+          source={require('../assets/images/moment.png')}
+          style={styles.emptyIcon}
+        />
+        <Text style={styles.emptyText}>
+          {isOwnProfile || user?.friendshipStatus === 'FRIENDS'
+            ? 'Chưa có khoảnh khắc nào'
+            : 'Chỉ bạn bè mới có thể xem khoảnh khắc'}
+        </Text>
+      </View>
+    );
+  };
 
   if (isLoading) {
     return (
@@ -465,15 +537,26 @@ export default function UserProfileScreen({ userId, onBack, onOpenMap, onOpenCha
             onPressComment={() => handleOpenComment(item.id)}
             onPressShare={() => console.log('Share moment:', item.id)}
             onPressMenu={() => {
-              showAlert(
-                'Tùy chọn',
-                'Chọn hành động',
-                [
+              const isOwnMoment = item.author.id === currentUser?.id;
+              
+              const menuOptions: any[] = [];
+              
+              if (isOwnMoment) {
+                menuOptions.push(
+                  { text: 'Chỉnh sửa caption', onPress: () => handleEditCaption(item) },
                   { text: 'Thêm vào album', onPress: () => handleAddToAlbum(item.id) },
-                  { text: 'Báo cáo', onPress: () => showReportDialog(item.id), style: 'destructive' },
-                  { text: 'Hủy', style: 'cancel' },
-                ]
-              );
+                  { text: 'Xóa', onPress: () => handleDeleteMoment(item.id), style: 'destructive' }
+                );
+              } else {
+                menuOptions.push(
+                  { text: 'Thêm vào album', onPress: () => handleAddToAlbum(item.id) },
+                  { text: 'Báo cáo', onPress: () => showReportDialog(item.id), style: 'destructive' }
+                );
+              }
+              
+              menuOptions.push({ text: 'Hủy', style: 'cancel' });
+              
+              showAlert('Tùy chọn', 'Chọn hành động', menuOptions);
             }}
           />
         )}
@@ -488,7 +571,10 @@ export default function UserProfileScreen({ userId, onBack, onOpenMap, onOpenCha
       
       <AlbumSelectModal
         visible={albumModalVisible}
-        onClose={() => setAlbumModalVisible(false)}
+        onClose={() => {
+          setAlbumModalVisible(false);
+          setSelectedMomentId(null);
+        }}
         onSelectAlbum={handleSelectAlbum}
         token={token || ''}
       />
@@ -506,6 +592,18 @@ export default function UserProfileScreen({ userId, onBack, onOpenMap, onOpenCha
                 : m
             ));
           }}
+        />
+      )}
+
+      {editingMoment && (
+        <EditCaptionModal
+          visible={editCaptionModalVisible}
+          initialCaption={editingMoment.content}
+          onClose={() => {
+            setEditCaptionModalVisible(false);
+            setEditingMoment(null);
+          }}
+          onSave={handleSaveCaption}
         />
       )}
     </View>

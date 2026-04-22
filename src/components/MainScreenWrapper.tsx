@@ -44,10 +44,12 @@ export default function MainScreenWrapper() {
   const [userProfileParams, setUserProfileParams] = useState<UserProfileParams | null>(null);
   const [chatParams, setChatParams] = useState<any>(null); // ConversationDto
   const [chatListRefresh, setChatListRefresh] = useState(0);
+  const [currentChatTab, setCurrentChatTab] = useState<'direct' | 'group'>('direct');
   const [sharedMomentId, setSharedMomentId] = useState<number | null>(null);
   const [sharedAlbumId, setSharedAlbumId] = useState<number | null>(null);
 
   const token = useAuthStore((s) => s.token);
+  const currentUser = useAuthStore((s) => s.user);
   const { connect, disconnect } = useChatStore();
   const { showAlert } = useAlert();
 
@@ -56,6 +58,18 @@ export default function MainScreenWrapper() {
     if (token) connect(token);
     return () => disconnect();
   }, [token]);
+
+  // Helper function to handle profile navigation
+  const handleOpenProfile = (userId: number) => {
+    // If clicking on own profile, go to Profile tab
+    if (currentUser?.id === userId) {
+      setActiveScreen('profile');
+    } else {
+      // Otherwise, open UserProfileScreen
+      setUserProfileParams({ userId });
+      setActiveScreen('userProfile');
+    }
+  };
 
   const menuItems = [
     {
@@ -103,7 +117,10 @@ export default function MainScreenWrapper() {
     },
   ];
 
-  const onOpenChat = (conversation: any) => {
+  const onOpenChat = (conversation: any, currentTab?: 'direct' | 'group') => {
+    if (currentTab) {
+      setCurrentChatTab(currentTab);
+    }
     setChatParams(conversation);
     setActiveScreen('chat-room');
   };
@@ -148,10 +165,7 @@ export default function MainScreenWrapper() {
             setMapParams(params);
             setActiveScreen('map');
           }}
-          onPressProfile={(userId) => {
-            setUserProfileParams({ userId });
-            setActiveScreen('userProfile');
-          }}
+          onPressProfile={handleOpenProfile}
         />;
       case 'explore':
         return <ExploreScreen 
@@ -161,10 +175,7 @@ export default function MainScreenWrapper() {
             setMapParams(params);
             setActiveScreen('map');
           }}
-          onPressProfile={(userId) => {
-            setUserProfileParams({ userId });
-            setActiveScreen('userProfile');
-          }}
+          onPressProfile={handleOpenProfile}
         />;
       case 'explore-moment':
         return <ExploreScreen
@@ -177,10 +188,7 @@ export default function MainScreenWrapper() {
             setMapParams(params);
             setActiveScreen('map');
           }}
-          onPressProfile={(userId) => {
-            setUserProfileParams({ userId });
-            setActiveScreen('userProfile');
-          }}
+          onPressProfile={handleOpenProfile}
         />;
       case 'create':
         return <CreateMomentScreen 
@@ -195,10 +203,7 @@ export default function MainScreenWrapper() {
         />;
       case 'friends':
         return <FriendsScreen 
-          onPressProfile={(userId) => {
-            setUserProfileParams({ userId });
-            setActiveScreen('userProfile');
-          }}
+          onPressProfile={handleOpenProfile}
           onOpenChat={onOpenChat}
         />;
       case 'notifications':
@@ -209,6 +214,7 @@ export default function MainScreenWrapper() {
             onBack={() => setActiveScreen('home')}
             onOpenChat={onOpenChat}
             refreshTrigger={chatListRefresh}
+            initialTab={currentChatTab}
           />
         );
       case 'chat-room':

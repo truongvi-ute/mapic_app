@@ -14,7 +14,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../store/useAuthStore';
 import { useAlert } from '../context/AlertContext';
-import { getApiUrl, getBaseUrl } from '../config/api';
+import { getApiUrl, buildAvatarUrl, buildCoverUrl } from '../config/api';
 
 interface FriendRequest {
   id: number;
@@ -22,6 +22,7 @@ interface FriendRequest {
   senderName: string;
   senderUsername: string;
   senderAvatarUrl: string | null;
+  senderCoverUrl: string | null;
   createdAt: string;
 }
 
@@ -39,7 +40,6 @@ export default function FriendRequestsScreen({ onBack, onPressProfile }: FriendR
   const [refreshing, setRefreshing] = useState(false);
 
   const API_URL = getApiUrl();
-  const baseUrl = getBaseUrl();
 
   useEffect(() => {
     loadRequests();
@@ -162,9 +162,8 @@ export default function FriendRequestsScreen({ onBack, onPressProfile }: FriendR
   };
 
   const renderRequestItem = ({ item }: { item: FriendRequest }) => {
-    const avatarUri = item.senderAvatarUrl
-      ? `${baseUrl}${item.senderAvatarUrl}`
-      : null;
+    const avatarUri = buildAvatarUrl(item.senderAvatarUrl);
+    const coverUri = buildCoverUrl(item.senderCoverUrl);
 
     return (
       <TouchableOpacity 
@@ -172,17 +171,27 @@ export default function FriendRequestsScreen({ onBack, onPressProfile }: FriendR
         onPress={() => onPressProfile?.(item.senderId)}
         activeOpacity={0.9}
       >
-        {/* Cover Background */}
-        <Image 
-          source={require('../assets/images/cover-default.jpg')} 
-          style={styles.requestBackground}
-        />
+        {/* Cover Background - dùng ảnh bìa thật nếu có, fallback về cover-default */}
+        {coverUri ? (
+          <Image 
+            source={{ uri: coverUri }} 
+            style={styles.requestBackground}
+          />
+        ) : (
+          <Image 
+            source={require('../assets/images/cover-default.jpg')} 
+            style={styles.requestBackground}
+          />
+        )}
         
         {/* Overlay */}
         <View style={styles.requestOverlay}>
           <View style={styles.requestInfo}>
             {avatarUri ? (
-              <Image source={{ uri: avatarUri }} style={styles.avatar} />
+              <Image 
+                source={{ uri: avatarUri }} 
+                style={styles.avatar}
+              />
             ) : (
               <Image 
                 source={require('../assets/images/avatar-default.png')} 

@@ -19,7 +19,7 @@ import { useAuthStore } from '../store/useAuthStore';
 import { useChatStore } from '../store/useChatStore';
 import { useAlert } from '../context/AlertContext';
 import chatService, { ConversationDto, MessageDto } from '../api/chatService';
-import { buildMediaUrl, getBaseUrl } from '../config/api';
+import { buildMediaUrl, buildAvatarUrl, getBaseUrl } from '../config/api';
 
 // ─── Reaction emoji toolbar ───
 const EMOJIS = ['❤️', '😂', '😮', '😢', '👍', '👎'];
@@ -205,7 +205,7 @@ export default function ChatRoomScreen({ conversation, onBack, onPressMoment, on
   const renderMessage = ({ item }: { item: MessageDto }) => {
     const isMe = item.senderId === currentUser?.id;
     const totalReactions = Object.values(item.reactions ?? {}).reduce((a, b) => a + b, 0);
-    const avatarUrl = item.senderAvatarUrl ? buildMediaUrl(item.senderAvatarUrl) : null;
+    const avatarUrl = item.senderAvatarUrl ? buildAvatarUrl(item.senderAvatarUrl) : null;
 
     const isShare = item.type === 'SHARE' || item.type?.startsWith('SHARE_');
 

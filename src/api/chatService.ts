@@ -5,6 +5,7 @@ export interface ParticipantDto {
   username: string;
   fullName: string;
   avatarUrl?: string;
+  coverImageUrl?: string;
   role: 'ADMIN' | 'MEMBER';
 }
 
@@ -75,7 +76,35 @@ const chatService = {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${token}` },
     });
-    if (!res.ok) throw new Error('Failed to remove member');
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.message || 'Failed to remove member');
+    }
+  },
+
+  async renameGroup(roomId: number, title: string, token: string): Promise<ConversationDto> {
+    const res = await fetch(`${getApiUrl()}/chat/rooms/${roomId}/title`, {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title }),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.message || 'Failed to rename group');
+    }
+    const json = await res.json();
+    return json.data;
+  },
+
+  async deleteGroup(roomId: number, token: string): Promise<void> {
+    const res = await fetch(`${getApiUrl()}/chat/rooms/${roomId}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.message || 'Failed to delete group');
+    }
   },
 
   async getMessages(roomId: number, page: number, token: string): Promise<MessageDto[]> {

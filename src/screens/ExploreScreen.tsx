@@ -17,11 +17,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../store/useAuthStore';
 import { useAlert } from '../context/AlertContext';
 import reportService from '../api/reportService';
+import momentService from '../api/momentService';
 import MomentCard, { Moment } from '../components/MomentCard';
 import { vietnamLocations } from '../data/vietnamLocations';
 import { getApiUrl, getBaseUrl } from '../config/api';
 import AlbumSelectModal from '../components/AlbumSelectModal';
 import CommentModal from '../components/CommentModal';
+import EditCaptionModal from '../components/EditCaptionModal';
 import albumService from '../api/albumService';
 
 type SortOption = 'newest' | 'popular';
@@ -52,6 +54,7 @@ interface ExploreScreenProps {
 
 export default function ExploreScreen({ refreshTrigger, highlightMomentId, onBack, onOpenMap, onPressProfile }: ExploreScreenProps) {
   const token = useAuthStore((state) => state.token);
+  const currentUser = useAuthStore((state) => state.user);
   const { showAlert } = useAlert();
 
   const [moments, setMoments] = useState<Moment[]>([]);
@@ -71,6 +74,8 @@ export default function ExploreScreen({ refreshTrigger, highlightMomentId, onBac
   const [selectedMomentId, setSelectedMomentId] = useState<number | null>(null);
   const [commentModalVisible, setCommentModalVisible] = useState(false);
   const [selectedMomentForComment, setSelectedMomentForComment] = useState<number | null>(null);
+  const [editCaptionModalVisible, setEditCaptionModalVisible] = useState(false);
+  const [editingMoment, setEditingMoment] = useState<Moment | null>(null);
   const flatListRef = useRef<FlatList>(null);
   // activeHighlight: chỉ hiển thị khung xanh cho đến khi user chọn filter
   const [activeHighlight, setActiveHighlight] = useState<number | undefined>(highlightMomentId);
@@ -263,6 +268,60 @@ export default function ExploreScreen({ refreshTrigger, highlightMomentId, onBac
       showAlert('Thành công', 'Đã thêm moment vào album');
     } catch (error: any) {
       showAlert('Lỗi', error.message || 'Không thể thêm moment vào album');
+    }
+  };
+
+  const handleDeleteMoment = async (momentId: number) => {
+    if (!token) return;
+
+    console.log('[ExploreScreen] Delete moment:', momentId);
+
+    showAlert('Xác nhận', 'Bạn có chắc muốn xóa moment này?', [
+      { text: 'Hủy', style: 'cancel' },
+      {
+        text: 'Xóa',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            console.log('[ExploreScreen] Calling deleteMoment API for moment:', momentId);
+            await momentService.deleteMoment(momentId, token);
+            console.log('[ExploreScreen] Delete successful, removing from local state');
+            // Remove from local state
+            setMoments(prev => prev.filter(m => m.id !== momentId));
+            showAlert('Thành công', 'Đã xóa moment');
+          } catch (error: any) {
+            console.error('[ExploreScreen] Delete failed:', error);
+            showAlert('Lỗi', error.message || 'Không thể xóa moment');
+          }
+        },
+      },
+    ]);
+  };
+
+  const handleEditCaption = (moment: Moment) => {
+    setEditingMoment(moment);
+    setEditCaptionModalVisible(true);
+  };
+
+  const handleSaveCaption = async (newCaption: string) => {
+    if (!editingMoment || !token) return;
+
+    try {
+      const updatedMoment = await momentService.updateMomentContent(
+        editingMoment.id,
+        newCaption,
+        token
+      );
+      
+      // Update local state
+      setMoments(prev =>
+        prev.map(m => (m.id === editingMoment.id ? { ...m, content: newCaption } : m))
+      );
+      
+      showAlert('Thành công', 'Đã cập nhật caption');
+    } catch (error: any) {
+      showAlert('Lỗi', error.message || 'Không thể cập nhật caption');
+      throw error;
     }
   };
 
@@ -519,15 +578,26 @@ export default function ExploreScreen({ refreshTrigger, highlightMomentId, onBac
             onPressComment={() => handleOpenComment(item.id)}
             onPressShare={() => console.log('Share moment:', item.id)}
             onPressMenu={() => {
-              showAlert(
-                'Tùy chọn',
-                'Chọn hành động',
-                [
+              const isOwnMoment = item.author.id === currentUser?.id;
+              
+              const menuOptions: any[] = [];
+              
+              if (isOwnMoment) {
+                menuOptions.push(
+                  { text: 'Chỉnh sửa caption', onPress: () => handleEditCaption(item) },
                   { text: 'Thêm vào album', onPress: () => handleAddToAlbum(item.id) },
-                  { text: 'Báo cáo', onPress: () => showReportDialog(item.id), style: 'destructive' },
-                  { text: 'Hủy', style: 'cancel' },
-                ]
-              );
+                  { text: 'Xóa', onPress: () => handleDeleteMoment(item.id), style: 'destructive' }
+                );
+              } else {
+                menuOptions.push(
+                  { text: 'Thêm vào album', onPress: () => handleAddToAlbum(item.id) },
+                  { text: 'Báo cáo', onPress: () => showReportDialog(item.id), style: 'destructive' }
+                );
+              }
+              
+              menuOptions.push({ text: 'Hủy', style: 'cancel' });
+              
+              showAlert('Tùy chọn', 'Chọn hành động', menuOptions);
             }}
           />
           </View>
@@ -567,6 +637,18 @@ export default function ExploreScreen({ refreshTrigger, highlightMomentId, onBac
                 : m
             ));
           }}
+        />
+      )}
+
+      {editingMoment && (
+        <EditCaptionModal
+          visible={editCaptionModalVisible}
+          initialCaption={editingMoment.content}
+          onClose={() => {
+            setEditCaptionModalVisible(false);
+            setEditingMoment(null);
+          }}
+          onSave={handleSaveCaption}
         />
       )}
     </SafeAreaView>

@@ -437,16 +437,38 @@ export default function AlbumsScreen({ onBack, onOpenAlbum, onOpenMap, onOpenPro
                     setSelectedMoment(null);
                   }}
                   onPressLike={() => {
-                    // MomentCard tự handle API, cập nhật lại selectedMoment count
-                    setSelectedMoment(prev => prev ? {
-                      ...prev,
-                      userReacted: !prev.userReacted,
-                      reactionCount: prev.userReacted ? (prev.reactionCount || 1) - 1 : (prev.reactionCount || 0) + 1,
-                    } : null);
+                    // MomentCard handles API internally, update both selectedMoment and albums state
+                    if (selectedMoment) {
+                      const newUserReacted = !selectedMoment.userReacted;
+                      const newReactionCount = selectedMoment.userReacted 
+                        ? (selectedMoment.reactionCount || 1) - 1 
+                        : (selectedMoment.reactionCount || 0) + 1;
+                      
+                      // Update selectedMoment for modal display
+                      setSelectedMoment(prev => prev ? {
+                        ...prev,
+                        userReacted: newUserReacted,
+                        reactionCount: newReactionCount,
+                      } : null);
+                      
+                      // Update albums state so mini cards reflect the change
+                      setAlbums(prevAlbums =>
+                        prevAlbums.map(album => ({
+                          ...album,
+                          moments: album.moments?.map(m =>
+                            m.id === selectedMoment.id
+                              ? { ...m, userReacted: newUserReacted, reactionCount: newReactionCount }
+                              : m
+                          ),
+                        }))
+                      );
+                    }
                   }}
                   onPressComment={() => {
-                    setCommentMomentId(selectedMoment.id);
-                    setCommentModalVisible(true);
+                    if (selectedMoment) {
+                      setCommentMomentId(selectedMoment.id);
+                      setCommentModalVisible(true);
+                    }
                   }}
                   onPressShare={() => console.log('Share full moment:', selectedMoment.id)}
                   onPressMenu={() => {
@@ -495,10 +517,23 @@ export default function AlbumsScreen({ onBack, onOpenAlbum, onOpenMap, onOpenPro
             setCommentMomentId(null);
           }}
           onCommentAdded={() => {
+            // Update both selectedMoment and albums state
             setSelectedMoment(prev => prev ? {
               ...prev,
               commentCount: (prev.commentCount || 0) + 1,
             } : null);
+            
+            // Update albums state so mini cards reflect the change
+            setAlbums(prevAlbums =>
+              prevAlbums.map(album => ({
+                ...album,
+                moments: album.moments?.map(m =>
+                  m.id === commentMomentId
+                    ? { ...m, commentCount: (m.commentCount || 0) + 1 }
+                    : m
+                ),
+              }))
+            );
           }}
         />
       )}
