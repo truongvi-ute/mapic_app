@@ -47,26 +47,29 @@ export default function ChatRoomScreen({
   const route = useRoute<any>();
   const navigation = useNavigation<any>();
   
-  // Use props if available, otherwise fallback to route params
-  const friendId = propConversation?.participants?.find((p: any) => p.user.id !== useAuthStore.getState().user?.id)?.user.id 
-                 || propFriendId 
-                 || route.params?.friendId;
-  
-  const friendName = propConversation?.name 
-                   || propFriendName 
-                   || route.params?.friendName 
-                   || propConversation?.participants?.find((p: any) => p.user.id !== useAuthStore.getState().user?.id)?.user.name;
-
-  const friendAvatar = propFriendAvatar 
-                     || route.params?.friendAvatar 
-                     || propConversation?.participants?.find((p: any) => p.user.id !== useAuthStore.getState().user?.id)?.user.avatarUrl;
-
-  const conversation = propConversation || { id: 0, isGroup: false, participants: [] };
-
   const currentUser = useAuthStore((s) => s.user);
   const token = useAuthStore((s) => s.token);
   const { subscribeToRoom, sendMessage, reactToMessage, isConnected, updateConversation } = useChatStore();
   const { showAlert } = useAlert();
+
+  // Use state to track conversation (can be updated after creation)
+  const [conversation, setConversation] = useState<ConversationDto>(
+    propConversation || { id: 0, isGroup: false, participants: [], title: null, creatorId: null, createdAt: new Date().toISOString(), lastMessage: null }
+  );
+  
+  // Use props if available, otherwise fallback to route params
+  const friendId = propConversation?.participants?.find((p: any) => p.userId !== currentUser?.id)?.userId 
+                 || propFriendId 
+                 || route.params?.friendId;
+  
+  const friendName = propConversation?.title
+                   || propFriendName 
+                   || route.params?.friendName 
+                   || propConversation?.participants?.find((p: any) => p.userId !== currentUser?.id)?.fullName;
+
+  const friendAvatar = propFriendAvatar 
+                     || route.params?.friendAvatar 
+                     || propConversation?.participants?.find((p: any) => p.userId !== currentUser?.id)?.avatarUrl;
 
   const [messages, setMessages] = useState<MessageDto[]>([]);
   const [loading, setLoading] = useState(true);
@@ -143,7 +146,10 @@ export default function ChatRoomScreen({
           console.log('[ChatRoom] Attempting to open direct chat with friendId:', friendId);
           const conv = await chatService.openDirectChat(friendId, token || '');
           convId = conv.id;
+          // Update local state AND store
+          setConversation(conv);
           updateConversation(conv);
+          console.log('[ChatRoom] Conversation opened with id:', convId);
         } catch (e: any) {
           console.error('[ChatRoom] Failed to open direct chat error detail:', e);
           showAlert('Lỗi', 'Không thể kết nối cuộc trò chuyện: ' + (e.message || 'Unknown error'));
@@ -154,6 +160,7 @@ export default function ChatRoomScreen({
       }
 
       if (convId === 0) {
+        console.log('[ChatRoom] No valid conversation ID, skipping message load');
         setLoading(false);
         loadingRef.current = false;
         return;
@@ -174,23 +181,52 @@ export default function ChatRoomScreen({
     }
   };
 
-  const handleSend = useCallback(() => {
+  const handleSend = useCallback(async () => {
     const text = inputText.trim();
     if (!text) return;
     setInputText('');
 
+    // Ensure conversation exists before sending
+    let convId = conversation.id;
+    
+    // If conversation doesn't exist yet, create it first
+    if (convId === 0 && friendId) {
+      try {
+        console.log('[ChatRoom] Creating conversation before sending message to friendId:', friendId);
+        const conv = await chatService.openDirectChat(friendId, token || '');
+        convId = conv.id;
+        setConversation(conv);
+        updateConversation(conv);
+        console.log('[ChatRoom] Conversation created with id:', convId);
+      } catch (e: any) {
+        console.error('[ChatRoom] Failed to create conversation:', e);
+        showAlert('Lỗi', 'Không thể tạo cuộc trò chuyện: ' + (e.message || 'Unknown error'));
+        return;
+      }
+    }
+
+    // Now send the message with valid conversation ID
+    if (convId === 0) {
+      showAlert('Lỗi', 'Không thể gửi tin nhắn: Cuộc trò chuyện không hợp lệ');
+      return;
+    }
+
     if (isConnected) {
-      sendMessage(conversation.id, 'TEXT', text);
+      sendMessage(convId, 'TEXT', text);
     } else {
       // Fallback to REST
       chatService
-        .sendMessage(conversation.id, text, token)
+        .sendMessage(convId, text, token)
         .then((msg) => {
           setMessages((prev) => [msg, ...prev]);
           syncLastMessage(msg);
+        })
+        .catch((e) => {
+          console.error('[ChatRoom] Failed to send message:', e);
+          showAlert('Lỗi', 'Không thể gửi tin nhắn');
         });
     }
-  }, [inputText, isConnected, conversation.id]);
+  }, [inputText, isConnected, conversation.id, friendId, token, updateConversation, syncLastMessage, showAlert, setConversation]);
 
   const handleReact = useCallback(
     (emoji: string) => {
