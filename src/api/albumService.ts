@@ -172,6 +172,27 @@ const albumService = {
     const result = await response.json();
     return result.data;
   },
+
+  /**
+   * Reorder moment in album (left or right)
+   */
+  async reorderMomentInAlbum(albumId: number, momentId: number, direction: 'left' | 'right', token: string): Promise<Album> {
+    const API_URL = getApiUrl();
+    const response = await fetch(`${API_URL}/albums/${albumId}/moments/${momentId}/reorder?direction=${direction}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to reorder moment');
+    }
+
+    const result = await response.json();
+    return result.data;
+  },
 };
 
 export default albumService;

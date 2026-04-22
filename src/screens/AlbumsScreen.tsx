@@ -16,12 +16,16 @@ import {
   Dimensions,
   Image,
   ScrollView,
+  Pressable,
+  Linking,
+  Share,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../store/useAuthStore';
 import { useAlert } from '../context/AlertContext';
 import albumService, { Album } from '../api/albumService';
-import MomentCard from '../components/MomentCard';
+import MiniMomentCard from '../components/MiniMomentCard';
+import MomentCard, { Moment } from '../components/MomentCard';
 import { getBaseUrl } from '../config/api';
 
 const { width } = Dimensions.get('window');
@@ -36,9 +40,10 @@ interface AlbumsScreenProps {
     provinceName?: string;
     imageUrl?: string;
   }) => void;
+  onOpenProfile?: (userId: number) => void;
 }
 
-export default function AlbumsScreen({ onBack, onOpenAlbum, onOpenMap }: AlbumsScreenProps) {
+export default function AlbumsScreen({ onBack, onOpenAlbum, onOpenMap, onOpenProfile }: AlbumsScreenProps) {
   const token = useAuthStore((state) => state.token);
   const { showAlert } = useAlert();
 
@@ -48,6 +53,7 @@ export default function AlbumsScreen({ onBack, onOpenAlbum, onOpenMap }: AlbumsS
   const [albumTitle, setAlbumTitle] = useState('');
   const [albumDescription, setAlbumDescription] = useState('');
   const [creating, setCreating] = useState(false);
+  const [selectedMoment, setSelectedMoment] = useState<Moment | null>(null);
 
   const baseUrl = getBaseUrl();
 
@@ -166,6 +172,79 @@ export default function AlbumsScreen({ onBack, onOpenAlbum, onOpenMap }: AlbumsS
     ]);
   };
 
+  const handleMoveMoment = async (albumId: number, momentId: number, direction: 'left' | 'right') => {
+    if (!token) return;
+
+    // Optimistic update: swap positions in UI instantly
+    setAlbums(prevAlbums =>
+      prevAlbums.map(album => {
+        if (album.id === albumId && album.moments) {
+          const newMoments = [...album.moments];
+          const currentIndex = newMoments.findIndex(m => m.id === momentId);
+          if (currentIndex === -1) return album;
+          const targetIndex = direction === 'left' ? currentIndex - 1 : currentIndex + 1;
+          if (targetIndex >= 0 && targetIndex < newMoments.length) {
+            [newMoments[currentIndex], newMoments[targetIndex]] = [newMoments[targetIndex], newMoments[currentIndex]];
+          }
+          return { ...album, moments: newMoments };
+        }
+        return album;
+      })
+    );
+
+    // Persist to backend
+    try {
+      await albumService.reorderMomentInAlbum(albumId, momentId, direction, token);
+    } catch (error: any) {
+      // On error, reload to get correct order from server
+      showAlert('Lỗi', 'Không thể cập nhật thứ tự');
+      await loadAlbums();
+    }
+  };
+
+  const handleNavigateWithAlbum = (album: Album) => {
+    if (!album.moments || album.moments.length === 0) {
+      showAlert('Thông báo', 'Album cần có ít nhất 1 moment để điều hướng');
+      return;
+    }
+
+    const momentsWithLocation = album.moments.filter(
+      m => m.location?.latitude && m.location?.longitude
+    );
+
+    if (momentsWithLocation.length === 0) {
+      showAlert('Thông báo', 'Các moment trong album chưa có dữ liệu vị trí');
+      return;
+    }
+
+    // Build Google Maps URL:
+    // Origin: current location (empty = uses device GPS)
+    // Waypoints: moment 0..n-2
+    // Destination: last moment
+    const destination = momentsWithLocation[momentsWithLocation.length - 1];
+    const destCoord = `${destination.location!.latitude},${destination.location!.longitude}`;
+
+    if (momentsWithLocation.length === 1) {
+      // Single stop - just navigate to it
+      const url = `https://www.google.com/maps/dir/?api=1&destination=${destCoord}&travelmode=driving`;
+      Linking.openURL(url).catch(() =>
+        showAlert('Lỗi', 'Không thể mở Google Maps')
+      );
+      return;
+    }
+
+    // Multiple stops: origin = current location (blank), waypoints = moment 1..n-2, destination = last moment
+    const waypoints = momentsWithLocation
+      .slice(0, -1)
+      .map(m => `${m.location!.latitude},${m.location!.longitude}`)
+      .join('|');
+
+    const url = `https://www.google.com/maps/dir/?api=1&destination=${destCoord}&waypoints=${encodeURIComponent(waypoints)}&travelmode=driving`;
+    Linking.openURL(url).catch(() =>
+      showAlert('Lỗi', 'Không thể mở Google Maps')
+    );
+  };
+
   const renderAlbumCard = ({ item }: { item: Album }) => {
     return (
       <View style={styles.albumCard}>
@@ -193,18 +272,34 @@ export default function AlbumsScreen({ onBack, onOpenAlbum, onOpenMap }: AlbumsS
           <TouchableOpacity
             style={styles.menuButton}
             onPress={() => {
-              showAlert('Tùy chọn', `Chọn hành động với album "${item.title}"`, [
+              const hasMoments = item.moments && item.moments.length > 0;
+              const menuOptions: any[] = [
                 {
-                  text: 'Xem chi tiết',
-                  onPress: () => onOpenAlbum?.(item.id),
+                  text: 'Chia sẻ',
+                  onPress: () => {
+                    Share.share({
+                      title: item.title,
+                      message: `Xem album "${item.title}" trên MAPIC!`,
+                    });
+                  },
                 },
-                {
-                  text: 'Xóa album',
-                  style: 'destructive',
-                  onPress: () => handleDeleteAlbum(item.id, item.title),
-                },
-                { text: 'Đóng', style: 'cancel' },
-              ]);
+              ];
+
+              if (hasMoments) {
+                menuOptions.push({
+                  text: 'Google Maps',
+                  onPress: () => handleNavigateWithAlbum(item),
+                });
+              }
+
+              menuOptions.push({
+                text: 'Xóa album',
+                style: 'destructive',
+                onPress: () => handleDeleteAlbum(item.id, item.title),
+              });
+              menuOptions.push({ text: 'Đóng', style: 'cancel' });
+
+              showAlert('Tùy chọn', `Chọn hành động với album "${item.title}"`, menuOptions);
             }}
           >
             <Ionicons name="ellipsis-horizontal" size={24} color="#666" />
@@ -217,44 +312,21 @@ export default function AlbumsScreen({ onBack, onOpenAlbum, onOpenMap }: AlbumsS
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
+              nestedScrollEnabled={true}
+              keyboardShouldPersistTaps="handled"
               style={styles.momentsScroll}
               contentContainerStyle={styles.momentsContainer}
-              snapToInterval={width * 0.65}
+              snapToInterval={width * 0.45}
               snapToAlignment="start"
               decelerationRate="fast"
             >
               {item.moments.map((moment) => (
                 <View key={moment.id} style={styles.momentCardContainer}>
-                  <MomentCard
+                  <MiniMomentCard
                     moment={moment}
-                    baseUrl={baseUrl}
                     token={token || ''}
-                    onPressMap={() => {
-                      if (moment.location && onOpenMap) {
-                        const provinceName = moment.province?.name || moment.district?.name || '';
-                        const firstImage = moment.media && moment.media.length > 0 ? moment.media[0].mediaUrl : undefined;
-                        onOpenMap({
-                          latitude: moment.location.latitude,
-                          longitude: moment.location.longitude,
-                          addressName: moment.location.address || moment.location.name,
-                          provinceName,
-                          imageUrl: firstImage,
-                        });
-                      }
-                    }}
+                    onPress={() => setSelectedMoment(moment)}
                     onPressLike={() => console.log('Like moment:', moment.id)}
-                    onPressComment={() => console.log('Comment on moment:', moment.id)}
-                    onPressShare={() => console.log('Share moment:', moment.id)}
-                    onPressMenu={() => {
-                      showAlert('Tùy chọn', 'Chọn hành động', [
-                        {
-                          text: 'Xóa khỏi album',
-                          style: 'destructive',
-                          onPress: () => handleRemoveFromAlbum(item.id, moment.id),
-                        },
-                        { text: 'Đóng', style: 'cancel' },
-                      ]);
-                    }}
                   />
                 </View>
               ))}
@@ -391,6 +463,77 @@ export default function AlbumsScreen({ onBack, onOpenAlbum, onOpenMap }: AlbumsS
           </View>
         </TouchableWithoutFeedback>
       </Modal>
+
+      {/* Full Moment Card Modal */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={!!selectedMoment}
+        onRequestClose={() => setSelectedMoment(null)}
+      >
+        <Pressable 
+          style={styles.momentModalOverlay} 
+          onPress={() => setSelectedMoment(null)}
+        >
+          <Pressable style={{ width: '100%' }}>
+              {selectedMoment && (
+                <MomentCard
+                  moment={selectedMoment}
+                  baseUrl={baseUrl}
+                  token={token || ''}
+                  onPressMap={() => {
+                    if (selectedMoment.location && onOpenMap) {
+                      const provinceName = selectedMoment.province?.name || selectedMoment.district?.name || '';
+                      const firstImage = selectedMoment.media && selectedMoment.media.length > 0 ? selectedMoment.media[0].mediaUrl : undefined;
+                      onOpenMap({
+                        latitude: selectedMoment.location.latitude,
+                        longitude: selectedMoment.location.longitude,
+                        addressName: selectedMoment.location.address || selectedMoment.location.name,
+                        provinceName,
+                        imageUrl: firstImage,
+                      });
+                    }
+                    setSelectedMoment(null);
+                  }}
+                  onPressLike={() => console.log('Like full moment:', selectedMoment.id)}
+                  onPressComment={() => console.log('Comment on full moment:', selectedMoment.id)}
+                  onPressShare={() => console.log('Share full moment:', selectedMoment.id)}
+                  onPressMenu={() => {
+                    const parentAlbum = albums.find(a => a.moments?.some(m => m.id === selectedMoment.id));
+                    const options: any[] = [];
+                    
+                    if (parentAlbum && parentAlbum.moments) {
+                      const currentIndex = parentAlbum.moments.findIndex(m => m.id === selectedMoment.id);
+                      if (currentIndex > 0) {
+                        options.push({
+                          text: 'Chuyển sang trái',
+                          onPress: () => handleMoveMoment(parentAlbum.id, selectedMoment.id, 'left'),
+                        });
+                      }
+                      if (currentIndex < parentAlbum.moments.length - 1) {
+                        options.push({
+                          text: 'Chuyển sang phải',
+                          onPress: () => handleMoveMoment(parentAlbum.id, selectedMoment.id, 'right'),
+                        });
+                      }
+                      options.push({
+                        text: 'Xóa khỏi album',
+                        style: 'destructive',
+                        onPress: () => {
+                          handleRemoveFromAlbum(parentAlbum.id, selectedMoment.id);
+                          setSelectedMoment(null);
+                        },
+                      });
+                    }
+                    options.push({ text: 'Đóng', style: 'cancel' });
+
+                    showAlert('Tùy chọn', 'Chọn hành động', options);
+                  }}
+                />
+              )}
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -482,16 +625,18 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   albumContent: {
-    height: 310,
+    height: width * 0.45 + 16, // Height to fit square card + padding
   },
   momentsScroll: {
     flex: 1,
   },
   momentsContainer: {
     paddingHorizontal: 8,
+    paddingVertical: 8,
   },
   momentCardContainer: {
-    width: width * 0.67,
+    width: width * 0.45,
+    height: width * 0.45,
     paddingHorizontal: 4,
   },
   emptyAlbum: {
@@ -552,6 +697,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#fff',
+  },
+  momentModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   modalOverlay: {
     flex: 1,

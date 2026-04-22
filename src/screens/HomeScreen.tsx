@@ -232,7 +232,6 @@ export default function HomeScreen({ refreshTrigger, onOpenMap, onPressProfile }
                 'Chọn hành động',
                 [
                   { text: 'Thêm vào album', onPress: () => handleAddToAlbum(item.id) },
-                  { text: 'Lưu', onPress: () => console.log('Save moment:', item.id) },
                   { text: 'Báo cáo', onPress: () => console.log('Report moment:', item.id), style: 'destructive' },
                   { text: 'Hủy', style: 'cancel' },
                 ]

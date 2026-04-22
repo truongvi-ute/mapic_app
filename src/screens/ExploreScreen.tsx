@@ -454,7 +454,6 @@ export default function ExploreScreen({ refreshTrigger, onOpenMap, onPressProfil
             onPressMenu={() => {
               showAlert('Tùy chọn', 'Chọn hành động', [
                 { text: 'Thêm vào album', onPress: () => handleAddToAlbum(item.id) },
-                { text: 'Lưu', onPress: () => console.log('Save moment:', item.id) },
                 { text: 'Báo cáo', onPress: () => console.log('Report moment:', item.id), style: 'destructive' },
                 { text: 'Hủy', style: 'cancel' },
               ]);
