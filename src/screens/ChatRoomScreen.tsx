@@ -21,6 +21,7 @@ import { useChatStore } from '../store/useChatStore';
 import { useAlert } from '../context/AlertContext';
 import chatService, { ConversationDto, MessageDto } from '../api/chatService';
 import { buildMediaUrl, buildAvatarUrl, getBaseUrl } from '../config/api';
+import GroupInfoModal from '../components/GroupInfoModal';
 
 // ─── Reaction emoji toolbar ───
 const EMOJIS = ['❤️', '😂', '😮', '😢', '👍', '👎'];
@@ -78,6 +79,7 @@ export default function ChatRoomScreen({
   const [hasMore, setHasMore] = useState(true);
   const [inputText, setInputText] = useState('');
   const [reactionTarget, setReactionTarget] = useState<number | null>(null);
+  const [showGroupInfo, setShowGroupInfo] = useState(false);
   const flatListRef = useRef<FlatList>(null);
   const loadingRef = useRef(false);
   const hasAttemptedOpen = useRef(false);
@@ -386,14 +388,18 @@ export default function ChatRoomScreen({
         <TouchableOpacity style={styles.backBtn} onPress={() => onBack ? onBack() : navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color="#007AFF" />
         </TouchableOpacity>
-        <View style={styles.headerInfo}>
+        <TouchableOpacity 
+          style={styles.headerInfo}
+          onPress={() => conversation.isGroup && setShowGroupInfo(true)}
+          disabled={!conversation.isGroup}
+        >
           <Text style={styles.headerName} numberOfLines={1}>{displayName}</Text>
           {conversation.isGroup && (
             <Text style={styles.headerSub}>
-              {conversation.participants.length} thành viên
+              {conversation.participants.length} thành viên • Nhấn để xem
             </Text>
           )}
-        </View>
+        </TouchableOpacity>
         {!isConnected && (
           <ActivityIndicator size="small" color="#FF3B30" style={{ marginRight: 8 }} />
         )}
@@ -481,6 +487,23 @@ export default function ChatRoomScreen({
           </View>
         </Pressable>
       </Modal>
+
+      {/* Group Info Modal */}
+      {conversation.isGroup && (
+        <GroupInfoModal
+          visible={showGroupInfo}
+          conversation={conversation}
+          onClose={() => setShowGroupInfo(false)}
+          onUpdate={(updatedConv) => {
+            setConversation(updatedConv);
+            updateConversation(updatedConv);
+          }}
+          onLeave={() => {
+            // Navigate back to chat list
+            onBack ? onBack() : navigation.goBack();
+          }}
+        />
+      )}
     </SafeAreaView>
   );
 }
