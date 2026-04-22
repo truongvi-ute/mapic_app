@@ -13,10 +13,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useAuthStore } from '../store/useAuthStore';
 import { useAlert } from '../context/AlertContext';
+import reportService from '../api/reportService';
 import MomentCard, { Moment } from '../components/MomentCard';
 import { getApiUrl, getBaseUrl, buildMediaUrl } from '../config/api';
 import AlbumSelectModal from '../components/AlbumSelectModal';
-import albumService from '../api/albumService';
+import commentService from '../api/commentService';
+import chatService from '../api/chatService';
 
 const GENDER_LABELS: { [key: string]: string } = {
   MALE: 'Nam',
@@ -58,9 +60,10 @@ interface UserProfileScreenProps {
     imageUrl?: string;
     caption?: string;
   }) => void;
+  onOpenChat?: (conversation: any) => void;
 }
 
-export default function UserProfileScreen({ userId, onBack, onOpenMap }: UserProfileScreenProps) {
+export default function UserProfileScreen({ userId, onBack, onOpenMap, onOpenChat }: UserProfileScreenProps) {
   const token = useAuthStore((state) => state.token);
   const { showAlert } = useAlert();
 
@@ -72,6 +75,8 @@ export default function UserProfileScreen({ userId, onBack, onOpenMap }: UserPro
   const [actionLoading, setActionLoading] = useState(false);
   const [albumModalVisible, setAlbumModalVisible] = useState(false);
   const [selectedMomentId, setSelectedMomentId] = useState<number | null>(null);
+  const [commentModalVisible, setCommentModalVisible] = useState(false);
+  const [selectedMomentForComment, setSelectedMomentForComment] = useState<number | null>(null);
 
   const API_URL = getApiUrl();
   const baseUrl = getBaseUrl();
@@ -136,6 +141,40 @@ export default function UserProfileScreen({ userId, onBack, onOpenMap }: UserPro
   const handleAddToAlbum = (momentId: number) => {
     setSelectedMomentId(momentId);
     setAlbumModalVisible(true);
+  };
+
+  const handleOpenComment = (momentId: number) => {
+    setSelectedMomentForComment(momentId);
+    setCommentModalVisible(true);
+  };
+
+  const showReportDialog = (momentId: number) => {
+    showAlert(
+      'Báo cáo bài viết',
+      'Chọn lý do báo cáo:',
+      [
+        { text: 'Nội dung sai lệch', onPress: () => submitReport(momentId, 'nội dung sai lệch') },
+        { text: 'Vi phạm tiêu chuẩn cộng đồng', onPress: () => submitReport(momentId, 'vi phạm tiêu chuẩn cộng đồng') },
+        { text: 'Ngôn từ thù ghét', onPress: () => submitReport(momentId, 'ngôn từ thù ghét') },
+        { text: 'Khác', onPress: () => submitReport(momentId, 'khác') },
+        { text: 'Hủy', style: 'cancel' }
+      ]
+    );
+  };
+
+  const submitReport = async (momentId: number, reason: string) => {
+    if (!token) return;
+    try {
+      await reportService.submitReport({
+        targetId: momentId,
+        targetType: 'MOMENT',
+        reason
+      }, token);
+      showAlert('Thành công', 'Cảm ơn bạn đã báo cáo. Chúng tôi sẽ xem xét.');
+    } catch (error) {
+      console.error('Failed to report', error);
+      showAlert('Lỗi', 'Không thể gửi báo cáo');
+    }
   };
 
   const handleSelectAlbum = async (albumId: number) => {
@@ -211,8 +250,17 @@ export default function UserProfileScreen({ userId, onBack, onOpenMap }: UserPro
     );
   };
 
-  const handleMessage = () => {
-    showAlert('Thông báo', 'Tính năng nhắn tin đang được phát triển');
+  const handleMessage = async () => {
+    try {
+      if (!token) return;
+      setActionLoading(true);
+      const conversation = await chatService.openDirectChat(userId, token);
+      onOpenChat?.(conversation);
+    } catch (error) {
+      showAlert('Lỗi', 'Không thể mở cuộc trò chuyện');
+    } finally {
+      setActionLoading(false);
+    }
   };
 
   const renderActionButtons = () => {
@@ -414,7 +462,7 @@ export default function UserProfileScreen({ userId, onBack, onOpenMap }: UserPro
               }
             }}
             onPressLike={() => console.log('Like moment:', item.id)}
-            onPressComment={() => console.log('Comment on moment:', item.id)}
+            onPressComment={() => handleOpenComment(item.id)}
             onPressShare={() => console.log('Share moment:', item.id)}
             onPressMenu={() => {
               showAlert(
@@ -422,7 +470,7 @@ export default function UserProfileScreen({ userId, onBack, onOpenMap }: UserPro
                 'Chọn hành động',
                 [
                   { text: 'Thêm vào album', onPress: () => handleAddToAlbum(item.id) },
-                  { text: 'Báo cáo', onPress: () => console.log('Report moment:', item.id), style: 'destructive' },
+                  { text: 'Báo cáo', onPress: () => showReportDialog(item.id), style: 'destructive' },
                   { text: 'Hủy', style: 'cancel' },
                 ]
               );
@@ -444,6 +492,22 @@ export default function UserProfileScreen({ userId, onBack, onOpenMap }: UserPro
         onSelectAlbum={handleSelectAlbum}
         token={token || ''}
       />
+
+      {selectedMomentForComment && (
+        <CommentModal
+          visible={commentModalVisible}
+          momentId={selectedMomentForComment}
+          onClose={() => setCommentModalVisible(false)}
+          onCommentAdded={() => {
+            // Update the local list to reflect comment count increment
+            setMoments(prev => prev.map(m => 
+              m.id === selectedMomentForComment 
+                ? { ...m, commentCount: (m.commentCount || 0) + 1 } 
+                : m
+            ));
+          }}
+        />
+      )}
     </View>
   );
 }

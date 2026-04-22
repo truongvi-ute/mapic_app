@@ -15,6 +15,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../store/useAuthStore';
 import { useAlert } from '../context/AlertContext';
+import chatService from '../api/chatService';
 import AddFriendScreen from './AddFriendScreen';
 import FriendRequestsScreen from './FriendRequestsScreen';
 import { getApiUrl, getBaseUrl } from '../config/api';
@@ -29,9 +30,10 @@ interface Friend {
 
 interface FriendsScreenProps {
   onPressProfile?: (userId: number) => void;
+  onOpenChat?: (conversation: any) => void;
 }
 
-export default function FriendsScreen({ onPressProfile }: FriendsScreenProps) {
+export default function FriendsScreen({ onPressProfile, onOpenChat }: FriendsScreenProps) {
   const token = useAuthStore((state) => state.token);
   const { showAlert } = useAlert();
   
@@ -196,7 +198,15 @@ export default function FriendsScreen({ onPressProfile }: FriendsScreenProps) {
               showAlert('Tùy chọn', `Chọn hành động với ${item.name}`, [
                 {
                   text: 'Nhắn tin',
-                  onPress: () => console.log('Message:', item.id),
+                  onPress: async () => {
+                    try {
+                      if (!token) return;
+                      const conversation = await chatService.openDirectChat(item.id, token);
+                      onOpenChat?.(conversation);
+                    } catch (error) {
+                      showAlert('Lỗi', 'Không thể mở cuộc trò chuyện');
+                    }
+                  },
                 },
                 {
                   text: 'Xem trang cá nhân',

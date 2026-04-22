@@ -12,6 +12,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import LottieView from 'lottie-react-native';
 import { getBaseUrl, buildAvatarUrl, buildMomentImageUrl, getApiUrl } from '../config/api';
+import ShareTargetModal from './ShareTargetModal';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width - 32;
@@ -71,6 +72,7 @@ export interface Moment {
   media?: MomentMedia[];
   reactionCount?: number;
   userReacted?: boolean;
+  commentCount?: number;
 }
 
 interface MomentCardProps {
@@ -117,6 +119,7 @@ export default function MomentCard({
   const [likeCount, setLikeCount] = useState(moment.reactionCount || 0);
   const [isLiking, setIsLiking] = useState(false);
   const [showLottie, setShowLottie] = useState(false);
+  const [shareModalVisible, setShareModalVisible] = useState(false);
   
   // Animation values
   const scaleAnim = useState(new Animated.Value(1))[0];
@@ -361,11 +364,14 @@ export default function MomentCard({
               activeOpacity={0.7}
             >
               <Ionicons name="chatbubble-outline" size={26} color="#FFFFFF" />
+              {moment.commentCount! > 0 && (
+                <Text style={styles.reactionCount}>{moment.commentCount}</Text>
+              )}
             </TouchableOpacity>
 
             <TouchableOpacity
               style={styles.overlayButton}
-              onPress={onPressShare}
+              onPress={() => setShareModalVisible(true)}
               activeOpacity={0.7}
             >
               <Ionicons name="share-outline" size={26} color="#FFFFFF" />
@@ -431,6 +437,13 @@ export default function MomentCard({
           )}
         </View>
       )}
+
+      <ShareTargetModal
+        visible={shareModalVisible}
+        onClose={() => setShareModalVisible(false)}
+        shareType="MOMENT"
+        referenceId={moment.id}
+      />
     </View>
   );
 }

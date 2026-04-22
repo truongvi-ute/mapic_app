@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -16,14 +16,16 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../store/useAuthStore';
 import { useAlert } from '../context/AlertContext';
+import reportService from '../api/reportService';
 import MomentCard, { Moment } from '../components/MomentCard';
 import { vietnamLocations } from '../data/vietnamLocations';
 import { getApiUrl, getBaseUrl } from '../config/api';
 import AlbumSelectModal from '../components/AlbumSelectModal';
+import CommentModal from '../components/CommentModal';
 import albumService from '../api/albumService';
 
 type SortOption = 'newest' | 'popular';
-type CategoryOption = 'all' | 'landscape' | 'people' | 'food' | 'architecture' | 'other';
+type CategoryOption = 'all' | 'LANDSCAPE' | 'PEOPLE' | 'FOOD' | 'ARCHITECTURE' | 'OTHER';
 
 interface PageInfo {
   pageNumber: number;
@@ -35,6 +37,8 @@ interface PageInfo {
 
 interface ExploreScreenProps {
   refreshTrigger?: boolean;
+  highlightMomentId?: number;
+  onBack?: () => void;
   onOpenMap?: (params: {
     latitude: number;
     longitude: number;
@@ -46,7 +50,7 @@ interface ExploreScreenProps {
   onPressProfile?: (userId: number) => void;
 }
 
-export default function ExploreScreen({ refreshTrigger, onOpenMap, onPressProfile }: ExploreScreenProps) {
+export default function ExploreScreen({ refreshTrigger, highlightMomentId, onBack, onOpenMap, onPressProfile }: ExploreScreenProps) {
   const token = useAuthStore((state) => state.token);
   const { showAlert } = useAlert();
 
@@ -65,24 +69,39 @@ export default function ExploreScreen({ refreshTrigger, onOpenMap, onPressProfil
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [albumModalVisible, setAlbumModalVisible] = useState(false);
   const [selectedMomentId, setSelectedMomentId] = useState<number | null>(null);
+  const [commentModalVisible, setCommentModalVisible] = useState(false);
+  const [selectedMomentForComment, setSelectedMomentForComment] = useState<number | null>(null);
+  const flatListRef = useRef<FlatList>(null);
+  // activeHighlight: chỉ hiển thị khung xanh cho đến khi user chọn filter
+  const [activeHighlight, setActiveHighlight] = useState<number | undefined>(highlightMomentId);
+  // ref để đọc giá trị mới nhất trong useEffect mà không trigger re-run
+  const activeHighlightRef = useRef<number | undefined>(highlightMomentId);
 
   const API_URL = getApiUrl();
   const baseUrl = getBaseUrl();
 
   const categories = [
     { id: 'all', label: 'Tất cả', icon: 'apps' },
-    { id: 'landscape', label: 'Phong cảnh', icon: 'image' },
-    { id: 'people', label: 'Con người', icon: 'people' },
-    { id: 'food', label: 'Món ăn', icon: 'restaurant' },
-    { id: 'architecture', label: 'Kiến trúc', icon: 'business' },
-    { id: 'other', label: 'Khác', icon: 'ellipsis-horizontal' },
+    { id: 'LANDSCAPE', label: 'Phong cảnh', icon: 'image' },
+    { id: 'PEOPLE', label: 'Con người', icon: 'people' },
+    { id: 'FOOD', label: 'Món ăn', icon: 'restaurant' },
+    { id: 'ARCHITECTURE', label: 'Kiến trúc', icon: 'business' },
+    { id: 'OTHER', label: 'Khác', icon: 'ellipsis-horizontal' },
   ];
 
   useEffect(() => {
-    loadMoments(0, false);
-  }, [selectedProvince, selectedCategory, sortBy, refreshTrigger]); // Add refreshTrigger
+    loadMoments(0, false, activeHighlightRef.current);
+  }, [selectedProvince, selectedCategory, sortBy, refreshTrigger]);
 
-  const loadMoments = async (page: number, append: boolean = false) => {
+  // Scroll lên đầu khi có highlighted moment (nó đã được đặt ở index 0)
+  useEffect(() => {
+    if (!highlightMomentId || moments.length === 0) return;
+    setTimeout(() => {
+      flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+    }, 200);
+  }, [highlightMomentId, moments.length > 0]);
+
+  const loadMoments = async (page: number, append: boolean = false, pinnedMomentId?: number) => {
     if (append && loadingMore) return;
     if (!append && loading) return;
 
@@ -118,22 +137,10 @@ export default function ExploreScreen({ refreshTrigger, onOpenMap, onPressProfil
 
       if (response.ok) {
         const result = await response.json();
-        console.log('[ExploreScreen] API Response:', JSON.stringify(result, null, 2));
-        
         const data = result.data;
 
         if (!data || !Array.isArray(data.content)) {
-          console.error('[ExploreScreen] Invalid response structure:', result);
-          showAlert('Lỗi', 'Dữ liệu không hợp lệ');
-          
-          // Set empty data to prevent crash
-          setPageInfo({
-            pageNumber: 0,
-            pageSize: 10,
-            totalElements: 0,
-            totalPages: 0,
-            hasNext: false,
-          });
+          setPageInfo({ pageNumber: 0, pageSize: 10, totalElements: 0, totalPages: 0, hasNext: false });
           setMoments([]);
           return;
         }
@@ -146,21 +153,36 @@ export default function ExploreScreen({ refreshTrigger, onOpenMap, onPressProfil
           hasNext: data.hasNext,
         });
 
+        let content: Moment[] = data.content;
+
+        // Nếu có pinnedMomentId: fetch moment đó và đặt lên đầu, loại khỏi list thường
+        if (pinnedMomentId && !append) {
+          try {
+            const pinRes = await fetch(`${API_URL}/moments/${pinnedMomentId}`, {
+              headers: { 'Authorization': `Bearer ${token}` },
+            });
+            if (pinRes.ok) {
+              const pinJson = await pinRes.json();
+              const pinned: Moment = pinJson.data;
+              // Loại moment đó khỏi list thường nếu có, rồi đặt lên đầu
+              content = [pinned, ...content.filter((m) => m.id !== pinnedMomentId)];
+            }
+          } catch {
+            // Nếu fetch fail thì vẫn hiển thị list bình thường
+          }
+        }
+
         if (append) {
-          setMoments((prev) => [...prev, ...data.content]);
+          setMoments((prev) => [...prev, ...content]);
         } else {
-          setMoments(data.content);
+          setMoments(content);
         }
 
         setCurrentPage(page);
       } else {
-        const errorText = await response.text();
-        console.error('[ExploreScreen] Error response:', errorText);
         showAlert('Lỗi', 'Không thể tải dữ liệu');
       }
     } catch (error) {
-      console.error('[ExploreScreen] Error loading moments:', error);
-      console.error('[ExploreScreen] Error details:', JSON.stringify(error, null, 2));
       showAlert('Lỗi', `Không thể kết nối đến server: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setLoading(false);
@@ -183,16 +205,54 @@ export default function ExploreScreen({ refreshTrigger, onOpenMap, onPressProfil
   const handleProvinceSelect = (provinceId: string | null) => {
     setSelectedProvince(provinceId);
     setShowProvinceModal(false);
+    setActiveHighlight(undefined);
+    activeHighlightRef.current = undefined;
   };
 
   const handleCategorySelect = (category: CategoryOption) => {
     setSelectedCategory(category);
     setShowCategoryModal(false);
+    setActiveHighlight(undefined);
+    activeHighlightRef.current = undefined;
   };
 
   const handleAddToAlbum = (momentId: number) => {
     setSelectedMomentId(momentId);
     setAlbumModalVisible(true);
+  };
+
+  const handleOpenComment = (momentId: number) => {
+    setSelectedMomentForComment(momentId);
+    setCommentModalVisible(true);
+  };
+
+  const showReportDialog = (momentId: number) => {
+    showAlert(
+      'Báo cáo bài viết',
+      'Chọn lý do báo cáo:',
+      [
+        { text: 'Nội dung sai lệch', onPress: () => submitReport(momentId, 'nội dung sai lệch') },
+        { text: 'Vi phạm tiêu chuẩn cộng đồng', onPress: () => submitReport(momentId, 'vi phạm tiêu chuẩn cộng đồng') },
+        { text: 'Ngôn từ thù ghét', onPress: () => submitReport(momentId, 'ngôn từ thù ghét') },
+        { text: 'Khác', onPress: () => submitReport(momentId, 'khác') },
+        { text: 'Hủy', style: 'cancel' }
+      ]
+    );
+  };
+
+  const submitReport = async (momentId: number, reason: string) => {
+    if (!token) return;
+    try {
+      await reportService.submitReport({
+        targetId: momentId,
+        targetType: 'MOMENT',
+        reason
+      }, token);
+      showAlert('Thành công', 'Cảm ơn bạn đã báo cáo. Chúng tôi sẽ xem xét.');
+    } catch (error) {
+      console.error('Failed to report', error);
+      showAlert('Lỗi', 'Không thể gửi báo cáo');
+    }
   };
 
   const handleSelectAlbum = async (albumId: number) => {
@@ -247,7 +307,7 @@ export default function ExploreScreen({ refreshTrigger, onOpenMap, onPressProfil
         {/* Sort Options */}
         <TouchableOpacity
           style={[styles.filterButton, sortBy === 'newest' && styles.filterButtonActive]}
-          onPress={() => setSortBy('newest')}
+          onPress={() => { setSortBy('newest'); setActiveHighlight(undefined); activeHighlightRef.current = undefined; }}
         >
           <Image
             source={require('../assets/images/recent.png')}
@@ -260,7 +320,7 @@ export default function ExploreScreen({ refreshTrigger, onOpenMap, onPressProfil
 
         <TouchableOpacity
           style={[styles.filterButton, sortBy === 'popular' && styles.filterButtonActive]}
-          onPress={() => setSortBy('popular')}
+          onPress={() => { setSortBy('popular'); setActiveHighlight(undefined); activeHighlightRef.current = undefined; }}
         >
           <Image
             source={require('../assets/images/trending.png')}
@@ -402,6 +462,11 @@ export default function ExploreScreen({ refreshTrigger, onOpenMap, onPressProfil
 
   const renderHeader = () => (
     <View style={styles.header}>
+      {onBack && (
+        <TouchableOpacity onPress={onBack} style={styles.backBtn}>
+          <Ionicons name="arrow-back" size={24} color="#007AFF" />
+        </TouchableOpacity>
+      )}
       <Text style={styles.title}>Khám phá</Text>
       <Text style={styles.subtitle}>
         {pageInfo ? `${pageInfo.totalElements} khoảnh khắc` : 'Đang tải...'}
@@ -427,13 +492,15 @@ export default function ExploreScreen({ refreshTrigger, onOpenMap, onPressProfil
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" />
       <FlatList
+        ref={flatListRef}
         data={moments}
         renderItem={({ item }) => (
-          <MomentCard
-            moment={item}
-            baseUrl={baseUrl}
-            token={token}
-            onPressProfile={() => onPressProfile?.(item.author.id)}
+          <View style={activeHighlight === item.id ? styles.highlightedMoment : undefined}>
+            <MomentCard
+              moment={item}
+              baseUrl={baseUrl}
+              token={token}
+              onPressProfile={() => onPressProfile?.(item.author.id)}
             onPressMap={() => {
               if (item.location && onOpenMap) {
                 const provinceName = item.province?.name || item.district?.name || '';
@@ -449,16 +516,21 @@ export default function ExploreScreen({ refreshTrigger, onOpenMap, onPressProfil
               }
             }}
             onPressLike={() => console.log('Like moment:', item.id)}
-            onPressComment={() => console.log('Comment on moment:', item.id)}
+            onPressComment={() => handleOpenComment(item.id)}
             onPressShare={() => console.log('Share moment:', item.id)}
             onPressMenu={() => {
-              showAlert('Tùy chọn', 'Chọn hành động', [
-                { text: 'Thêm vào album', onPress: () => handleAddToAlbum(item.id) },
-                { text: 'Báo cáo', onPress: () => console.log('Report moment:', item.id), style: 'destructive' },
-                { text: 'Hủy', style: 'cancel' },
-              ]);
+              showAlert(
+                'Tùy chọn',
+                'Chọn hành động',
+                [
+                  { text: 'Thêm vào album', onPress: () => handleAddToAlbum(item.id) },
+                  { text: 'Báo cáo', onPress: () => showReportDialog(item.id), style: 'destructive' },
+                  { text: 'Hủy', style: 'cancel' },
+                ]
+              );
             }}
           />
+          </View>
         )}
         keyExtractor={(item, index) => `${item.id}-${index}`}
         ListHeaderComponent={
@@ -480,8 +552,23 @@ export default function ExploreScreen({ refreshTrigger, onOpenMap, onPressProfil
         visible={albumModalVisible}
         onClose={() => setAlbumModalVisible(false)}
         onSelectAlbum={handleSelectAlbum}
-        token={token || ''}
       />
+
+      {selectedMomentForComment && (
+        <CommentModal
+          visible={commentModalVisible}
+          momentId={selectedMomentForComment}
+          onClose={() => setCommentModalVisible(false)}
+          onCommentAdded={() => {
+            // Update the local list to reflect comment count increment
+            setMoments(prev => prev.map(m => 
+              m.id === selectedMomentForComment 
+                ? { ...m, commentCount: (m.commentCount || 0) + 1 } 
+                : m
+            ));
+          }}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -496,6 +583,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E5EA',
+  },
+  backBtn: {
+    marginBottom: 8,
   },
   title: {
     fontSize: 28,
@@ -635,5 +725,12 @@ const styles = StyleSheet.create({
   modalItemTextActive: {
     color: '#007AFF',
     fontWeight: '500',
+  },
+  highlightedMoment: {
+    borderWidth: 2,
+    borderColor: '#007AFF',
+    borderRadius: 12,
+    marginHorizontal: 4,
+    overflow: 'hidden',
   },
 });

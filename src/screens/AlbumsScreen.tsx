@@ -18,7 +18,6 @@ import {
   ScrollView,
   Pressable,
   Linking,
-  Share,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../store/useAuthStore';
@@ -26,6 +25,9 @@ import { useAlert } from '../context/AlertContext';
 import albumService, { Album } from '../api/albumService';
 import MiniMomentCard from '../components/MiniMomentCard';
 import MomentCard, { Moment } from '../components/MomentCard';
+import CreateAlbumModal from '../components/CreateAlbumModal';
+import ShareTargetModal from '../components/ShareTargetModal';
+import CommentModal from '../components/CommentModal';
 import { getBaseUrl } from '../config/api';
 
 const { width } = Dimensions.get('window');
@@ -50,10 +52,12 @@ export default function AlbumsScreen({ onBack, onOpenAlbum, onOpenMap, onOpenPro
   const [albums, setAlbums] = useState<Album[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
-  const [albumTitle, setAlbumTitle] = useState('');
-  const [albumDescription, setAlbumDescription] = useState('');
-  const [creating, setCreating] = useState(false);
+  const [editingAlbum, setEditingAlbum] = useState<Album | undefined>(undefined);
+  const [shareModalVisible, setShareModalVisible] = useState(false);
+  const [shareTargetId, setShareTargetId] = useState<number | null>(null);
   const [selectedMoment, setSelectedMoment] = useState<Moment | null>(null);
+  const [commentModalVisible, setCommentModalVisible] = useState(false);
+  const [commentMomentId, setCommentMomentId] = useState<number | null>(null);
 
   const baseUrl = getBaseUrl();
 
@@ -103,33 +107,15 @@ export default function AlbumsScreen({ onBack, onOpenAlbum, onOpenMap, onOpenPro
   };
 
   const handleCreateAlbum = () => {
-    setAlbumTitle('');
-    setAlbumDescription('');
+    setEditingAlbum(undefined);
     setModalVisible(true);
   };
 
-  const createAlbum = async () => {
-    if (!albumTitle.trim()) {
-      showAlert('Lỗi', 'Vui lòng nhập tên album');
-      return;
-    }
-
-    if (!token) return;
-
-    try {
-      setCreating(true);
-      await albumService.createAlbum({
-        title: albumTitle.trim(),
-        description: albumDescription.trim() || undefined,
-      }, token);
-      setModalVisible(false);
-      await loadAlbums();
-      showAlert('Thành công', 'Đã tạo album mới!');
-    } catch (error: any) {
-      showAlert('Lỗi', error.message || 'Không thể tạo album');
-    } finally {
-      setCreating(false);
-    }
+  const handleSuccess = async (resultAlbum: Album) => {
+    setModalVisible(false);
+    await loadAlbums();
+    showAlert('Thành công', editingAlbum ? 'Đã cập nhật album!' : 'Đã tạo album mới!');
+    setEditingAlbum(undefined);
   };
 
   const handleDeleteAlbum = (albumId: number, albumTitle: string) => {
@@ -275,12 +261,17 @@ export default function AlbumsScreen({ onBack, onOpenAlbum, onOpenMap, onOpenPro
               const hasMoments = item.moments && item.moments.length > 0;
               const menuOptions: any[] = [
                 {
-                  text: 'Chia sẻ',
+                  text: 'Chỉnh sửa',
                   onPress: () => {
-                    Share.share({
-                      title: item.title,
-                      message: `Xem album "${item.title}" trên MAPIC!`,
-                    });
+                    setEditingAlbum(item);
+                    setModalVisible(true);
+                  },
+                },
+                {
+                  text: 'Chia sẻ qua tin nhắn',
+                  onPress: () => {
+                    setShareTargetId(item.id);
+                    setShareModalVisible(true);
                   },
                 },
               ];
@@ -391,78 +382,28 @@ export default function AlbumsScreen({ onBack, onOpenAlbum, onOpenMap, onOpenPro
       )}
 
       {/* Create Album Modal */}
-      <Modal
-        animationType="fade"
-        transparent={true}
+      <CreateAlbumModal
         visible={modalVisible}
-        onRequestClose={() => setModalVisible(false)}
-      >
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <View style={styles.modalOverlay}>
-            <KeyboardAvoidingView
-              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-              style={styles.modalContainer}
-            >
-              <View style={styles.modalContent}>
-                <View style={styles.modalHeader}>
-                  <Text style={styles.modalTitle}>Tạo Album mới</Text>
-                  <TouchableOpacity onPress={() => setModalVisible(false)}>
-                    <Ionicons name="close" size={24} color="#000" />
-                  </TouchableOpacity>
-                </View>
+        onClose={() => {
+          setModalVisible(false);
+          setEditingAlbum(undefined);
+        }}
+        onSuccess={handleSuccess}
+        initialAlbum={editingAlbum}
+      />
 
-                <View style={styles.inputContainer}>
-                  <Text style={styles.inputLabel}>Tên Album *</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Nhập tên album..."
-                    value={albumTitle}
-                    onChangeText={setAlbumTitle}
-                    autoFocus={true}
-                  />
-                </View>
-
-                <View style={styles.inputContainer}>
-                  <Text style={styles.inputLabel}>Mô tả (tùy chọn)</Text>
-                  <TextInput
-                    style={[styles.input, styles.textArea]}
-                    placeholder="Nhập mô tả..."
-                    value={albumDescription}
-                    onChangeText={setAlbumDescription}
-                    multiline={true}
-                    numberOfLines={3}
-                    textAlignVertical="top"
-                  />
-                </View>
-
-                <View style={styles.modalFooter}>
-                  <TouchableOpacity
-                    style={[styles.modalButton, styles.cancelButton]}
-                    onPress={() => setModalVisible(false)}
-                  >
-                    <Text style={styles.cancelButtonText}>Hủy</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[
-                      styles.modalButton,
-                      styles.submitButton,
-                      (!albumTitle.trim() || creating) && styles.disabledButton,
-                    ]}
-                    onPress={createAlbum}
-                    disabled={creating || !albumTitle.trim()}
-                  >
-                    {creating ? (
-                      <ActivityIndicator size="small" color="#fff" />
-                    ) : (
-                      <Text style={styles.submitButtonText}>Tạo</Text>
-                    )}
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </KeyboardAvoidingView>
-          </View>
-        </TouchableWithoutFeedback>
-      </Modal>
+      {/* Share Target Modal */}
+      {shareTargetId && (
+        <ShareTargetModal
+          visible={shareModalVisible}
+          onClose={() => {
+            setShareModalVisible(false);
+            setShareTargetId(null);
+          }}
+          shareType="ALBUM"
+          referenceId={shareTargetId}
+        />
+      )}
 
       {/* Full Moment Card Modal */}
       <Modal
@@ -495,8 +436,18 @@ export default function AlbumsScreen({ onBack, onOpenAlbum, onOpenMap, onOpenPro
                     }
                     setSelectedMoment(null);
                   }}
-                  onPressLike={() => console.log('Like full moment:', selectedMoment.id)}
-                  onPressComment={() => console.log('Comment on full moment:', selectedMoment.id)}
+                  onPressLike={() => {
+                    // MomentCard tự handle API, cập nhật lại selectedMoment count
+                    setSelectedMoment(prev => prev ? {
+                      ...prev,
+                      userReacted: !prev.userReacted,
+                      reactionCount: prev.userReacted ? (prev.reactionCount || 1) - 1 : (prev.reactionCount || 0) + 1,
+                    } : null);
+                  }}
+                  onPressComment={() => {
+                    setCommentMomentId(selectedMoment.id);
+                    setCommentModalVisible(true);
+                  }}
                   onPressShare={() => console.log('Share full moment:', selectedMoment.id)}
                   onPressMenu={() => {
                     const parentAlbum = albums.find(a => a.moments?.some(m => m.id === selectedMoment.id));
@@ -534,6 +485,23 @@ export default function AlbumsScreen({ onBack, onOpenAlbum, onOpenMap, onOpenPro
           </Pressable>
         </Pressable>
       </Modal>
+      {/* Comment Modal */}
+      {commentMomentId && (
+        <CommentModal
+          visible={commentModalVisible}
+          momentId={commentMomentId}
+          onClose={() => {
+            setCommentModalVisible(false);
+            setCommentMomentId(null);
+          }}
+          onCommentAdded={() => {
+            setSelectedMoment(prev => prev ? {
+              ...prev,
+              commentCount: (prev.commentCount || 0) + 1,
+            } : null);
+          }}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -703,75 +671,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.85)',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  modalContainer: {
-    width: '100%',
-    maxWidth: 400,
-  },
-  modalContent: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 20,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#000',
-  },
-  inputContainer: {
-    marginBottom: 16,
-  },
-  inputLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#000',
-    marginBottom: 8,
-  },
-  input: {
-    backgroundColor: '#F2F2F7',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    color: '#000',
-  },
-  textArea: {
-    height: 100,
-  },
-  modalFooter: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 12,
-    marginTop: 8,
-  },
-  modalButton: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 8,
-    minWidth: 80,
-    alignItems: 'center',
-  },
-  cancelButton: {
-    backgroundColor: '#E5E5EA',
-  },
-  cancelButtonText: {
-    color: '#000',
-    fontWeight: '600',
-  },
-  submitButton: {
-    backgroundColor: '#007AFF',
   },
   submitButtonText: {
     color: '#fff',

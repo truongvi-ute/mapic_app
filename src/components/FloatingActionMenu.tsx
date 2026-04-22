@@ -20,7 +20,11 @@ const iconImages = {
   people: require('../assets/images/friend.png'),
   notifications: require('../assets/images/notification.png'),
   person: require('../assets/images/profile.png'),
+  message: require('../assets/images/message.png'),
 };
+
+// Ionicons-only icons (no local asset)
+const ionicIconsOnly = [];
 
 // Function to get icon source based on active state
 const getIconSource = (iconKey: keyof typeof iconImages) => {
@@ -142,14 +146,22 @@ export default function FloatingActionMenu({ items, activeItem }: FloatingAction
                             activeItem === item.id && styles.iconContainerActive,
                           ]}
                         >
-                          <Image
-                            source={getIconSource(item.icon as keyof typeof iconImages)}
-                            style={[
-                              styles.iconImage,
-                              activeItem === item.id && styles.iconImageActive,
-                            ]}
-                            resizeMode="contain"
-                          />
+                          {ionicIconsOnly.includes(item.icon as string) ? (
+                            <Ionicons
+                              name={item.icon as any}
+                              size={24}
+                              color={activeItem === item.id ? '#007AFF' : '#8E8E93'}
+                            />
+                          ) : (
+                            <Image
+                              source={getIconSource(item.icon as keyof typeof iconImages)}
+                              style={[
+                                styles.iconImage,
+                                activeItem === item.id && styles.iconImageActive,
+                              ]}
+                              resizeMode="contain"
+                            />
+                          )}
                         </View>
                       </View>
                     </TouchableOpacity>

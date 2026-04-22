@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import FloatingActionMenu from './FloatingActionMenu';
+import albumService from '../api/albumService';
+import { useAlert } from '../context/AlertContext';
 
 // Import screens
 import HomeScreen from '../screens/HomeScreen';
@@ -15,6 +17,10 @@ import EditProfileScreen from '../screens/EditProfileScreen';
 import MomentMapScreen from '../screens/MomentMapScreen';
 import UserProfileScreen from '../screens/UserProfileScreen';
 import AlbumsScreen from '../screens/AlbumsScreen';
+import ChatsListScreen from '../screens/ChatsListScreen';
+import ChatRoomScreen from '../screens/ChatRoomScreen';
+import { useChatStore } from '../store/useChatStore';
+import { useAuthStore } from '../store/useAuthStore';
 
 interface MapScreenParams {
   latitude: number;
@@ -36,6 +42,20 @@ export default function MainScreenWrapper() {
   const [exploreNeedsRefresh, setExploreNeedsRefresh] = useState(false);
   const [mapParams, setMapParams] = useState<MapScreenParams | null>(null);
   const [userProfileParams, setUserProfileParams] = useState<UserProfileParams | null>(null);
+  const [chatParams, setChatParams] = useState<any>(null); // ConversationDto
+  const [chatListRefresh, setChatListRefresh] = useState(0);
+  const [sharedMomentId, setSharedMomentId] = useState<number | null>(null);
+  const [sharedAlbumId, setSharedAlbumId] = useState<number | null>(null);
+
+  const token = useAuthStore((s) => s.token);
+  const { connect, disconnect } = useChatStore();
+  const { showAlert } = useAlert();
+
+  // Connect STOMP when app loads
+  React.useEffect(() => {
+    if (token) connect(token);
+    return () => disconnect();
+  }, [token]);
 
   const menuItems = [
     {
@@ -64,6 +84,12 @@ export default function MainScreenWrapper() {
       onPress: () => setActiveScreen('friends'),
     },
     {
+      id: 'chat',
+      label: 'Tin nhắn',
+      icon: 'message' as const,
+      onPress: () => setActiveScreen('chat'),
+    },
+    {
       id: 'notifications',
       label: 'Thông báo',
       icon: 'notifications' as const,
@@ -76,6 +102,42 @@ export default function MainScreenWrapper() {
       onPress: () => setActiveScreen('profile'),
     },
   ];
+
+  const onOpenChat = (conversation: any) => {
+    setChatParams(conversation);
+    setActiveScreen('chat-room');
+  };
+
+  // Mở moment từ chat → navigate đến Explore với momentId highlight
+  const onPressMoment = (momentId: number) => {
+    setSharedMomentId(momentId);
+    setActiveScreen('explore-moment');
+  };
+
+  // Lưu album được chia sẻ vào album của mình rồi mở AlbumsScreen
+  const onPressAlbum = async (albumId: number) => {
+    if (!token) return;
+    try {
+      await albumService.saveSharedAlbum(albumId, token);
+      showAlert('Đã lưu album', 'Album đã được thêm vào bộ sưu tập của bạn', [
+        {
+          text: 'Xem ngay',
+          onPress: () => {
+            setSharedAlbumId(albumId);
+            setActiveScreen('albums');
+          },
+        },
+        { text: 'Đóng', style: 'cancel' },
+      ]);
+    } catch (e: any) {
+      // Nếu là album của chính mình thì chỉ mở xem
+      if (e.message?.includes('album của bạn')) {
+        setActiveScreen('albums');
+      } else {
+        showAlert('Lỗi', e.message || 'Không thể lưu album');
+      }
+    }
+  };
 
   const renderScreen = () => {
     switch (activeScreen) {
@@ -94,6 +156,23 @@ export default function MainScreenWrapper() {
       case 'explore':
         return <ExploreScreen 
           refreshTrigger={exploreNeedsRefresh}
+          highlightMomentId={sharedMomentId ?? undefined}
+          onOpenMap={(params) => {
+            setMapParams(params);
+            setActiveScreen('map');
+          }}
+          onPressProfile={(userId) => {
+            setUserProfileParams({ userId });
+            setActiveScreen('userProfile');
+          }}
+        />;
+      case 'explore-moment':
+        return <ExploreScreen
+          highlightMomentId={sharedMomentId ?? undefined}
+          onBack={() => {
+            setSharedMomentId(null);
+            setActiveScreen('chat-room');
+          }}
           onOpenMap={(params) => {
             setMapParams(params);
             setActiveScreen('map');
@@ -120,9 +199,30 @@ export default function MainScreenWrapper() {
             setUserProfileParams({ userId });
             setActiveScreen('userProfile');
           }}
+          onOpenChat={onOpenChat}
         />;
       case 'notifications':
         return <NotificationsScreen />;
+      case 'chat':
+        return (
+          <ChatsListScreen
+            onBack={() => setActiveScreen('home')}
+            onOpenChat={onOpenChat}
+            refreshTrigger={chatListRefresh}
+          />
+        );
+      case 'chat-room':
+        return chatParams ? (
+          <ChatRoomScreen
+            conversation={chatParams}
+            onBack={() => {
+              setChatListRefresh((n) => n + 1);
+              setActiveScreen('chat');
+            }}
+            onPressMoment={onPressMoment}
+            onPressAlbum={onPressAlbum}
+          />
+        ) : null;
       case 'profile':
         return (
           <ProfileScreen 
@@ -178,6 +278,7 @@ export default function MainScreenWrapper() {
               setMapParams(params);
               setActiveScreen('map');
             }}
+            onOpenChat={onOpenChat}
           />
         ) : null;
       default:
@@ -191,7 +292,9 @@ export default function MainScreenWrapper() {
   return (
     <View style={styles.container}>
       {renderScreen()}
-      <FloatingActionMenu items={menuItems} activeItem={activeScreen} />
+      {activeScreen !== 'chat-room' && (
+        <FloatingActionMenu items={menuItems} activeItem={activeScreen} />
+      )}
     </View>
   );
 }

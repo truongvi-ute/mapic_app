@@ -11,9 +11,11 @@ import {
 } from 'react-native';
 import { useAuthStore } from '../store/useAuthStore';
 import { useAlert } from '../context/AlertContext';
+import reportService from '../api/reportService';
 import MomentCard, { Moment } from '../components/MomentCard';
 import { getApiUrl, getBaseUrl } from '../config/api';
 import AlbumSelectModal from '../components/AlbumSelectModal';
+import CommentModal from '../components/CommentModal';
 import albumService from '../api/albumService';
 
 interface PageInfo {
@@ -53,6 +55,8 @@ export default function HomeScreen({ refreshTrigger, onOpenMap, onPressProfile }
   const [currentPage, setCurrentPage] = useState(0);
   const [albumModalVisible, setAlbumModalVisible] = useState(false);
   const [selectedMomentId, setSelectedMomentId] = useState<number | null>(null);
+  const [commentModalVisible, setCommentModalVisible] = useState(false);
+  const [selectedMomentForComment, setSelectedMomentForComment] = useState<number | null>(null);
 
   const API_URL = getApiUrl();
   const baseUrl = getBaseUrl();
@@ -135,6 +139,40 @@ export default function HomeScreen({ refreshTrigger, onOpenMap, onPressProfile }
   const handleAddToAlbum = (momentId: number) => {
     setSelectedMomentId(momentId);
     setAlbumModalVisible(true);
+  };
+
+  const handleOpenComment = (momentId: number) => {
+    setSelectedMomentForComment(momentId);
+    setCommentModalVisible(true);
+  };
+
+  const showReportDialog = (momentId: number) => {
+    showAlert(
+      'Báo cáo bài viết',
+      'Chọn lý do báo cáo:',
+      [
+        { text: 'Nội dung sai lệch', onPress: () => submitReport(momentId, 'nội dung sai lệch') },
+        { text: 'Vi phạm tiêu chuẩn cộng đồng', onPress: () => submitReport(momentId, 'vi phạm tiêu chuẩn cộng đồng') },
+        { text: 'Ngôn từ thù ghét', onPress: () => submitReport(momentId, 'ngôn từ thù ghét') },
+        { text: 'Khác', onPress: () => submitReport(momentId, 'khác') },
+        { text: 'Hủy', style: 'cancel' }
+      ]
+    );
+  };
+
+  const submitReport = async (momentId: number, reason: string) => {
+    if (!token) return;
+    try {
+      await reportService.submitReport({
+        targetId: momentId,
+        targetType: 'MOMENT',
+        reason
+      }, token);
+      showAlert('Thành công', 'Cảm ơn bạn đã báo cáo. Chúng tôi sẽ xem xét.');
+    } catch (error) {
+      console.error('Failed to report', error);
+      showAlert('Lỗi', 'Không thể gửi báo cáo');
+    }
   };
 
   const handleSelectAlbum = async (albumId: number) => {
@@ -224,7 +262,7 @@ export default function HomeScreen({ refreshTrigger, onOpenMap, onPressProfile }
               }
             }}
             onPressLike={() => console.log('Like moment:', item.id)}
-            onPressComment={() => console.log('Comment on moment:', item.id)}
+            onPressComment={() => handleOpenComment(item.id)}
             onPressShare={() => console.log('Share moment:', item.id)}
             onPressMenu={() => {
               showAlert(
@@ -232,7 +270,7 @@ export default function HomeScreen({ refreshTrigger, onOpenMap, onPressProfile }
                 'Chọn hành động',
                 [
                   { text: 'Thêm vào album', onPress: () => handleAddToAlbum(item.id) },
-                  { text: 'Báo cáo', onPress: () => console.log('Report moment:', item.id), style: 'destructive' },
+                  { text: 'Báo cáo', onPress: () => showReportDialog(item.id), style: 'destructive' },
                   { text: 'Hủy', style: 'cancel' },
                 ]
               );
@@ -253,10 +291,28 @@ export default function HomeScreen({ refreshTrigger, onOpenMap, onPressProfile }
       
       <AlbumSelectModal
         visible={albumModalVisible}
-        onClose={() => setAlbumModalVisible(false)}
+        onClose={() => {
+          setAlbumModalVisible(false);
+          setSelectedMomentId(null);
+        }}
         onSelectAlbum={handleSelectAlbum}
-        token={token || ''}
       />
+
+      {selectedMomentForComment && (
+        <CommentModal
+          visible={commentModalVisible}
+          momentId={selectedMomentForComment}
+          onClose={() => setCommentModalVisible(false)}
+          onCommentAdded={() => {
+            // Update the local list to reflect comment count increment
+            setMoments(prev => prev.map(m => 
+              m.id === selectedMomentForComment 
+                ? { ...m, commentCount: (m.commentCount || 0) + 1 } 
+                : m
+            ));
+          }}
+        />
+      )}
     </SafeAreaView>
   );
 }

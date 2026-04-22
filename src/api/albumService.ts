@@ -193,6 +193,22 @@ const albumService = {
     const result = await response.json();
     return result.data;
   },
+  /**
+   * Save (copy) a shared album from another user into current user's albums
+   */
+  async saveSharedAlbum(albumId: number, token: string): Promise<Album> {
+    const API_URL = getApiUrl();
+    const response = await fetch(`${API_URL}/albums/${albumId}/save`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(err.message || 'Failed to save album');
+    }
+    const result = await response.json();
+    return result.data;
+  },
 };
 
 export default albumService;
