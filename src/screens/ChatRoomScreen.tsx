@@ -329,9 +329,9 @@ export default function ChatRoomScreen({
         )}
 
         <View style={[styles.bubble, isMe ? styles.bubbleMe : styles.bubbleThem]}>
-          {/* Show username in group chats for others */}
+          {/* Show name in group chats for others */}
           {!isMe && conversation.isGroup && (
-            <Text style={styles.senderName}>{item.senderUsername}</Text>
+            <Text style={styles.senderName}>{item.senderName || item.senderUsername}</Text>
           )}
 
           {(!isShare) && (

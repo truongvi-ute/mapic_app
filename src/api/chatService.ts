@@ -14,10 +14,12 @@ export interface MessageDto {
   conversationId: number;
   senderId: number;
   senderUsername: string;
+  senderName?: string; // Full name of sender
   senderAvatarUrl?: string;
   type: 'TEXT' | 'SHARE' | 'SHARE_MOMENT' | 'SHARE_ALBUM';
   content?: string;
   referenceId?: number;
+  sharedPreview?: any; // Preview data for shared content
   reactions: Record<string, number>; // emoji -> count
   myReaction?: string;
   createdAt: string;
@@ -27,6 +29,7 @@ export interface ConversationDto {
   id: number;
   isGroup: boolean;
   title?: string;
+  groupAvatarUrl?: string; // Avatar for group chats
   creatorId?: number;
   createdAt: string;
   lastMessage?: MessageDto;
@@ -94,6 +97,36 @@ const chatService = {
     if (!res.ok) {
       const err = await res.json();
       throw new Error(err.message || 'Failed to rename group');
+    }
+    const json = await res.json();
+    return json.data;
+  },
+
+  async updateGroupAvatar(roomId: number, imageUri: string, token: string): Promise<ConversationDto> {
+    const formData = new FormData();
+    
+    // Create file object from URI
+    const filename = imageUri.split('/').pop() || 'group-avatar.jpg';
+    const match = /\.(\w+)$/.exec(filename);
+    const type = match ? `image/${match[1]}` : 'image/jpeg';
+    
+    formData.append('file', {
+      uri: imageUri,
+      name: filename,
+      type,
+    } as any);
+
+    const res = await fetch(`${getApiUrl()}/chat/rooms/${roomId}/avatar`, {
+      method: 'PUT',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.message || 'Failed to update group avatar');
     }
     const json = await res.json();
     return json.data;
