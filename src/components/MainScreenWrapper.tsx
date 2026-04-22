@@ -14,6 +14,7 @@ import NotificationsScreen from '../screens/NotificationsScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import EditProfileScreen from '../screens/EditProfileScreen';
+import MapScreen from '../screens/MapScreen';
 import MomentMapScreen from '../screens/MomentMapScreen';
 import UserProfileScreen from '../screens/UserProfileScreen';
 import AlbumsScreen from '../screens/AlbumsScreen';
@@ -21,6 +22,9 @@ import ChatsListScreen from '../screens/ChatsListScreen';
 import ChatRoomScreen from '../screens/ChatRoomScreen';
 import { useChatStore } from '../store/useChatStore';
 import { useAuthStore } from '../store/useAuthStore';
+import { useWebSocketStore } from '../store/useWebSocketStore';
+import { useNotificationStore } from '../store/useNotificationStore';
+import { useMainNavigationStore } from '../store/useMainNavigationStore';
 
 interface MapScreenParams {
   latitude: number;
@@ -28,6 +32,7 @@ interface MapScreenParams {
   addressName: string;
   provinceName?: string;
   imageUrl?: string;
+  caption?: string;
 }
 
 interface UserProfileParams {
@@ -36,7 +41,7 @@ interface UserProfileParams {
 
 export default function MainScreenWrapper() {
   const navigation = useNavigation<any>();
-  const [activeScreen, setActiveScreen] = useState('home');
+  const { activeScreen, setActiveScreen, screenParams } = useMainNavigationStore();
   const [profileNeedsRefresh, setProfileNeedsRefresh] = useState(false);
   const [homeNeedsRefresh, setHomeNeedsRefresh] = useState(false);
   const [exploreNeedsRefresh, setExploreNeedsRefresh] = useState(false);
@@ -49,13 +54,71 @@ export default function MainScreenWrapper() {
 
   const token = useAuthStore((s) => s.token);
   const { connect, disconnect } = useChatStore();
+  const { connect: connectMapWS, disconnect: disconnectMapWS, subscribe } = useWebSocketStore();
+  const { addNotification, fetchUnreadCount } = useNotificationStore();
   const { showAlert } = useAlert();
 
   // Connect STOMP when app loads
   React.useEffect(() => {
-    if (token) connect(token);
-    return () => disconnect();
+    if (token) {
+      connect(token);
+      connectMapWS(token, () => {
+        // Subscribe to notifications when Map WS is connected
+        const sub = subscribe('/user/queue/notifications', (msg) => {
+          try {
+            const notification = JSON.parse(msg.body);
+            console.log('[WS Notification] Received:', notification);
+            addNotification(notification);
+            
+            // Show local alert/toast
+            showAlert('Thông báo mới', notification.message, [
+              { text: 'Xem', onPress: () => setActiveScreen('notifications') },
+              { text: 'Đóng', style: 'cancel' }
+            ]);
+          } catch (e) {
+            console.error('[WS Notification] Parse error:', e);
+          }
+        });
+      });
+      fetchUnreadCount();
+    }
+    return () => {
+      disconnect();
+      disconnectMapWS();
+    };
   }, [token]);
+
+  // Sync global navigation params to local state
+  React.useEffect(() => {
+    if (!activeScreen) return;
+
+    if (screenParams) {
+      switch (activeScreen) {
+        case 'userProfile':
+          if (screenParams.userId) setUserProfileParams({ userId: screenParams.userId });
+          break;
+        case 'explore-moment':
+          if (screenParams.momentId) setSharedMomentId(screenParams.momentId);
+          break;
+        case 'chat-room':
+          // If we only have userId, we might need to fetch the conversation
+          // or wrap it in a mock object if ChatRoomScreen can handle it.
+          // For now, assume it's a conversation object or userId.
+          if (screenParams.userId) {
+            setChatParams({ 
+              id: 0, // Mock ID or fetch needed
+              participants: [{ user: { id: screenParams.userId } }] 
+            });
+          } else {
+            setChatParams(screenParams);
+          }
+          break;
+        case 'map':
+          if (screenParams.latitude) setMapParams(screenParams);
+          break;
+      }
+    }
+  }, [activeScreen, screenParams]);
 
   const menuItems = [
     {
@@ -69,6 +132,12 @@ export default function MainScreenWrapper() {
       label: 'Khám phá',
       icon: 'compass' as const,
       onPress: () => setActiveScreen('explore'),
+    },
+    {
+      id: 'map',
+      label: 'Bản đồ',
+      icon: 'map' as const,
+      onPress: () => setActiveScreen('main-map'),
     },
     {
       id: 'create',
@@ -144,62 +213,35 @@ export default function MainScreenWrapper() {
       case 'home':
         return <HomeScreen 
           refreshTrigger={homeNeedsRefresh}
-          onOpenMap={(params) => {
-            setMapParams(params);
-            setActiveScreen('map');
-          }}
-          onPressProfile={(userId) => {
-            setUserProfileParams({ userId });
-            setActiveScreen('userProfile');
-          }}
+          onOpenMap={(params) => setActiveScreen('map', params)}
+          onPressProfile={(userId) => setActiveScreen('userProfile', { userId })}
         />;
       case 'explore':
         return <ExploreScreen 
           refreshTrigger={exploreNeedsRefresh}
-          highlightMomentId={sharedMomentId ?? undefined}
-          onOpenMap={(params) => {
-            setMapParams(params);
-            setActiveScreen('map');
-          }}
-          onPressProfile={(userId) => {
-            setUserProfileParams({ userId });
-            setActiveScreen('userProfile');
-          }}
+          onOpenMap={(params) => setActiveScreen('map', params)}
+          onPressProfile={(userId) => setActiveScreen('userProfile', { userId })}
         />;
       case 'explore-moment':
         return <ExploreScreen
-          highlightMomentId={sharedMomentId ?? undefined}
-          onBack={() => {
-            setSharedMomentId(null);
-            setActiveScreen('chat-room');
-          }}
-          onOpenMap={(params) => {
-            setMapParams(params);
-            setActiveScreen('map');
-          }}
-          onPressProfile={(userId) => {
-            setUserProfileParams({ userId });
-            setActiveScreen('userProfile');
-          }}
+          highlightMomentId={screenParams?.momentId}
+          onBack={() => setActiveScreen('home')}
+          onOpenMap={(params) => setActiveScreen('map', params)}
+          onPressProfile={(userId) => setActiveScreen('userProfile', { userId })}
         />;
       case 'create':
         return <CreateMomentScreen 
           onSuccess={() => {
-            // Trigger refresh for all screens
             setHomeNeedsRefresh(prev => !prev);
             setExploreNeedsRefresh(prev => !prev);
             setProfileNeedsRefresh(prev => !prev);
-            // Navigate back to home
             setActiveScreen('home');
           }}
         />;
       case 'friends':
         return <FriendsScreen 
-          onPressProfile={(userId) => {
-            setUserProfileParams({ userId });
-            setActiveScreen('userProfile');
-          }}
-          onOpenChat={onOpenChat}
+          onPressProfile={(userId) => setActiveScreen('userProfile', { userId })}
+          onOpenChat={(conv) => setActiveScreen('chat-room', conv)}
         />;
       case 'notifications':
         return <NotificationsScreen />;
@@ -207,31 +249,27 @@ export default function MainScreenWrapper() {
         return (
           <ChatsListScreen
             onBack={() => setActiveScreen('home')}
-            onOpenChat={onOpenChat}
+            onOpenChat={(conv) => setActiveScreen('chat-room', conv)}
             refreshTrigger={chatListRefresh}
           />
         );
       case 'chat-room':
-        return chatParams ? (
+        return (
           <ChatRoomScreen
-            conversation={chatParams}
+            conversation={screenParams?.id ? screenParams : null}
+            friendId={screenParams?.userId}
             onBack={() => {
               setChatListRefresh((n) => n + 1);
               setActiveScreen('chat');
             }}
-            onPressMoment={onPressMoment}
-            onPressAlbum={onPressAlbum}
           />
-        ) : null;
+        );
       case 'profile':
         return (
           <ProfileScreen 
             onNavigateToSettings={() => setActiveScreen('settings')}
             refreshTrigger={profileNeedsRefresh}
-            onOpenMap={(params) => {
-              setMapParams(params);
-              setActiveScreen('map');
-            }}
+            onOpenMap={(params) => setActiveScreen('map', params)}
             onOpenAlbums={() => setActiveScreen('albums')}
           />
         );
@@ -239,10 +277,7 @@ export default function MainScreenWrapper() {
         return (
           <AlbumsScreen
             onBack={() => setActiveScreen('profile')}
-            onOpenMap={(params) => {
-              setMapParams(params);
-              setActiveScreen('map');
-            }}
+            onOpenMap={(params) => setActiveScreen('map', params)}
           />
         );
       case 'settings':
@@ -262,30 +297,33 @@ export default function MainScreenWrapper() {
             onSaveSuccess={() => setProfileNeedsRefresh(!profileNeedsRefresh)}
           />
         );
+      case 'main-map':
+        return (
+          <MapScreen
+            onNavigateToNotifications={() => setActiveScreen('notifications')}
+          />
+        );
       case 'map':
-        return mapParams ? (
+      case 'moment-map':
+        return (
           <MomentMapScreen
-            {...mapParams}
+            {...screenParams}
             onBack={() => setActiveScreen('home')}
           />
-        ) : null;
+        );
       case 'userProfile':
-        return userProfileParams ? (
-          <UserProfileScreen
-            userId={userProfileParams.userId}
+        return (
+          <UserProfileScreen 
+            userId={screenParams?.userId}
             onBack={() => setActiveScreen('home')}
-            onOpenMap={(params) => {
-              setMapParams(params);
-              setActiveScreen('map');
-            }}
-            onOpenChat={onOpenChat}
           />
-        ) : null;
+        );
       default:
-        return <HomeScreen onOpenMap={(params) => {
-          setMapParams(params);
-          setActiveScreen('map');
-        }} />;
+        return <HomeScreen 
+          refreshTrigger={homeNeedsRefresh}
+          onOpenMap={(params) => setActiveScreen('map', params)}
+          onPressProfile={(userId) => setActiveScreen('userProfile', { userId })}
+        />;
     }
   };
 

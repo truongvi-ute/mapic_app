@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "frontend",
-    "slug": "frontend",
+    "name": "MAPIC",
+    "slug": "mapic-app",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./src/assets/images/icon.png",
-    "scheme": "frontend",
+    "scheme": "mapic",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
@@ -32,10 +32,11 @@
       "package": "com.frontend"
     },
     "web": {
-      "output": "static",
+      "output": "single",
       "favicon": "./src/assets/images/favicon.png"
     },
     "plugins": [
+      "expo-notifications",
       [
         "expo-splash-screen",
         {
@@ -67,7 +68,7 @@
       "reactCompiler": true
     },
     "extra": {
-      "apiUrl": "http://192.168.100.177:8080/api"
+      "apiUrl": "http://192.168.1.10:8080/api"
     }
   }
 }

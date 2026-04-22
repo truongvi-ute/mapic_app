@@ -48,7 +48,10 @@ const chatService = {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}` },
     });
-    if (!res.ok) throw new Error('Failed to open chat');
+    if (!res.ok) {
+      const errBody = await res.text();
+      throw new Error(`Failed to open chat: ${res.status} ${errBody}`);
+    }
     const json = await res.json();
     return json.data;
   },

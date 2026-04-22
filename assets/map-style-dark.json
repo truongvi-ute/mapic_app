@@ -1,0 +1,40 @@
+{
+  "version": 8,
+  "name": "Mapic Vibrant",
+  "sources": {
+    "osm": {
+      "type": "raster",
+      "tiles": [
+        "https://a.tile.openstreetmap.org/{z}/{x}/{y}.png",
+        "https://b.tile.openstreetmap.org/{z}/{x}/{y}.png",
+        "https://c.tile.openstreetmap.org/{z}/{x}/{y}.png"
+      ],
+      "tileSize": 256,
+      "attribution": "© OpenStreetMap contributors"
+    }
+  },
+  "layers": [
+    {
+      "id": "background",
+      "type": "background",
+      "paint": {
+        "background-color": "#e8f0ff"
+      }
+    },
+    {
+      "id": "osm-tiles",
+      "type": "raster",
+      "source": "osm",
+      "minzoom": 0,
+      "maxzoom": 22,
+      "paint": {
+        "raster-opacity": 0.85,
+        "raster-brightness-min": 0.1,
+        "raster-brightness-max": 1,
+        "raster-saturation": 0.3,
+        "raster-contrast": 0.15,
+        "raster-hue-rotate": 5
+      }
+    }
+  ]
+}

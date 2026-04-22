@@ -7,7 +7,7 @@ import Constants from 'expo-constants';
 export const getApiUrl = (): string => {
   const apiUrl = Constants.expoConfig?.extra?.apiUrl || 
                  process.env.EXPO_PUBLIC_API_URL || 
-                 'http://192.168.100.177:8080/api';
+                 'http://192.168.1.10:8080/api';
   
   console.log('[API Config] Using API URL:', apiUrl);
   return apiUrl;
@@ -19,6 +19,21 @@ export const getApiUrl = (): string => {
 export const getBaseUrl = (): string => {
   return getApiUrl().replace('/api', '');
 };
+
+/**
+ * Get WebSocket base URL for SockJS
+ * Note: SockJS uses HTTP/HTTPS, not WS/WSS
+ */
+export const getWsUrl = (): string => {
+  const apiUrl = getApiUrl();
+  const baseUrl = apiUrl.replace('/api', '');
+  return `${baseUrl}/chat-socket`;
+};
+
+// Export as constants for compatibility
+export const WS_BASE_URL = getWsUrl();
+export const API_BASE_URL = getApiUrl();
+export const UPLOADS_BASE_URL = getBaseUrl();
 
 /**
  * Build full URL for media files

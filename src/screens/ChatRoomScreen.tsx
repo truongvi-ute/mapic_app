@@ -14,6 +14,7 @@ import {
   Pressable,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useRoute, useNavigation } from '@react-navigation/native';
 import { Image } from 'expo-image';
 import { useAuthStore } from '../store/useAuthStore';
 import { useChatStore } from '../store/useChatStore';
@@ -29,11 +30,41 @@ interface Props {
   onBack: () => void;
   onPressMoment?: (momentId: number) => void;
   onPressAlbum?: (albumId: number) => void;
+  friendId?: number;
+  friendName?: string;
+  friendAvatar?: string;
 }
 
-export default function ChatRoomScreen({ conversation, onBack, onPressMoment, onPressAlbum }: Props) {
-  const token = useAuthStore((s) => s.token) || '';
+export default function ChatRoomScreen({ 
+  conversation: propConversation, 
+  friendId: propFriendId, 
+  friendName: propFriendName, 
+  friendAvatar: propFriendAvatar, 
+  onBack, 
+  onPressMoment, 
+  onPressAlbum 
+}: any) {
+  const route = useRoute<any>();
+  const navigation = useNavigation<any>();
+  
+  // Use props if available, otherwise fallback to route params
+  const friendId = propConversation?.participants?.find((p: any) => p.user.id !== useAuthStore.getState().user?.id)?.user.id 
+                 || propFriendId 
+                 || route.params?.friendId;
+  
+  const friendName = propConversation?.name 
+                   || propFriendName 
+                   || route.params?.friendName 
+                   || propConversation?.participants?.find((p: any) => p.user.id !== useAuthStore.getState().user?.id)?.user.name;
+
+  const friendAvatar = propFriendAvatar 
+                     || route.params?.friendAvatar 
+                     || propConversation?.participants?.find((p: any) => p.user.id !== useAuthStore.getState().user?.id)?.user.avatarUrl;
+
+  const conversation = propConversation || { id: 0, isGroup: false, participants: [] };
+
   const currentUser = useAuthStore((s) => s.user);
+  const token = useAuthStore((s) => s.token);
   const { subscribeToRoom, sendMessage, reactToMessage, isConnected, updateConversation } = useChatStore();
   const { showAlert } = useAlert();
 
@@ -45,6 +76,8 @@ export default function ChatRoomScreen({ conversation, onBack, onPressMoment, on
   const [inputText, setInputText] = useState('');
   const [reactionTarget, setReactionTarget] = useState<number | null>(null);
   const flatListRef = useRef<FlatList>(null);
+  const loadingRef = useRef(false);
+  const hasAttemptedOpen = useRef(false);
 
   const baseUrl = getBaseUrl();
 
@@ -55,7 +88,7 @@ export default function ChatRoomScreen({ conversation, onBack, onPressMoment, on
 
   const displayName = conversation.isGroup
     ? (conversation.title || 'Nhóm chat')
-    : (otherParticipant?.fullName || otherParticipant?.username || 'Người dùng');
+    : (otherParticipant?.fullName || otherParticipant?.username || friendName || 'Người dùng');
 
   // ─── Sync last message back to conversations store ───
   // Called whenever a new message arrives so ChatsListScreen always shows the latest.
@@ -94,20 +127,50 @@ export default function ChatRoomScreen({ conversation, onBack, onPressMoment, on
   }, [conversation.id, isConnected]);
 
   const loadMessages = async (pageNum: number) => {
+    if (loadingRef.current) return;
+    
     try {
+      loadingRef.current = true;
       if (pageNum === 0) setLoading(true);
       else setLoadingMore(true);
 
-      const msgs = await chatService.getMessages(conversation.id, pageNum, token);
+      let convId = conversation.id;
+
+      // If we don't have a conversation ID yet (e.g. from notification), get/create it
+      if (convId === 0 && friendId && !hasAttemptedOpen.current) {
+        try {
+          hasAttemptedOpen.current = true;
+          console.log('[ChatRoom] Attempting to open direct chat with friendId:', friendId);
+          const conv = await chatService.openDirectChat(friendId, token || '');
+          convId = conv.id;
+          updateConversation(conv);
+        } catch (e: any) {
+          console.error('[ChatRoom] Failed to open direct chat error detail:', e);
+          showAlert('Lỗi', 'Không thể kết nối cuộc trò chuyện: ' + (e.message || 'Unknown error'));
+          setLoading(false);
+          loadingRef.current = false;
+          return;
+        }
+      }
+
+      if (convId === 0) {
+        setLoading(false);
+        loadingRef.current = false;
+        return;
+      }
+
+      const msgs = await chatService.getMessages(convId, pageNum, token || '');
       if (msgs.length < 30) setHasMore(false);
 
       setMessages((prev) => (pageNum === 0 ? msgs : [...prev, ...msgs]));
       setPage(pageNum);
     } catch (e) {
+      console.error('[ChatRoom] Failed to load messages:', e);
       showAlert('Lỗi', 'Không thể tải tin nhắn');
     } finally {
       setLoading(false);
       setLoadingMore(false);
+      loadingRef.current = false;
     }
   };
 
@@ -127,7 +190,7 @@ export default function ChatRoomScreen({ conversation, onBack, onPressMoment, on
           syncLastMessage(msg);
         });
     }
-  }, [inputText, isConnected, conversation.id, token]);
+  }, [inputText, isConnected, conversation.id]);
 
   const handleReact = useCallback(
     (emoji: string) => {
@@ -144,7 +207,7 @@ export default function ChatRoomScreen({ conversation, onBack, onPressMoment, on
         });
       }
     },
-    [reactionTarget, isConnected, token]
+    [reactionTarget, isConnected]
   );
 
   // ─── Render shared content card ───
@@ -284,7 +347,7 @@ export default function ChatRoomScreen({ conversation, onBack, onPressMoment, on
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={onBack} style={styles.backBtn}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => onBack ? onBack() : navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color="#007AFF" />
         </TouchableOpacity>
         <View style={styles.headerInfo}>

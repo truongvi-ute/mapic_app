@@ -334,6 +334,8 @@ export default function ProfileScreen({ onNavigateToSettings, onOpenMap, onOpenA
         
         if (type === 'avatar') {
           setAvatarVersion(Date.now());
+          // Notify global store to invalidate avatar cache everywhere
+          useAuthStore.getState().updateAvatar(profile?.avatarUrl || '');
         } else {
           setCoverVersion(Date.now());
         }

@@ -167,6 +167,11 @@ export default function SettingsScreen({ onBack, onNavigateToEditProfile, onNavi
         const profile = await userService.getProfile();
         setUser(profile);
         
+        // Notify global store to invalidate avatar cache everywhere
+        if (type === 'avatar') {
+          useAuthStore.getState().updateAvatar(profile?.avatarUrl || '');
+        }
+        
         showAlert('Thành công', `Cập nhật ${type === 'avatar' ? 'ảnh đại diện' : 'ảnh bìa'} thành công`);
       } else {
         const error = await response.text();

@@ -51,8 +51,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const existing = get().stompClient;
     if (existing?.connected) return;
 
+    const wsUrl = getBaseUrl() + '/chat-socket';
+
     const client = new Client({
-      webSocketFactory: () => new SockJS(`${getBaseUrl()}/ws`),
+      webSocketFactory: () => new SockJS(wsUrl),
       connectHeaders: {
         Authorization: `Bearer ${token}`,
       },

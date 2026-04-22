@@ -11,6 +11,7 @@ import {
   Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useNotificationStore } from '../store/useNotificationStore';
 
 // Import custom icons
 const iconImages = {
@@ -47,6 +48,7 @@ interface FloatingActionMenuProps {
 }
 
 export default function FloatingActionMenu({ items, activeItem }: FloatingActionMenuProps) {
+  const unreadCount = useNotificationStore((state) => state.unreadCount);
   const [isVisible, setIsVisible] = useState(false);
   const slideAnim = useRef(new Animated.Value(height)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -162,6 +164,9 @@ export default function FloatingActionMenu({ items, activeItem }: FloatingAction
                               resizeMode="contain"
                             />
                           )}
+                          {item.id === 'notifications' && unreadCount > 0 && (
+                            <View style={styles.menuBadge} />
+                          )}
                         </View>
                       </View>
                     </TouchableOpacity>
@@ -187,6 +192,11 @@ export default function FloatingActionMenu({ items, activeItem }: FloatingAction
             style={styles.menuIcon}
             resizeMode="contain"
           />
+        )}
+        {!isVisible && unreadCount > 0 && (
+          <View style={styles.fabBadge}>
+             <Text style={styles.fabBadgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+          </View>
         )}
       </TouchableOpacity>
     </>
@@ -268,5 +278,35 @@ const styles = StyleSheet.create({
   },
   iconImageActive: {
     opacity: 1,
+  },
+  menuBadge: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#FF3B30',
+    borderWidth: 1,
+    borderColor: '#FFFFFF',
+  },
+  fabBadge: {
+    position: 'absolute',
+    top: -5,
+    right: -5,
+    backgroundColor: '#FF3B30',
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+  },
+  fabBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: 'bold',
   },
 });
