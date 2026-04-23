@@ -2,12 +2,12 @@ import Constants from 'expo-constants';
 
 /**
  * Get API base URL from environment variables
- * Priority: EXPO_PUBLIC_API_URL from .env > fallback to localhost
+ * Priority: EXPO_PUBLIC_API_URL from .env > app.json extra.apiUrl > fallback to production URL
  */
 export const getApiUrl = (): string => {
   const apiUrl = Constants.expoConfig?.extra?.apiUrl || 
                  process.env.EXPO_PUBLIC_API_URL || 
-                 'http://192.168.1.6:8080/api';
+                 'https://mapic-backend-ute.onrender.com/api';
   
   console.log('[API Config] Using API URL:', apiUrl);
   return apiUrl;
