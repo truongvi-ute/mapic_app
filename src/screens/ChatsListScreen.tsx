@@ -353,9 +353,6 @@ export default function ChatsListScreen({ onBack, onOpenChat, refreshTrigger, in
     <SafeContainer style={[styles.container, { backgroundColor: C.background }]}>
       {/* Header */}
       <View style={[styles.header, { backgroundColor: C.surface, borderBottomColor: C.border }]}>
-        <TouchableOpacity onPress={onBack} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={DIMENSIONS.iconLG} color={C.primary} />
-        </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: C.textPrimary }]}>Tin nhắn</Text>
         {tab === 'group' && (
           <TouchableOpacity onPress={() => setShowCreateGroup(true)} style={styles.addBtn}>
@@ -495,8 +492,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: COLORS.surface,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.md,
+    padding: SPACING.xl,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.gray200,
   },
@@ -506,7 +502,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: { 
     flex: 1, 
-    fontSize: FONT_SIZE.xl, 
+    fontSize: FONT_SIZE.xxxl, 
     fontWeight: FONT_WEIGHT.bold, 
     color: COLORS.gray900 
   },

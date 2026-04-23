@@ -624,6 +624,13 @@ export default function MapScreen({ focusLocation, onNavigateToNotifications }: 
     zoomLevel: 13,
   }), [initialMapLocation]);
 
+  const selectedFriend = useMemo(() => 
+    selectedId ? friends.get(selectedId) ?? null : null
+  , [selectedId, friends]);
+  
+  const friendList = useMemo(() => Array.from(friends.values()), [friends]);
+  const onlineCount = useMemo(() => friendList.filter(f => f.isOnline).length, [friendList]);
+
   if (loading) {
     return (
       <SafeContainer style={styles.center}>
@@ -648,12 +655,6 @@ export default function MapScreen({ focusLocation, onNavigateToNotifications }: 
     );
   }
 
-  const selectedFriend = useMemo(() => 
-    selectedId ? friends.get(selectedId) ?? null : null
-  , [selectedId, friends]);
-  
-  const friendList = useMemo(() => Array.from(friends.values()), [friends]);
-  const onlineCount = useMemo(() => friendList.filter(f => f.isOnline).length, [friendList]);
 
   return (
     <SafeContainer style={styles.container}>

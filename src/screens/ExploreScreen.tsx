@@ -542,15 +542,14 @@ export default function ExploreScreen({ refreshTrigger, highlightMomentId, onBac
 
   const renderHeader = () => (
     <View style={[styles.header, { backgroundColor: C.surface, borderBottomColor: C.border }]}>
-      {onBack && (
-        <TouchableOpacity onPress={onBack} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color={C.primary} />
-        </TouchableOpacity>
-      )}
-      <Text style={[styles.title, { color: C.primary }]}>Khám phá</Text>
-      <Text style={[styles.subtitle, { color: C.textTertiary }]}>
-        {pageInfo ? `${pageInfo.totalElements} khoảnh khắc` : 'Đang tải...'}
-      </Text>
+      <View style={styles.headerTitleRow}>
+        {onBack && (
+          <TouchableOpacity onPress={onBack} style={styles.backBtn}>
+            <Ionicons name="arrow-back" size={24} color={C.textPrimary} />
+          </TouchableOpacity>
+        )}
+        <Text style={[styles.title, { color: C.textPrimary }]}>Khám phá</Text>
+      </View>
     </View>
   );
 
@@ -707,15 +706,15 @@ const styles = StyleSheet.create({
   backBtn: {
     marginBottom: SPACING.sm,
   },
-  title: {
-    fontSize: FONT_SIZE.huge,
-    fontWeight: FONT_WEIGHT.bold,
-    color: COLORS.primary,
+  headerTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.md,
   },
-  subtitle: {
-    fontSize: FONT_SIZE.sm,
-    color: COLORS.gray500,
-    marginTop: SPACING.xs,
+  title: {
+    fontSize: FONT_SIZE.xxxl,
+    fontWeight: FONT_WEIGHT.bold,
+    color: COLORS.gray900,
   },
   filterBar: {
     backgroundColor: COLORS.surface,

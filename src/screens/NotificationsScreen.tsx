@@ -20,6 +20,7 @@ import { useNotificationStore } from '../store/useNotificationStore';
 import { useMainNavigationStore } from '../store/useMainNavigationStore';
 import { NotificationDTO } from '../api/notificationService';
 import { getNavigationTargetFromNotification, navigateToTarget } from '../utils/navigationHelper';
+import { getImageUrl } from '../utils/uiUtils';
 
 const formatTimeAgo = (dateString: string) => {
   const now = new Date();
@@ -104,61 +105,80 @@ export default function NotificationsScreen() {
     }
   };
 
+
   const renderNotification = ({ item }: { item: NotificationDTO }) => {
     const icon = getIcon(item.type);
     const timeAgo = formatTimeAgo(item.createdAt);
-    const priorityStyle = getPriorityStyle(item.priority);
+    const isUnread = !item.isRead;
+    
+    // Resolve absolute URLs
+    const actorAvatarUrl = getImageUrl(item.actorAvatar, 'avatar');
+    const thumbnailUrl = getImageUrl(item.thumbnailUrl, 'moment');
 
     return (
       <TouchableOpacity 
         style={[
           styles.notificationItem,
-          { backgroundColor: item.isRead ? C.surface : (isDark ? 'rgba(67,97,238,0.12)' : C.gray50) },
-          priorityStyle
+          { 
+            backgroundColor: isDark ? C.surface : C.white,
+            borderLeftColor: isUnread ? COLORS.primary : 'transparent',
+            borderLeftWidth: isUnread ? 4 : 0,
+          }
         ]}
         onPress={() => handleNotificationPress(item)}
+        activeOpacity={0.7}
       >
-        {/* Thumbnail (if available) */}
-        {item.thumbnailUrl && (
-          <Image 
-            source={{ uri: item.thumbnailUrl }} 
-            style={styles.thumbnail}
-          />
-        )}
+        <View style={styles.itemMainContent}>
+          {/* Avatar / Icon Container */}
+          <View style={styles.avatarWrapper}>
+            {actorAvatarUrl ? (
+              <Image source={{ uri: actorAvatarUrl }} style={styles.avatar} />
+            ) : (
+              <View style={[styles.avatarPlaceholder, { backgroundColor: `${icon.color}20` }]}>
+                <Ionicons name={icon.name as any} size={DIMENSIONS.iconMD} color={icon.color} />
+              </View>
+            )}
+            
+            {/* Miniature type icon indicator */}
+            {actorAvatarUrl && (
+              <View style={[styles.typeMiniIcon, { backgroundColor: icon.color }]}>
+                <Ionicons name={icon.name as any} size={10} color={COLORS.white} />
+              </View>
+            )}
+          </View>
 
-        {/* Avatar */}
-        <View style={styles.avatarContainer}>
-          {item.actorAvatar ? (
-            <Image source={{ uri: item.actorAvatar }} style={styles.avatar} />
-          ) : (
-            <View style={[styles.avatarPlaceholder, { backgroundColor: icon.color }]}>
-              <Ionicons name={icon.name as any} size={DIMENSIONS.iconLG} color={COLORS.white} />
-            </View>
-          )}
-          {!item.isRead && <View style={styles.unreadDot} />}
-        </View>
-
-        {/* Content */}
-        <View style={styles.infoContainer}>
-          <Text style={[styles.messageText, { color: C.textSecondary }]}>
-            <Text style={[styles.actorName, { color: C.textPrimary }]}>{item.actorName}</Text>{' '}
-            {item.message.replace(item.actorName, '').trim()}
-          </Text>
-          
-          {/* Content preview (for comments) */}
-          {item.contentPreview && (
-            <Text style={styles.contentPreview} numberOfLines={2}>
-              "{item.contentPreview}"
+          {/* Text Content */}
+          <View style={styles.infoContainer}>
+            <Text style={[styles.messageText, { color: isDark ? COLORS.gray300 : COLORS.gray700 }]} numberOfLines={3}>
+              <Text style={[styles.actorName, { color: C.textPrimary }]}>{item.actorName}</Text>{' '}
+              {item.message.replace(item.actorName, '').trim()}
             </Text>
+            
+            {item.contentPreview && (
+              <View style={[styles.previewContainer, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : COLORS.gray50 }]}>
+                <Text style={[styles.contentPreview, { color: C.textSecondary }]} numberOfLines={1}>
+                  {item.contentPreview}
+                </Text>
+              </View>
+            )}
+            
+            <View style={styles.timeRow}>
+              <Ionicons name="time-outline" size={12} color={COLORS.gray400} style={{ marginRight: 4 }} />
+              <Text style={styles.timeText}>{timeAgo}</Text>
+            </View>
+          </View>
+
+          {/* Image Thumbnail (if available, e.g. for moments) */}
+          {thumbnailUrl && (
+            <Image 
+              source={{ uri: thumbnailUrl }} 
+              style={styles.thumbnail}
+              resizeMode="cover"
+            />
           )}
-          
-          <Text style={styles.timeText}>{timeAgo}</Text>
         </View>
 
-        {/* Type icon */}
-        <View style={styles.typeIcon}>
-           <Ionicons name={icon.name as any} size={DIMENSIONS.iconSM} color={icon.color} />
-        </View>
+        {isUnread && <View style={styles.unreadPulse} />}
       </TouchableOpacity>
     );
   };
@@ -167,13 +187,15 @@ export default function NotificationsScreen() {
     <SafeContainer style={[styles.container, { backgroundColor: C.background }]}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
       <View style={[styles.header, { backgroundColor: C.surface, borderBottomColor: C.border }]}>
-        <View>
+        <View style={styles.headerTitleGroup}>
           <Text style={[styles.title, { color: C.textPrimary }]}>Thông báo</Text>
           {unreadCount > 0 && (
-            <Text style={[styles.subtitle, { color: C.textSecondary }]}>Bạn có {unreadCount} thông báo mới</Text>
+            <View style={styles.unreadBadge}>
+              <Text style={styles.unreadBadgeText}>{unreadCount}</Text>
+            </View>
           )}
         </View>
-        <TouchableOpacity onPress={markAllAsRead}>
+        <TouchableOpacity onPress={markAllAsRead} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
           <Text style={[styles.markAllText, { color: C.primary }]}>Đánh dấu tất cả</Text>
         </TouchableOpacity>
       </View>
@@ -188,14 +210,19 @@ export default function NotificationsScreen() {
           renderItem={renderNotification}
           keyExtractor={(item) => item.id.toString()}
           contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
           refreshControl={
-            <RefreshControl refreshing={isLoading} onRefresh={onRefresh} />
+            <RefreshControl refreshing={isLoading} onRefresh={onRefresh} tintColor={COLORS.primary} />
           }
           ListEmptyComponent={
-            <View style={styles.centerContainer}>
-              <Ionicons name="notifications-off-outline" size={64} color={COLORS.gray300} />
-              <Spacer size="md" />
-              <Text style={styles.emptyText}>Chưa có thông báo nào</Text>
+            <View style={styles.emptyContainer}>
+              <View style={styles.emptyIconCircle}>
+                <Ionicons name="notifications-off-outline" size={48} color={COLORS.gray400} />
+              </View>
+              <Text style={[styles.emptyTitle, { color: C.textPrimary }]}>Chưa có thông báo</Text>
+              <Text style={[styles.emptySubtitle, { color: C.textSecondary }]}>
+                Chúng tôi sẽ thông báo cho bạn khi có tin nhắn hoặc hoạt động mới.
+              </Text>
             </View>
           }
         />
@@ -207,118 +234,160 @@ export default function NotificationsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
   },
   header: {
-    paddingHorizontal: SPACING.xl,
-    paddingVertical: SPACING.md,
-    backgroundColor: COLORS.surface,
+    padding: SPACING.xl,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-end',
+    alignItems: 'center',
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.gray200,
+  },
+  headerTitleGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
   },
   title: {
-    fontSize: FONT_SIZE.massive,
+    fontSize: FONT_SIZE.xxxl,
     fontWeight: FONT_WEIGHT.bold,
-    color: COLORS.gray900,
   },
-  subtitle: {
-    fontSize: FONT_SIZE.md,
-    color: COLORS.gray500,
-    marginTop: 2,
+  unreadBadge: {
+    backgroundColor: COLORS.error,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: RADIUS.round,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  unreadBadgeText: {
+    color: COLORS.white,
+    fontSize: FONT_SIZE.xs,
+    fontWeight: FONT_WEIGHT.bold,
   },
   markAllText: {
-    fontSize: FONT_SIZE.md,
-    color: COLORS.primary,
+    fontSize: FONT_SIZE.sm,
     fontWeight: FONT_WEIGHT.semibold,
-    marginBottom: SPACING.xs,
   },
   listContent: {
-    paddingVertical: SPACING.sm,
+    paddingVertical: SPACING.md,
   },
   notificationItem: {
     flexDirection: 'row',
     padding: SPACING.md,
-    backgroundColor: COLORS.surface,
-    marginHorizontal: SPACING.sm,
+    marginHorizontal: SPACING.md,
     marginVertical: SPACING.xs,
-    borderRadius: RADIUS.md,
-    alignItems: 'center',
+    borderRadius: RADIUS.lg,
     ...SHADOWS.sm,
+    overflow: 'hidden',
   },
-  unreadItem: {
-    backgroundColor: COLORS.gray50,
+  itemMainContent: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
   },
-  thumbnail: {
-    width: DIMENSIONS.avatarLG,
-    height: DIMENSIONS.avatarLG,
-    borderRadius: RADIUS.sm,
-    marginRight: SPACING.sm,
-  },
-  avatarContainer: {
+  avatarWrapper: {
     position: 'relative',
   },
   avatar: {
-    width: DIMENSIONS.avatarLG,
-    height: DIMENSIONS.avatarLG,
-    borderRadius: DIMENSIONS.avatarLG / 2,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
   },
   avatarPlaceholder: {
-    width: DIMENSIONS.avatarLG,
-    height: DIMENSIONS.avatarLG,
-    borderRadius: DIMENSIONS.avatarLG / 2,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  unreadDot: {
+  typeMiniIcon: {
     position: 'absolute',
-    top: 0,
-    right: 0,
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: COLORS.primary,
+    bottom: -2,
+    right: -2,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
     borderWidth: 2,
-    borderColor: COLORS.surface,
+    borderColor: COLORS.white,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   infoContainer: {
     flex: 1,
     marginLeft: SPACING.md,
+    justifyContent: 'center',
   },
   actorName: {
     fontWeight: FONT_WEIGHT.bold,
-    color: COLORS.gray900,
   },
   messageText: {
     fontSize: FONT_SIZE.md,
-    color: COLORS.gray700,
-    lineHeight: FONT_SIZE.md * 1.4,
+    lineHeight: 20,
+  },
+  previewContainer: {
+    marginTop: SPACING.xs,
+    padding: SPACING.xs,
+    paddingHorizontal: SPACING.sm,
+    borderRadius: RADIUS.sm,
+    alignSelf: 'flex-start',
   },
   contentPreview: {
     fontSize: FONT_SIZE.sm,
-    color: COLORS.gray500,
     fontStyle: 'italic',
-    marginTop: SPACING.xs,
-    lineHeight: FONT_SIZE.sm * 1.4,
+  },
+  timeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 6,
   },
   timeText: {
-    fontSize: FONT_SIZE.sm,
+    fontSize: FONT_SIZE.xs,
     color: COLORS.gray500,
-    marginTop: SPACING.xs,
   },
-  typeIcon: {
-    marginLeft: SPACING.sm,
+  thumbnail: {
+    width: 56,
+    height: 56,
+    borderRadius: RADIUS.md,
+    marginLeft: SPACING.md,
+  },
+  unreadPulse: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: COLORS.primary,
   },
   centerContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  emptyContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 40,
     paddingTop: 100,
   },
-  emptyText: {
-    fontSize: FONT_SIZE.lg,
-    color: COLORS.gray500,
+  emptyIconCircle: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: COLORS.gray100,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: SPACING.lg,
+  },
+  emptyTitle: {
+    fontSize: FONT_SIZE.xl,
+    fontWeight: FONT_WEIGHT.bold,
+    marginBottom: SPACING.sm,
+  },
+  emptySubtitle: {
+    fontSize: FONT_SIZE.md,
+    textAlign: 'center',
+    lineHeight: 22,
   },
 });

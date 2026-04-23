@@ -614,9 +614,8 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
   header: {
+    padding: SPACING.xl,
     backgroundColor: COLORS.surface,
-    paddingBottom: SPACING.lg,
-    paddingHorizontal: SPACING.lg,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.gray200,
   },

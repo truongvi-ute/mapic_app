@@ -300,8 +300,7 @@ export default function HomeScreen({ refreshTrigger, onOpenMap, onPressProfile }
 
   const renderHeader = () => (
     <View style={[styles.header, { backgroundColor: C.surface, borderBottomColor: C.border }]}>
-      <Text style={[styles.title, { color: C.primary }]}>MAPIC</Text>
-      <Text style={[styles.subtitle, { color: C.textTertiary }]}>Khám phá khoảnh khắc</Text>
+      <Text style={[styles.title, { color: C.textPrimary }]}>MAPIC</Text>
     </View>
   );
 
@@ -461,14 +460,9 @@ const styles = StyleSheet.create({
     ...SHADOWS.sm,
   },
   title: {
-    fontSize: FONT_SIZE.huge,
+    fontSize: FONT_SIZE.xxxl,
     fontWeight: FONT_WEIGHT.bold,
-    color: COLORS.primary,
-  },
-  subtitle: {
-    fontSize: FONT_SIZE.sm,
-    color: COLORS.gray500,
-    marginTop: SPACING.xs,
+    color: COLORS.gray900,
   },
   loadingContainer: {
     flex: 1,
