@@ -21,7 +21,8 @@ import { useChatStore } from '../store/useChatStore';
 import { useAlert } from '../context/AlertContext';
 import chatService, { ConversationDto, MessageDto } from '../api/chatService';
 import { buildMediaUrl, buildAvatarUrl, getBaseUrl } from '../config/api';
-import GroupInfoModal from '../components/GroupInfoModal';
+// import GroupInfoModal from '../components/GroupInfoModal';
+import AddMemberModal from '../components/AddMemberModal';
 import { SPACING, COLORS, LIGHT_COLORS, DARK_COLORS, FONT_SIZE, FONT_WEIGHT, RADIUS, SHADOWS, CHAT } from '../constants/design';
 import { useThemeStore } from '../store/useThemeStore';
 import Spacer from '../components/ui/Spacer';
@@ -87,6 +88,10 @@ export default function ChatRoomScreen({
   const [inputText, setInputText] = useState('');
   const [reactionTarget, setReactionTarget] = useState<number | null>(null);
   const [showGroupInfo, setShowGroupInfo] = useState(false);
+  const [addMemberModal, setAddMemberModal] = useState(false);
+  const [renameModal, setRenameModal] = useState(false);
+  const [renameText, setRenameText] = useState('');
+  const [renaming, setRenaming] = useState(false);
   const flatListRef = useRef<FlatList>(null);
   const loadingRef = useRef(false);
   const hasAttemptedOpen = useRef(false);
@@ -255,6 +260,140 @@ export default function ChatRoomScreen({
     [reactionTarget, isConnected]
   );
 
+  // ─── Group Management ───
+  const handleGroupOptions = () => {
+    if (!conversation.isGroup) return;
+    const isAdmin = conversation.creatorId === currentUser?.id;
+
+    const options = [];
+    
+    if (isAdmin) {
+      options.push({
+        text: 'Đổi tên nhóm',
+        onPress: () => {
+          setRenameText(conversation.title || '');
+          setRenameModal(true);
+        },
+      });
+      options.push({
+        text: 'Thêm thành viên',
+        onPress: () => setAddMemberModal(true),
+      });
+      options.push({
+        text: 'Xóa thành viên',
+        onPress: () => handleRemoveMemberFromGroup(),
+      });
+      options.push({
+        text: 'Giải tán nhóm',
+        style: 'destructive',
+        onPress: () => handleDeleteGroup(),
+      });
+    } else {
+      options.push({
+        text: 'Rời khỏi nhóm',
+        style: 'destructive',
+        onPress: () => handleLeaveGroup(),
+      });
+    }
+    
+    options.push({ text: 'Đóng', style: 'cancel' });
+
+    showAlert('Quản lý nhóm', conversation.title || 'Nhóm chat', options);
+  };
+
+  const handleRenameGroup = async () => {
+    if (!renameText.trim()) return;
+    try {
+      setRenaming(true);
+      const updated = await chatService.renameGroup(conversation.id, renameText.trim(), token!);
+      setConversation(updated);
+      updateConversation(updated);
+      setRenameModal(false);
+      showAlert('Thành công', 'Đã đổi tên nhóm');
+    } catch (e: any) {
+      showAlert('Lỗi', e.message || 'Không thể đổi tên nhóm');
+    } finally {
+      setRenaming(false);
+    }
+  };
+
+  const handleRemoveMemberFromGroup = () => {
+    const members = conversation.participants.filter((p) => p.userId !== currentUser?.id);
+    if (members.length === 0) {
+      showAlert('Thông báo', 'Không có thành viên nào khác để xóa');
+      return;
+    }
+
+    const memberOptions = members.map((p) => ({
+      text: p.fullName || p.username,
+      onPress: () => confirmRemoveMember(p.userId, p.fullName || p.username),
+    }));
+    memberOptions.push({ text: 'Đóng', style: 'cancel' });
+    showAlert('Xóa thành viên', 'Chọn thành viên cần xóa', memberOptions);
+  };
+
+  const confirmRemoveMember = (userId: number, name: string) => {
+    showAlert('Xác nhận', `Xóa ${name} khỏi nhóm?`, [
+      { text: 'Hủy', style: 'cancel' },
+      {
+        text: 'Xóa',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await chatService.removeMember(conversation.id, userId, token!);
+            const updated = {
+              ...conversation,
+              participants: conversation.participants.filter((p) => p.userId !== userId),
+            };
+            setConversation(updated);
+            updateConversation(updated);
+            showAlert('Thành công', `Đã xóa ${name}`);
+          } catch (e: any) {
+            showAlert('Lỗi', e.message || 'Không thể xóa thành viên');
+          }
+        },
+      },
+    ]);
+  };
+
+  const handleDeleteGroup = () => {
+    showAlert('Giải tán nhóm', 'Bạn có chắc chắn muốn giải tán nhóm này?', [
+      { text: 'Hủy', style: 'cancel' },
+      {
+        text: 'Giải tán',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await chatService.deleteGroup(conversation.id, token!);
+            showAlert('Thành công', 'Đã giải tán nhóm');
+            onBack ? onBack() : navigation.goBack();
+          } catch (e: any) {
+            showAlert('Lỗi', e.message || 'Không thể giải tán nhóm');
+          }
+        },
+      },
+    ]);
+  };
+
+  const handleLeaveGroup = () => {
+    showAlert('Rời nhóm', 'Bạn có chắc chắn muốn rời khỏi nhóm này?', [
+      { text: 'Hủy', style: 'cancel' },
+      {
+        text: 'Rời nhóm',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await chatService.removeMember(conversation.id, currentUser!.id, token!);
+            showAlert('Thành công', 'Đã rời khỏi nhóm');
+            onBack ? onBack() : navigation.goBack();
+          } catch (e: any) {
+            showAlert('Lỗi', e.message || 'Không thể rời nhóm');
+          }
+        },
+      },
+    ]);
+  };
+
   // ─── Render shared content card ───
   const renderSharedContent = (item: MessageDto) => {
     const preview: any = item.sharedPreview;
@@ -397,7 +536,7 @@ export default function ChatRoomScreen({
         </TouchableOpacity>
         <TouchableOpacity 
           style={styles.headerInfo}
-          onPress={() => conversation.isGroup && setShowGroupInfo(true)}
+          onPress={handleGroupOptions}
           disabled={!conversation.isGroup}
         >
           <Text style={[styles.headerName, { color: C.textPrimary }]} numberOfLines={1}>{displayName}</Text>
@@ -496,22 +635,53 @@ export default function ChatRoomScreen({
         </Pressable>
       </Modal>
 
-      {/* Group Info Modal */}
-      {conversation.isGroup && (
-        <GroupInfoModal
-          visible={showGroupInfo}
+      {/* Add Member Modal */}
+      {addMemberModal && (
+        <AddMemberModal
+          visible={addMemberModal}
           conversation={conversation}
-          onClose={() => setShowGroupInfo(false)}
-          onUpdate={(updatedConv) => {
-            setConversation(updatedConv);
-            updateConversation(updatedConv);
-          }}
-          onLeave={() => {
-            // Navigate back to chat list
-            onBack ? onBack() : (navigation.canGoBack() && navigation.goBack());
-          }}
+          onClose={() => setAddMemberModal(false)}
+          onSuccess={(updated) => {
+            setConversation(updated);
+            updateConversation(updated);
+            setAddMemberModal(false);
+            showAlert('Thành công', 'Đã thêm thành viên mới');
+          } }
         />
       )}
+
+      {/* Rename Group Modal */}
+      <Modal
+        visible={renameModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setRenameModal(false)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setRenameModal(false)}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Đổi tên nhóm</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={renameText}
+              onChangeText={setRenameText}
+              autoFocus
+              placeholder="Tên nhóm mới..."
+            />
+            <View style={styles.modalBtns}>
+              <TouchableOpacity style={styles.modalBtn} onPress={() => setRenameModal(false)}>
+                <Text style={styles.modalBtnText}>Hủy</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.modalBtn, styles.modalBtnPrimary]} 
+                onPress={handleRenameGroup}
+                disabled={renaming}
+              >
+                {renaming ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.modalBtnTextPrimary}>Lưu</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -656,4 +826,57 @@ const styles = StyleSheet.create({
   },
   emojiBtn: { padding: 6 },
   emoji: { fontSize: 28 },
+  // Modal styles for Rename
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: SPACING.xl,
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: RADIUS.lg,
+    padding: SPACING.xl,
+    width: '100%',
+    ...SHADOWS.md,
+  },
+  modalTitle: {
+    fontSize: FONT_SIZE.xl,
+    fontWeight: FONT_WEIGHT.bold,
+    marginBottom: SPACING.lg,
+    color: '#000',
+  },
+  modalInput: {
+    borderWidth: 1,
+    borderColor: COLORS.gray200,
+    borderRadius: RADIUS.md,
+    padding: SPACING.md,
+    fontSize: FONT_SIZE.lg,
+    marginBottom: SPACING.xl,
+    color: '#000',
+  },
+  modalBtns: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: SPACING.md,
+  },
+  modalBtn: {
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.lg,
+    borderRadius: RADIUS.md,
+  },
+  modalBtnPrimary: {
+    backgroundColor: COLORS.primary,
+  },
+  modalBtnText: {
+    fontSize: FONT_SIZE.md,
+    color: COLORS.gray500,
+    fontWeight: FONT_WEIGHT.semibold,
+  },
+  modalBtnTextPrimary: {
+    fontSize: FONT_SIZE.md,
+    color: '#fff',
+    fontWeight: FONT_WEIGHT.bold,
+  },
 });

@@ -77,6 +77,23 @@ const chatService = {
     return json.data;
   },
 
+  async addMembers(roomId: number, memberIds: number[], token: string): Promise<ConversationDto> {
+    const res = await fetch(`${getApiUrl()}/chat/rooms/${roomId}/members`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ memberIds }),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.message || 'Failed to add members');
+    }
+    const json = await res.json();
+    return json.data;
+  },
+
   async removeMember(roomId: number, userId: number, token: string): Promise<void> {
     const res = await fetch(`${getApiUrl()}/chat/rooms/${roomId}/members/${userId}`, {
       method: 'DELETE',

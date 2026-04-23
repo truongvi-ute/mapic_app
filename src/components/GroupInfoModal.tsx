@@ -10,7 +10,7 @@ import {
   ActivityIndicator,
   ScrollView,
   SafeAreaView,
-  Alert,
+  StatusBar,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
@@ -18,6 +18,9 @@ import { useAuthStore } from '../store/useAuthStore';
 import { useAlert } from '../context/AlertContext';
 import chatService, { ConversationDto, ParticipantDto } from '../api/chatService';
 import { buildAvatarUrl, getApiUrl } from '../config/api';
+import { SPACING, COLORS, LIGHT_COLORS, DARK_COLORS, FONT_SIZE, FONT_WEIGHT, RADIUS, SHADOWS, DIMENSIONS } from '../constants/design';
+import { useThemeStore } from '../store/useThemeStore';
+import Spacer from '../components/ui/Spacer';
 
 interface Props {
   visible: boolean;
@@ -38,6 +41,9 @@ export default function GroupInfoModal({ visible, conversation, onClose, onUpdat
   const token = useAuthStore((s) => s.token) || '';
   const currentUser = useAuthStore((s) => s.user);
   const { showAlert } = useAlert();
+  const { mode } = useThemeStore();
+  const isDark = mode === 'dark';
+  const C = isDark ? DARK_COLORS : LIGHT_COLORS;
 
   const [activeTab, setActiveTab] = useState<'info' | 'members' | 'add'>('info');
   const [searchQuery, setSearchQuery] = useState('');
@@ -159,23 +165,8 @@ export default function GroupInfoModal({ visible, conversation, onClose, onUpdat
 
     try {
       setAddingMembers(true);
-      // Call API to add members (you'll need to implement this endpoint)
-      const res = await fetch(`${getApiUrl()}/chat/rooms/${conversation.id}/members`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ memberIds: selectedIds }),
-      });
-
-      if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.message || 'Failed to add members');
-      }
-
-      const json = await res.json();
-      onUpdate(json.data);
+      const updated = await chatService.addMembers(conversation.id, selectedIds, token);
+      onUpdate(updated);
       setActiveTab('members');
       showAlert('Thành công', `Đã thêm ${selectedIds.length} thành viên`);
     } catch (e: any) {
@@ -254,7 +245,7 @@ export default function GroupInfoModal({ visible, conversation, onClose, onUpdat
     const avatarUrl = item.avatarUrl ? buildAvatarUrl(item.avatarUrl) : null;
 
     return (
-      <View style={styles.memberItem}>
+      <View style={[styles.memberItem, { backgroundColor: C.surface, borderBottomColor: C.border }]}>
         <View style={styles.avatarWrap}>
           {avatarUrl ? (
             <Image source={{ uri: avatarUrl }} style={styles.avatar} />
@@ -265,18 +256,18 @@ export default function GroupInfoModal({ visible, conversation, onClose, onUpdat
 
         <View style={styles.memberInfo}>
           <View style={styles.memberNameRow}>
-            <Text style={styles.memberName} numberOfLines={1}>
+            <Text style={[styles.memberName, { color: C.textPrimary }]} numberOfLines={1}>
               {item.fullName || item.username}
               {isMe && <Text style={styles.youBadge}> (Bạn)</Text>}
             </Text>
             {isMemberAdmin && (
               <View style={styles.adminBadge}>
-                <Ionicons name="shield-checkmark" size={12} color="#007AFF" />
+                <Ionicons name="shield-checkmark" size={10} color={COLORS.primary} />
                 <Text style={styles.adminBadgeText}>Admin</Text>
               </View>
             )}
           </View>
-          <Text style={styles.memberUsername}>@{item.username}</Text>
+          <Text style={[styles.memberUsername, { color: C.textTertiary }]}>@{item.username}</Text>
         </View>
 
         {isAdmin && !isMe && (
@@ -284,7 +275,7 @@ export default function GroupInfoModal({ visible, conversation, onClose, onUpdat
             style={styles.removeBtn}
             onPress={() => handleRemoveMember(item)}
           >
-            <Ionicons name="close-circle" size={24} color="#FF3B30" />
+            <Image source={require('../assets/images/unfriend.png')} style={styles.actionIconSm} />
           </TouchableOpacity>
         )}
       </View>
@@ -297,7 +288,7 @@ export default function GroupInfoModal({ visible, conversation, onClose, onUpdat
 
     return (
       <TouchableOpacity
-        style={styles.friendItem}
+        style={[styles.friendItem, { backgroundColor: C.surface, borderBottomColor: C.border }]}
         onPress={() => {
           setSelectedIds(prev =>
             prev.includes(item.id) ? prev.filter(id => id !== item.id) : [...prev, item.id]
@@ -313,8 +304,8 @@ export default function GroupInfoModal({ visible, conversation, onClose, onUpdat
         </View>
 
         <View style={styles.friendInfo}>
-          <Text style={styles.friendName} numberOfLines={1}>{item.name}</Text>
-          <Text style={styles.friendUsername}>@{item.username}</Text>
+          <Text style={[styles.friendName, { color: C.textPrimary }]} numberOfLines={1}>{item.name}</Text>
+          <Text style={[styles.friendUsername, { color: C.textTertiary }]}>@{item.username}</Text>
         </View>
 
         <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
@@ -326,28 +317,28 @@ export default function GroupInfoModal({ visible, conversation, onClose, onUpdat
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, { backgroundColor: C.background }]}>
+        <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
         {/* Header */}
-        <View style={styles.header}>
+        <View style={[styles.header, { backgroundColor: C.surface, borderBottomColor: C.border }]}>
           <TouchableOpacity onPress={onClose} style={styles.headerBtn}>
-            <Ionicons name="arrow-back" size={24} color="#007AFF" />
+            <Ionicons name="close" size={28} color={C.textPrimary} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Thông tin nhóm</Text>
+          <Text style={[styles.headerTitle, { color: C.textPrimary }]}>Thông tin nhóm</Text>
           <View style={styles.headerBtn} />
         </View>
 
         {/* Tabs */}
-        <View style={styles.tabs}>
+        <View style={[styles.tabs, { backgroundColor: C.surface, borderBottomColor: C.border }]}>
           <TouchableOpacity
             style={[styles.tab, activeTab === 'info' && styles.tabActive]}
             onPress={() => setActiveTab('info')}
           >
-            <Ionicons
-              name="information-circle"
-              size={20}
-              color={activeTab === 'info' ? '#007AFF' : '#8E8E93'}
+            <Image 
+              source={require('../assets/images/message.png')} 
+              style={[styles.tabIcon, activeTab !== 'info' && { opacity: 0.5 }]} 
             />
-            <Text style={[styles.tabText, activeTab === 'info' && styles.tabTextActive]}>
+            <Text style={[styles.tabText, { color: C.textTertiary }, activeTab === 'info' && styles.tabTextActive]}>
               Thông tin
             </Text>
           </TouchableOpacity>
@@ -356,13 +347,12 @@ export default function GroupInfoModal({ visible, conversation, onClose, onUpdat
             style={[styles.tab, activeTab === 'members' && styles.tabActive]}
             onPress={() => setActiveTab('members')}
           >
-            <Ionicons
-              name="people"
-              size={20}
-              color={activeTab === 'members' ? '#007AFF' : '#8E8E93'}
+            <Image 
+              source={require('../assets/images/friend.png')} 
+              style={[styles.tabIcon, activeTab !== 'members' && { opacity: 0.5 }]} 
             />
-            <Text style={[styles.tabText, activeTab === 'members' && styles.tabTextActive]}>
-              Thành viên ({memberCount})
+            <Text style={[styles.tabText, { color: C.textTertiary }, activeTab === 'members' && styles.tabTextActive]}>
+              Thành viên
             </Text>
           </TouchableOpacity>
 
@@ -371,12 +361,11 @@ export default function GroupInfoModal({ visible, conversation, onClose, onUpdat
               style={[styles.tab, activeTab === 'add' && styles.tabActive]}
               onPress={() => setActiveTab('add')}
             >
-              <Ionicons
-                name="person-add"
-                size={20}
-                color={activeTab === 'add' ? '#007AFF' : '#8E8E93'}
+              <Image 
+                source={require('../assets/images/add-friend.png')} 
+                style={[styles.tabIcon, activeTab !== 'add' && { opacity: 0.5 }]} 
               />
-              <Text style={[styles.tabText, activeTab === 'add' && styles.tabTextActive]}>
+              <Text style={[styles.tabText, { color: C.textTertiary }, activeTab === 'add' && styles.tabTextActive]}>
                 Thêm
               </Text>
             </TouchableOpacity>
@@ -385,24 +374,30 @@ export default function GroupInfoModal({ visible, conversation, onClose, onUpdat
 
         {/* Content */}
         {activeTab === 'info' && (
-          <ScrollView style={styles.content}>
+          <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
             {/* Group Avatar */}
-            <View style={styles.groupAvatarSection}>
-              <View style={styles.groupAvatarWrap}>
-                <Image source={require('../assets/images/friend.png')} style={styles.groupAvatar} />
+            <View style={[styles.groupAvatarSection, { backgroundColor: C.surface }]}>
+              <View style={[styles.groupAvatarWrap, { backgroundColor: COLORS.primary + '15' }]}>
+                <Image source={require('../assets/images/group.png')} style={styles.groupAvatar} />
               </View>
+              <Spacer size="md" />
+              <Text style={[styles.memberCountText, { color: C.textSecondary }]}>{memberCount} thành viên</Text>
             </View>
 
             {/* Group Name */}
-            <View style={styles.section}>
-              <Text style={styles.sectionLabel}>TÊN NHÓM</Text>
+            <View style={[styles.section, { backgroundColor: C.surface }]}>
+              <View style={styles.sectionHeader}>
+                <Image source={require('../assets/images/write.png')} style={styles.sectionIcon} />
+                <Text style={[styles.sectionLabel, { color: C.textSecondary }]}>TÊN NHÓM</Text>
+              </View>
               {editingName ? (
                 <View style={styles.editNameRow}>
                   <TextInput
-                    style={styles.editNameInput}
+                    style={[styles.editNameInput, { color: C.textPrimary, borderColor: C.border }]}
                     value={newGroupName}
                     onChangeText={setNewGroupName}
-                    placeholder="Tên nhóm..."
+                    placeholder="Tên nhóm mới..."
+                    placeholderTextColor={C.textTertiary}
                     autoFocus
                     maxLength={50}
                   />
@@ -412,9 +407,9 @@ export default function GroupInfoModal({ visible, conversation, onClose, onUpdat
                     disabled={savingName}
                   >
                     {savingName ? (
-                      <ActivityIndicator size="small" color="#007AFF" />
+                      <ActivityIndicator size="small" color={COLORS.primary} />
                     ) : (
-                      <Ionicons name="checkmark" size={24} color="#007AFF" />
+                      <Ionicons name="checkmark-circle" size={32} color={COLORS.success} />
                     )}
                   </TouchableOpacity>
                   <TouchableOpacity
@@ -424,7 +419,7 @@ export default function GroupInfoModal({ visible, conversation, onClose, onUpdat
                       setNewGroupName(conversation.title || '');
                     }}
                   >
-                    <Ionicons name="close" size={24} color="#8E8E93" />
+                    <Ionicons name="close-circle" size={32} color={COLORS.gray400} />
                   </TouchableOpacity>
                 </View>
               ) : (
@@ -433,66 +428,72 @@ export default function GroupInfoModal({ visible, conversation, onClose, onUpdat
                   onPress={() => isAdmin && setEditingName(true)}
                   disabled={!isAdmin}
                 >
-                  <Text style={styles.infoText}>{conversation.title || 'Nhóm không tên'}</Text>
-                  {isAdmin && <Ionicons name="pencil" size={20} color="#007AFF" />}
+                  <Text style={[styles.infoText, { color: C.textPrimary }]}>{conversation.title || 'Nhóm không tên'}</Text>
+                  {isAdmin && <Ionicons name="chevron-forward" size={20} color={C.textTertiary} />}
                 </TouchableOpacity>
               )}
             </View>
 
             {/* Group Stats */}
-            <View style={styles.section}>
-              <Text style={styles.sectionLabel}>THỐNG KÊ</Text>
+            <View style={[styles.section, { backgroundColor: C.surface }]}>
+              <View style={styles.sectionHeader}>
+                <Image source={require('../assets/images/recent.png')} style={styles.sectionIcon} />
+                <Text style={[styles.sectionLabel, { color: C.textSecondary }]}>THÔNG TIN</Text>
+              </View>
               <View style={styles.statsRow}>
-                <View style={styles.statItem}>
-                  <Ionicons name="people" size={24} color="#007AFF" />
-                  <Text style={styles.statValue}>{memberCount}</Text>
-                  <Text style={styles.statLabel}>Thành viên</Text>
+                <View style={[styles.statItem, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : COLORS.gray50 }]}>
+                  <Text style={[styles.statValue, { color: C.textPrimary }]}>{memberCount}</Text>
+                  <Text style={[styles.statLabel, { color: C.textTertiary }]}>Thành viên</Text>
                 </View>
-                <View style={styles.statItem}>
-                  <Ionicons name="calendar" size={24} color="#34C759" />
-                  <Text style={styles.statValue}>
+                <View style={[styles.statItem, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : COLORS.gray50 }]}>
+                  <Text style={[styles.statValue, { color: C.textPrimary }]}>
                     {new Date(conversation.createdAt).toLocaleDateString('vi')}
                   </Text>
-                  <Text style={styles.statLabel}>Ngày tạo</Text>
+                  <Text style={[styles.statLabel, { color: C.textTertiary }]}>Ngày tạo</Text>
                 </View>
               </View>
             </View>
 
             {/* Actions */}
-            <View style={styles.section}>
-              <Text style={styles.sectionLabel}>HÀNH ĐỘNG</Text>
+            <View style={[styles.section, { backgroundColor: C.surface }]}>
+              <View style={styles.sectionHeader}>
+                <Image source={require('../assets/images/setting.png')} style={styles.sectionIcon} />
+                <Text style={[styles.sectionLabel, { color: C.textSecondary }]}>HÀNH ĐỘNG</Text>
+              </View>
               
               {!isAdmin && (
                 <TouchableOpacity style={styles.actionBtn} onPress={handleLeaveGroup}>
-                  <Ionicons name="exit-outline" size={24} color="#FF9500" />
-                  <Text style={[styles.actionText, { color: '#FF9500' }]}>Rời khỏi nhóm</Text>
+                  <Image source={require('../assets/images/unfriend.png')} style={styles.actionIcon} />
+                  <Text style={[styles.actionText, { color: COLORS.warning }]}>Rời khỏi nhóm</Text>
                 </TouchableOpacity>
               )}
 
               {isAdmin && (
                 <TouchableOpacity style={styles.actionBtn} onPress={handleDeleteGroup}>
-                  <Ionicons name="trash-outline" size={24} color="#FF3B30" />
-                  <Text style={[styles.actionText, { color: '#FF3B30' }]}>Giải tán nhóm</Text>
+                  <Ionicons name="trash-outline" size={24} color={COLORS.error} />
+                  <Text style={[styles.actionText, { color: COLORS.error }]}>Giải tán nhóm</Text>
                 </TouchableOpacity>
               )}
             </View>
+            <Spacer size="xxxl" />
           </ScrollView>
         )}
 
         {activeTab === 'members' && (
           <View style={styles.content}>
             {/* Search */}
-            <View style={styles.searchBar}>
-              <Ionicons name="search" size={18} color="#8E8E93" />
+            <View style={[styles.searchBar, { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : COLORS.gray100 }]}>
+              <Image source={require('../assets/images/search.png')} style={styles.searchIcon} />
               <TextInput
-                style={styles.searchInput}
+                style={[styles.searchInput, { color: C.textPrimary }]}
                 placeholder="Tìm thành viên..."
+                placeholderTextColor={C.textTertiary}
                 value={searchQuery}
                 onChangeText={setSearchQuery}
               />
               {searchQuery.length > 0 && (
                 <TouchableOpacity onPress={() => setSearchQuery('')}>
-                  <Ionicons name="close-circle" size={18} color="#8E8E93" />
+                  <Ionicons name="close-circle" size={18} color={C.textTertiary} />
                 </TouchableOpacity>
               )}
             </View>
@@ -505,8 +506,8 @@ export default function GroupInfoModal({ visible, conversation, onClose, onUpdat
               contentContainerStyle={styles.membersList}
               ListEmptyComponent={
                 <View style={styles.emptyState}>
-                  <Ionicons name="search-outline" size={64} color="#C7C7CC" />
-                  <Text style={styles.emptyText}>Không tìm thấy thành viên</Text>
+                  <Image source={require('../assets/images/search.png')} style={styles.emptyIcon} />
+                  <Text style={[styles.emptyText, { color: C.textTertiary }]}>Không tìm thấy thành viên</Text>
                 </View>
               }
             />
@@ -515,10 +516,32 @@ export default function GroupInfoModal({ visible, conversation, onClose, onUpdat
 
         {activeTab === 'add' && (
           <View style={styles.content}>
-            {/* Selected count */}
+            {/* Friends List */}
+            {loadingFriends ? (
+              <View style={styles.loadingCenter}>
+                <ActivityIndicator size="large" color={COLORS.primary} />
+              </View>
+            ) : (
+              <FlatList
+                data={friends}
+                keyExtractor={(item) => item.id.toString()}
+                renderItem={renderFriendItem}
+                contentContainerStyle={styles.friendsList}
+                ListEmptyComponent={
+                  <View style={styles.emptyState}>
+                    <Image source={require('../assets/images/friend.png')} style={styles.emptyIcon} />
+                    <Text style={[styles.emptyText, { color: C.textTertiary }]}>
+                      Tất cả bạn bè đã ở trong nhóm
+                    </Text>
+                  </View>
+                }
+              />
+            )}
+
+            {/* Selected count / Add button floating at bottom */}
             {selectedIds.length > 0 && (
-              <View style={styles.selectedBar}>
-                <Text style={styles.selectedText}>
+              <View style={[styles.floatingAction, { backgroundColor: C.surface }]}>
+                <Text style={[styles.selectedText, { color: C.textPrimary }]}>
                   Đã chọn {selectedIds.length} người
                 </Text>
                 <TouchableOpacity
@@ -529,32 +552,10 @@ export default function GroupInfoModal({ visible, conversation, onClose, onUpdat
                   {addingMembers ? (
                     <ActivityIndicator size="small" color="#fff" />
                   ) : (
-                    <Text style={styles.addSelectedText}>Thêm</Text>
+                    <Text style={styles.addSelectedText}>Thêm vào nhóm</Text>
                   )}
                 </TouchableOpacity>
               </View>
-            )}
-
-            {/* Friends List */}
-            {loadingFriends ? (
-              <View style={styles.loadingCenter}>
-                <ActivityIndicator size="large" color="#007AFF" />
-              </View>
-            ) : (
-              <FlatList
-                data={friends}
-                keyExtractor={(item) => item.id.toString()}
-                renderItem={renderFriendItem}
-                contentContainerStyle={styles.friendsList}
-                ListEmptyComponent={
-                  <View style={styles.emptyState}>
-                    <Ionicons name="people-outline" size={64} color="#C7C7CC" />
-                    <Text style={styles.emptyText}>
-                      Tất cả bạn bè đã ở trong nhóm
-                    </Text>
-                  </View>
-                }
-              />
             )}
           </View>
         )}
@@ -564,173 +565,128 @@ export default function GroupInfoModal({ visible, conversation, onClose, onUpdat
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F2F2F7' },
+  container: { flex: 1 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#fff',
-    paddingHorizontal: 12,
-    paddingVertical: 12,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.md,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E5EA',
   },
-  headerBtn: { minWidth: 40 },
-  headerTitle: { fontSize: 18, fontWeight: 'bold', color: '#000' },
+  headerBtn: { minWidth: 40, alignItems: 'center' },
+  headerTitle: { fontSize: FONT_SIZE.xl, fontWeight: FONT_WEIGHT.bold },
   tabs: {
     flexDirection: 'row',
-    backgroundColor: '#fff',
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E5EA',
   },
   tab: {
     flex: 1,
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
-    gap: 6,
+    paddingVertical: SPACING.md,
+    gap: 4,
     borderBottomWidth: 2,
     borderBottomColor: 'transparent',
   },
-  tabActive: { borderBottomColor: '#007AFF' },
-  tabText: { fontSize: 14, color: '#8E8E93', fontWeight: '500' },
-  tabTextActive: { color: '#007AFF', fontWeight: '600' },
+  tabActive: { borderBottomColor: COLORS.primary },
+  tabIcon: { width: 24, height: 24 },
+  tabText: { fontSize: FONT_SIZE.xs, fontWeight: FONT_WEIGHT.medium },
+  tabTextActive: { color: COLORS.primary, fontWeight: FONT_WEIGHT.bold },
   content: { flex: 1 },
   
   // Info Tab
   groupAvatarSection: {
     alignItems: 'center',
-    paddingVertical: 32,
-    backgroundColor: '#fff',
-    marginBottom: 16,
+    paddingVertical: SPACING.xxxl,
+    marginBottom: SPACING.md,
   },
   groupAvatarWrap: {
     width: 100,
     height: 100,
-    borderRadius: 50,
-    backgroundColor: '#007AFF',
+    borderRadius: RADIUS.round,
     justifyContent: 'center',
     alignItems: 'center',
     overflow: 'hidden',
   },
-  groupAvatar: { width: 100, height: 100 },
+  groupAvatar: { width: 64, height: 64 },
+  memberCountText: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.medium },
   section: {
-    backgroundColor: '#fff',
-    marginBottom: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    marginBottom: SPACING.md,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.lg,
   },
-  sectionLabel: {
-    fontSize: 13,
-    color: '#8E8E93',
-    fontWeight: '600',
-    marginBottom: 12,
-  },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: SPACING.md },
+  sectionIcon: { width: 18, height: 18, opacity: 0.7 },
+  sectionLabel: { fontSize: FONT_SIZE.xs, fontWeight: FONT_WEIGHT.bold },
   infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 8,
+    paddingVertical: SPACING.xs,
   },
-  infoText: { fontSize: 17, color: '#000', flex: 1 },
-  editNameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
+  infoText: { fontSize: FONT_SIZE.lg, fontWeight: FONT_WEIGHT.medium, flex: 1 },
+  editNameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   editNameInput: {
     flex: 1,
-    fontSize: 17,
-    color: '#000',
+    fontSize: FONT_SIZE.lg,
     borderWidth: 1,
-    borderColor: '#E5E5EA',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    borderRadius: RADIUS.md,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
   },
   saveNameBtn: { padding: 4 },
   cancelNameBtn: { padding: 4 },
-  statsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingVertical: 8,
-  },
-  statItem: { alignItems: 'center', gap: 4 },
-  statValue: { fontSize: 18, fontWeight: 'bold', color: '#000', marginTop: 4 },
-  statLabel: { fontSize: 13, color: '#8E8E93' },
-  actionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 12,
-  },
-  actionText: { fontSize: 17, fontWeight: '500' },
+  statsRow: { flexDirection: 'row', gap: SPACING.md },
+  statItem: { flex: 1, alignItems: 'center', padding: SPACING.md, borderRadius: RADIUS.md, gap: 4 },
+  statValue: { fontSize: FONT_SIZE.lg, fontWeight: FONT_WEIGHT.bold },
+  statLabel: { fontSize: FONT_SIZE.xs },
+  actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: SPACING.md },
+  actionIcon: { width: 24, height: 24 },
+  actionIconSm: { width: 20, height: 20 },
+  actionText: { fontSize: FONT_SIZE.md, fontWeight: FONT_WEIGHT.semibold },
 
   // Members Tab
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
-    marginHorizontal: 16,
-    marginVertical: 12,
-    paddingHorizontal: 12,
-    borderRadius: 10,
-    height: 40,
+    marginHorizontal: SPACING.lg,
+    marginVertical: SPACING.md,
+    paddingHorizontal: SPACING.md,
+    borderRadius: RADIUS.lg,
+    height: 44,
     gap: 8,
   },
-  searchInput: { flex: 1, fontSize: 16, color: '#000' },
+  searchIcon: { width: 20, height: 20, opacity: 0.5 },
+  searchInput: { flex: 1, fontSize: FONT_SIZE.md },
   membersList: { paddingBottom: 16 },
   memberItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E5E5EA',
   },
-  avatarWrap: { marginRight: 12 },
-  avatar: { width: 48, height: 48, borderRadius: 24 },
+  avatarWrap: { marginRight: SPACING.md },
+  avatar: { width: 52, height: 52, borderRadius: 26 },
   memberInfo: { flex: 1 },
-  memberNameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 2,
-  },
-  memberName: { fontSize: 16, fontWeight: '600', color: '#000' },
-  youBadge: { fontSize: 14, color: '#8E8E93', fontWeight: '400' },
+  memberNameRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 2 },
+  memberName: { fontSize: FONT_SIZE.md, fontWeight: FONT_WEIGHT.bold },
+  youBadge: { fontSize: FONT_SIZE.xs, fontWeight: FONT_WEIGHT.regular },
   adminBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#E3F2FD',
+    backgroundColor: COLORS.primary + '15',
     paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: 12,
+    borderRadius: RADIUS.round,
   },
-  adminBadgeText: { fontSize: 11, color: '#007AFF', fontWeight: '600' },
-  memberUsername: { fontSize: 14, color: '#8E8E93' },
+  adminBadgeText: { fontSize: 10, color: COLORS.primary, fontWeight: FONT_WEIGHT.bold },
+  memberUsername: { fontSize: FONT_SIZE.sm },
   removeBtn: { padding: 4 },
 
   // Add Tab
-  selectedBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#007AFF',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    marginBottom: 8,
-  },
-  selectedText: { fontSize: 16, color: '#fff', fontWeight: '600' },
-  addSelectedBtn: {
-    backgroundColor: '#fff',
-    paddingHorizontal: 20,
-    paddingVertical: 8,
-    borderRadius: 20,
-    minWidth: 80,
     alignItems: 'center',
   },
   addSelectedText: { fontSize: 16, color: '#007AFF', fontWeight: '600' },

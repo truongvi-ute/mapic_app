@@ -21,6 +21,7 @@ import chatService, { ConversationDto } from '../api/chatService';
 import { useChatStore } from '../store/useChatStore';
 import { buildMediaUrl, buildAvatarUrl, getApiUrl } from '../config/api';
 import CreateGroupModal from '../components/CreateGroupModal';
+import AddMemberModal from '../components/AddMemberModal';
 
 type Tab = 'direct' | 'group';
 
@@ -60,6 +61,7 @@ export default function ChatsListScreen({ onBack, onOpenChat, refreshTrigger, in
   const [renameModal, setRenameModal] = useState<{ conv: ConversationDto } | null>(null);
   const [renameText, setRenameText] = useState('');
   const [renaming, setRenaming] = useState(false);
+  const [addMemberModal, setAddMemberModal] = useState<{ conv: ConversationDto } | null>(null);
 
   useEffect(() => {
     loadData();
@@ -145,6 +147,10 @@ export default function ChatsListScreen({ onBack, onOpenChat, refreshTrigger, in
           setRenameText(conv.title || '');
           setRenameModal({ conv });
         },
+      });
+      options.push({
+        text: 'Thêm thành viên',
+        onPress: () => setAddMemberModal({ conv }),
       });
       options.push({
         text: 'Xóa thành viên',
@@ -438,6 +444,19 @@ export default function ChatsListScreen({ onBack, onOpenChat, refreshTrigger, in
           onOpenChat(conv, 'group');
         }}
       />
+
+      {addMemberModal && (
+        <AddMemberModal
+          visible={!!addMemberModal}
+          conversation={addMemberModal.conv}
+          onClose={() => setAddMemberModal(null)}
+          onSuccess={(updated) => {
+            setConversations(conversations.map((c) => (c.id === updated.id ? updated : c)));
+            setAddMemberModal(null);
+            showAlert('Thành công', 'Đã thêm thành viên mới');
+          }}
+        />
+      )}
 
       {/* Rename group modal */}
       <Modal
