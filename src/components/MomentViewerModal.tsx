@@ -36,6 +36,19 @@ export default function MomentViewerModal({
   const flatListRef = useRef<FlatList>(null);
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [mediaIndex, setMediaIndex] = useState(0);
+  
+  // Helper function to get emoji from reaction type
+  const getEmojiFromType = (type?: string) => {
+    switch (type) {
+      case 'LIKE': return '👍';
+      case 'HEART': return '❤️';
+      case 'HAHA': return '😂';
+      case 'WOW': return '😮';
+      case 'SAD': return '😢';
+      case 'ANGRY': return '😠';
+      default: return null;
+    }
+  };
 
   // Scroll to correct item when modal opens
   const handleModalShow = useCallback(() => {
@@ -161,7 +174,11 @@ export default function MomentViewerModal({
           {/* Stats row */}
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
-              <Ionicons name="heart" size={18} color="#EC4899" />
+              {(item as any).userReacted && (item as any).userReactionType ? (
+                <Text style={styles.reactionEmoji}>{getEmojiFromType((item as any).userReactionType)}</Text>
+              ) : (
+                <Ionicons name="heart" size={18} color="#EC4899" />
+              )}
               <Text style={styles.statText}>{(item as any).reactionCount || 0}</Text>
             </View>
             <View style={styles.statItem}>
@@ -352,6 +369,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#FFF',
+  },
+  reactionEmoji: {
+    fontSize: 18,
   },
 
   // Close button

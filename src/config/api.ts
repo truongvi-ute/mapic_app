@@ -7,7 +7,7 @@ import Constants from 'expo-constants';
 export const getApiUrl = (): string => {
   const apiUrl = Constants.expoConfig?.extra?.apiUrl || 
                  process.env.EXPO_PUBLIC_API_URL || 
-                 'http://192.168.1.10:8080/api';
+                 'http://192.168.1.6:8080/api';
   
   console.log('[API Config] Using API URL:', apiUrl);
   return apiUrl;

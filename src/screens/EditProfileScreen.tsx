@@ -263,7 +263,16 @@ export default function EditProfileScreen({ onBack, onSaveSuccess }: EditProfile
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <KeyboardAvoidingView 
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      >
+        <ScrollView 
+          style={styles.content} 
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
         {/* Name Field */}
         <View style={styles.field}>
           <Text style={[styles.label, { color: C.textPrimary }]}>Tên hiển thị <Text style={styles.required}>*</Text></Text>
@@ -421,6 +430,7 @@ export default function EditProfileScreen({ onBack, onSaveSuccess }: EditProfile
 
         <Spacer size="xxxl" />
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeContainer>
   );
 }

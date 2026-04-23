@@ -62,10 +62,10 @@ export default function MainScreenWrapper() {
   const [currentChatTab, setCurrentChatTab] = useState<'direct' | 'group'>('direct');
   const [sharedMomentId, setSharedMomentId] = useState<number | null>(null);
   const [sharedAlbumId, setSharedAlbumId] = useState<number | null>(null);
-  
+
   // Shared moment modal state (giống AlbumsScreen)
   const [selectedMoment, setSelectedMoment] = useState<any | null>(null);
-  
+
   // Comment modal state
   const [commentModalVisible, setCommentModalVisible] = useState(false);
   const [selectedMomentForComment, setSelectedMomentForComment] = useState<number | null>(null);
@@ -75,12 +75,12 @@ export default function MainScreenWrapper() {
   const { connect, disconnect } = useChatStore();
   const { connect: connectMapWS, disconnect: disconnectMapWS, subscribe } = useWebSocketStore();
   const { addNotification, fetchUnreadCount } = useNotificationStore();
-  const { 
-    activeAlert, 
-    receivedAlerts, 
-    fetchActiveAlerts, 
-    addReceivedAlert, 
-    markAlertAsViewed 
+  const {
+    activeAlert,
+    receivedAlerts,
+    fetchActiveAlerts,
+    addReceivedAlert,
+    markAlertAsViewed
   } = useSOSStore();
   const { showAlert } = useAlert();
 
@@ -95,7 +95,7 @@ export default function MainScreenWrapper() {
             const notification = JSON.parse(msg.body);
             console.log('[WS Notification] Received:', notification);
             addNotification(notification);
-            
+
             // Handle SOS specific notification
             if (notification.type === 'SOS_ALERT') {
               console.log('[SOS] Emergency alert received via WS!');
@@ -166,10 +166,10 @@ export default function MainScreenWrapper() {
           // If we have a full conversation object, use it
           if (screenParams.conversation) {
             setChatParams(screenParams.conversation);
-          } 
+          }
           // If we only have userId (from notification), create a minimal conversation
           else if (screenParams.userId) {
-            setChatParams({ 
+            setChatParams({
               id: 0, // Will be created when first message is sent
               isGroup: false,
               participants: [
@@ -253,7 +253,7 @@ export default function MainScreenWrapper() {
   // Mở moment từ chat → mở modal với MomentCard (giống AlbumsScreen)
   const onPressMoment = useCallback(async (momentId: number) => {
     if (!token) return;
-    
+
     try {
       // Fetch moment data từ API
       const moment = await momentService.getMomentById(momentId, token);
@@ -328,13 +328,13 @@ export default function MainScreenWrapper() {
   const renderScreen = () => {
     switch (activeScreen) {
       case 'home':
-        return <HomeScreen 
+        return <HomeScreen
           refreshTrigger={homeNeedsRefresh}
           onOpenMap={handleOpenMap}
           onPressProfile={handleOpenProfile}
         />;
       case 'explore':
-        return <ExploreScreen 
+        return <ExploreScreen
           refreshTrigger={exploreNeedsRefresh}
           highlightMomentId={sharedMomentId ?? undefined}
           onOpenMap={handleOpenMap}
@@ -351,7 +351,7 @@ export default function MainScreenWrapper() {
           onPressProfile={handleOpenProfile}
         />;
       case 'create':
-        return <CreateMomentScreen 
+        return <CreateMomentScreen
           onSuccess={() => {
             setHomeNeedsRefresh(prev => !prev);
             setExploreNeedsRefresh(prev => !prev);
@@ -360,7 +360,7 @@ export default function MainScreenWrapper() {
           }}
         />;
       case 'friends':
-        return <FriendsScreen 
+        return <FriendsScreen
           onPressProfile={handleOpenProfile}
           onOpenChat={onOpenChat}
         />;
@@ -380,7 +380,7 @@ export default function MainScreenWrapper() {
         const friendIdFromConv = chatParams?.participants?.find(
           (p: any) => p.userId !== currentUser?.id
         )?.userId;
-        
+
         return (
           <ChatRoomScreen
             conversation={chatParams}
@@ -392,7 +392,7 @@ export default function MainScreenWrapper() {
         );
       case 'profile':
         return (
-          <ProfileScreen 
+          <ProfileScreen
             onNavigateToSettings={handleNavigateToSettings}
             refreshTrigger={profileNeedsRefresh}
             onOpenMap={handleOpenMap}
@@ -408,7 +408,7 @@ export default function MainScreenWrapper() {
         );
       case 'settings':
         return (
-          <SettingsScreen 
+          <SettingsScreen
             onBack={handleBackToProfile}
             onNavigateToEditProfile={handleNavigateToEditProfile}
             onNavigateToVerifyOTP={(email, type) => {
@@ -449,7 +449,7 @@ export default function MainScreenWrapper() {
           return null;
         }
         return (
-          <UserProfileScreen 
+          <UserProfileScreen
             userId={userProfileParams.userId}
             onBack={handleBackToHome}
             onOpenChat={onOpenChat}
@@ -457,7 +457,7 @@ export default function MainScreenWrapper() {
           />
         );
       default:
-        return <HomeScreen 
+        return <HomeScreen
           refreshTrigger={homeNeedsRefresh}
           onOpenMap={handleOpenMap}
           onPressProfile={handleOpenProfile}
@@ -481,9 +481,9 @@ export default function MainScreenWrapper() {
       >
         <View style={styles.momentModalOverlay}>
           {/* Close button */}
-          <TouchableOpacity 
-            style={styles.modalCloseBtn} 
-            onPress={() => setSelectedMoment(null)} 
+          <TouchableOpacity
+            style={styles.modalCloseBtn}
+            onPress={() => setSelectedMoment(null)}
             activeOpacity={0.8}
           >
             <Ionicons name="close" size={22} color="#FFF" />
@@ -548,7 +548,7 @@ export default function MainScreenWrapper() {
 
       {/* SOS Received Notifications (Floating alerts) */}
       {receivedAlerts.map(alert => (
-        <SOSReceivedAlert 
+        <SOSReceivedAlert
           key={`sos-alert-${alert.id}`}
           alert={alert}
           onViewLocation={() => {

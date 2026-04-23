@@ -34,6 +34,8 @@ interface WebSocketState {
   setFriends: (friends: Map<number, MapFriend>) => void;
   localUris: Map<string, string>;
   setLocalUris: (u: Map<string, string> | ((prev: Map<string, string>) => Map<string, string>)) => void;
+  hasPerformedManualZoom: boolean; // Track if user has manually zoomed
+  setHasPerformedManualZoom: (v: boolean) => void;
 }
 
 export const useWebSocketStore = create<WebSocketState>((set, get) => ({
@@ -55,6 +57,8 @@ export const useWebSocketStore = create<WebSocketState>((set, get) => ({
   setLocalUris: (u) => set((state) => ({
     localUris: typeof u === 'function' ? u(state.localUris) : u
   })),
+  hasPerformedManualZoom: false,
+  setHasPerformedManualZoom: (v) => set({ hasPerformedManualZoom: v }),
 
   connect: (token: string, onConnectSuccess) => {
     const existing = get().client;

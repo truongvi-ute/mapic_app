@@ -37,10 +37,33 @@ export default function MiniMomentCard({
   const [isLiking, setIsLiking] = useState(false);
   const [showLottie, setShowLottie] = useState(false);
   const [cardWidth, setCardWidth] = useState(0);
+  const [userReactionType, setUserReactionType] = useState<string | undefined>(
+    (moment as any).userReactionType
+  );
 
   // Animation values
   const scaleAnim = useState(new Animated.Value(1))[0];
   const lottieRef = useRef<LottieView>(null);
+  
+  // Sync state with props when moment changes
+  React.useEffect(() => {
+    setLiked(moment.userReacted || false);
+    setLikeCount(moment.reactionCount || 0);
+    setUserReactionType((moment as any).userReactionType);
+  }, [moment.id, moment.userReacted, moment.reactionCount, (moment as any).userReactionType]);
+  
+  // Helper function to get emoji from reaction type
+  const getEmojiFromType = (type?: string) => {
+    switch (type) {
+      case 'LIKE': return '👍';
+      case 'HEART': return '❤️';
+      case 'HAHA': return '😂';
+      case 'WOW': return '😮';
+      case 'SAD': return '😢';
+      case 'ANGRY': return '😠';
+      default: return null;
+    }
+  };
 
   const handleLike = async () => {
     if (isLiking || !token) {
@@ -150,11 +173,15 @@ export default function MiniMomentCard({
               disabled={isLiking}
             >
               <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
-                <Ionicons
-                  name={liked ? 'heart' : 'heart-outline'}
-                  size={20}
-                  color={liked ? '#FF3B30' : '#FFFFFF'}
-                />
+                {liked && userReactionType ? (
+                  <Text style={styles.reactionEmoji}>{getEmojiFromType(userReactionType)}</Text>
+                ) : (
+                  <Ionicons
+                    name="heart-outline"
+                    size={20}
+                    color="#FFFFFF"
+                  />
+                )}
               </Animated.View>
               {likeCount > 0 && (
                 <Text style={styles.reactionCountText}>{likeCount}</Text>
@@ -266,6 +293,9 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 12,
     fontWeight: '600',
+  },
+  reactionEmoji: {
+    fontSize: 20,
   },
   
   lottieAnimation: {

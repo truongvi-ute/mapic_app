@@ -293,9 +293,10 @@ export default function MomentCard({
         setLiked(wasLiked);
         setLikeCount(previousCount);
         setUserReactionType(previousType);
+      } else {
+        // Notify parent on success (if callback provided)
+        onPressLike?.();
       }
-      
-      onPressLike?.();
     } catch (error) {
       // Revert on error
       setLiked(wasLiked);
@@ -311,14 +312,7 @@ export default function MomentCard({
   const handleLike = () => {
     console.log('[MomentCard] handleLike called', { hasOnPressLike: !!onPressLike, isLiking });
     
-    // Nếu có onPressLike callback, để parent component xử lý
-    if (onPressLike) {
-      console.log('[MomentCard] Calling parent onPressLike');
-      onPressLike();
-      return;
-    }
-    
-    // Nếu không có callback, tự xử lý như bình thường
+    // Luôn xử lý reaction internally, không để parent override
     console.log('[MomentCard] Handling like internally');
     handleReact('HEART');
   };
@@ -444,11 +438,15 @@ export default function MomentCard({
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
                 <Animated.View style={{ transform: [{ scale: scaleAnim }] }} pointerEvents="none">
-                  <Ionicons
-                    name={liked ? "heart" : "heart-outline"}
-                    size={28}
-                    color={liked ? "#FF3B30" : "#FFFFFF"}
-                  />
+                  {liked && userReactionType ? (
+                    <Text style={styles.reactionEmoji}>{getEmojiFromType(userReactionType)}</Text>
+                  ) : (
+                    <Ionicons
+                      name="heart-outline"
+                      size={28}
+                      color="#FFFFFF"
+                    />
+                  )}
                 </Animated.View>
               </TouchableOpacity>
 

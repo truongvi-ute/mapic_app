@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Platform,
   Modal,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -347,7 +348,16 @@ export default function CreateMomentScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <KeyboardAvoidingView 
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      >
+        <ScrollView 
+          style={styles.content} 
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
         {/* Location Info - Quick Mode */}
         {activeTab === 'quick' && (
           <View style={styles.locationCard}>
@@ -534,6 +544,7 @@ export default function CreateMomentScreen() {
 
         <Spacer size="xxxl" />
       </ScrollView>
+      </KeyboardAvoidingView>
 
       {/* Category Modal */}
       <Modal

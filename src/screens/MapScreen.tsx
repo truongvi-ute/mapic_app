@@ -42,14 +42,14 @@ interface OwnAvatarFriend extends Omit<MapFriend, 'userId'> {
 // Import vibrant map style
 const vibrantMapStyle = require('../../assets/map-style-dark.json');
 
-try { MapboxGL.setAccessToken(null); } catch (_) {}
+try { MapboxGL.setAccessToken(null); } catch (_) { }
 
 // Detect if MapLibreGL native module is available (not available in Expo Go)
 let isMapNativeAvailable = false;
 try {
   const { NativeModules } = require('react-native');
   isMapNativeAvailable = !!(NativeModules.MLRNModule || NativeModules.RNMBXModule || NativeModules.MapboxGL);
-} catch (_) {}
+} catch (_) { }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helper: resolve a correct absolute image URL from any avatarUrl format
@@ -57,9 +57,9 @@ try {
 // ─────────────────────────────────────────────────────────────────────────────
 function buildAvatarUri(avatarUrl: string | null | undefined, timestamp?: number): string | null {
   if (!avatarUrl) return null;
-  
+
   let url: string;
-  
+
   // Already a proper absolute URL (Unsplash, external, etc.)
   if (avatarUrl.startsWith('http://') || avatarUrl.startsWith('https://')) {
     url = avatarUrl;
@@ -80,12 +80,12 @@ function buildAvatarUri(avatarUrl: string | null | undefined, timestamp?: number
   else {
     url = `${UPLOADS_BASE_URL}/uploads/avatars/${avatarUrl}`;
   }
-  
+
   // Add timestamp for cache busting
   if (timestamp) {
     url = url.includes('?') ? `${url}&t=${timestamp}` : `${url}?t=${timestamp}`;
   }
-  
+
   return url;
 }
 
@@ -99,23 +99,23 @@ async function downloadToCache(remoteUri: string, cacheKey: string): Promise<str
   try {
     const localPath = `${FileSystem.cacheDirectory}mapic_avatar_${cacheKey}.jpg`;
     const info = await FileSystem.getInfoAsync(localPath);
-    
+
     // Check if cache is fresh (less than 5 minutes old) and has valid size
     if (info.exists && (info as any).size > 1024) {
       const fileAge = Date.now() - (info.modificationTime || 0) * 1000;
       const FIVE_MINUTES = 5 * 60 * 1000;
-      
+
       // If cache is fresh, use it
       if (fileAge < FIVE_MINUTES) {
         console.log(`[Cache] Using cached avatar for ${cacheKey}, size: ${(info as any).size} bytes`);
         return localPath;
       }
-      
+
       // Cache is stale, delete it
       console.log(`[Cache] Avatar cache expired for ${cacheKey}, redownloading...`);
       await FileSystem.deleteAsync(localPath, { idempotent: true });
     }
-    
+
     // Delete if exists but too small (broken download)
     if (info.exists) {
       console.log(`[Cache] Deleting invalid cache for ${cacheKey}, size: ${(info as any).size || 0} bytes`);
@@ -124,13 +124,13 @@ async function downloadToCache(remoteUri: string, cacheKey: string): Promise<str
 
     console.log(`[Cache] Downloading avatar for ${cacheKey} from: ${remoteUri}`);
     const result = await FileSystem.downloadAsync(remoteUri, localPath);
-    
+
     if (result.status === 200) {
       // Verify downloaded file
       const verifyInfo = await FileSystem.getInfoAsync(result.uri);
       const fileSize = (verifyInfo as any).size || 0;
       console.log(`[Cache] Downloaded avatar for ${cacheKey}, size: ${fileSize} bytes`);
-      
+
       if (fileSize > 1024) {
         return result.uri;
       } else {
@@ -140,7 +140,7 @@ async function downloadToCache(remoteUri: string, cacheKey: string): Promise<str
         return null; // Return null to indicate failure
       }
     }
-    
+
     console.error(`[Cache] Download failed with status: ${result.status}`);
     return null; // Return null to indicate failure
   } catch (error) {
@@ -160,19 +160,19 @@ const FriendPin = React.memo(({
   isSelected: boolean;
 }) => {
   const isOwn = friend.userId === 'me' || String(friend.userId) === 'me';
-  
+
   return (
-    <View 
+    <View
       style={styles.pinWrapper}
       collapsable={false}
     >
-      <View 
+      <View
         style={styles.avatarContainer}
         collapsable={false}
       >
         {friend.isOnline && (
           <View style={[
-            styles.onlineRing, 
+            styles.onlineRing,
             isSelected && styles.onlineRingSelected,
             isOwn && { borderColor: '#4361EE', borderWidth: 3 }
           ]} />
@@ -187,15 +187,18 @@ const FriendPin = React.memo(({
           collapsable={false}
         >
           {localUri && localUri !== 'null' ? (
-            <Image 
-              source={{ uri: localUri }} 
-              style={styles.avatarImg} 
-              resizeMode="cover"
-            />
+            <View style={{ width: 50, height: 50, borderRadius: 25, overflow: 'hidden' }}>
+              <Image
+                key={localUri}
+                source={{ uri: localUri }}
+                style={{ width: '100%', height: '100%' }}
+                resizeMode="cover"
+              />
+            </View>
           ) : (
-            <DefaultAvatar 
+            <DefaultAvatar
               name={friend.name}
-              size={40}
+              size={50}
               backgroundColor={isOwn ? '#4361EE' : '#6B7280'}
               textColor="#FFFFFF"
             />
@@ -250,7 +253,7 @@ const DetailCard = React.memo(({ friend, localUri, onClose }: { friend: MapFrien
             {localUri ? (
               <Image source={{ uri: localUri }} style={{ width: 60, height: 60, borderRadius: 30 }} resizeMode="cover" />
             ) : (
-              <DefaultAvatar 
+              <DefaultAvatar
                 name={friend.name}
                 size={60}
                 backgroundColor="#6B7280"
@@ -302,7 +305,7 @@ export default function MapScreen({ focusLocation, onNavigateToNotifications }: 
   const [sharingLoading, setSharingLoading] = useState(false);
   const [showPanel, setShowPanel] = useState(false);
   const lastMarkerPress = useRef<number>(0);
-  
+
   // ── Optimized Selectors ──
   const lastCameraCenter = useWebSocketStore(s => s.lastCameraCenter);
   const setLastCameraCenter = useWebSocketStore(s => s.setLastCameraCenter);
@@ -316,6 +319,8 @@ export default function MapScreen({ focusLocation, onNavigateToNotifications }: 
   const setMapInitialFocused = useWebSocketStore(s => s.setMapInitialFocused);
   const isConnected = useWebSocketStore(s => s.isConnected);
   const subscribe = useWebSocketStore(s => s.subscribe);
+  const hasPerformedManualZoom = useWebSocketStore(s => s.hasPerformedManualZoom);
+  const setHasPerformedManualZoom = useWebSocketStore(s => s.setHasPerformedManualZoom);
 
   // ── SOS State ──
   const activeAlert = useSOSStore(s => s.activeAlert);
@@ -325,8 +330,12 @@ export default function MapScreen({ focusLocation, onNavigateToNotifications }: 
   const cameraRef = useRef<any>(null);
   const previousSelected = useRef<number | null>(null);
   const isMapMoving = useRef<boolean>(false);
-  const lastMoveEndTime = useRef<number>(0); 
+  const lastMoveEndTime = useRef<number>(0);
   const lastLockUpdateTime = useRef<number>(0);
+  const lastMyLocationPress = useRef<number>(0); // Prevent spam clicking My Location button
+  const hasInitialized = useRef<boolean>(false); // Prevent re-initialization on remount
+  const userHasInteracted = useRef<boolean>(false); // Track if user has interacted with map
+  const hasPerformedInitialZoom = useRef<boolean>(false); // Track if initial zoom has been performed
 
   // ── Manual Camera Focus Handler ──────────────────────────────────────────────
   const focusOnFriend = useCallback((friend: MapFriend) => {
@@ -337,13 +346,15 @@ export default function MapScreen({ focusLocation, onNavigateToNotifications }: 
     }
 
     if (cameraRef.current && !isMapMoving.current) {
-      console.log(`[Camera] Flying to friend ${friend.name}`);
+      console.log(`[Camera] Flying to friend ${friend.name} (User selected marker)`);
       cameraRef.current.setCamera({
         centerCoordinate: [friend.longitude, friend.latitude],
         zoomLevel: 15,
         animationDuration: 600,
         animationMode: 'flyTo',
       });
+    } else {
+      console.log(`[Camera] Cannot fly to friend - map is moving or no camera ref`);
     }
   }, []);
 
@@ -357,13 +368,13 @@ export default function MapScreen({ focusLocation, onNavigateToNotifications }: 
     // Include profileUpdatedAt timestamp in cache key to invalidate when avatar changes
     const timestamp = profileUpdatedAt ? new Date(profileUpdatedAt).getTime() : 0;
     const fullCacheKey = timestamp > 0 ? `${cacheKey}_${timestamp}` : cacheKey;
-    
+
     // Check if already cached with this timestamp
     if (localUris.has(fullCacheKey)) {
       console.log(`[Cache] Avatar already cached for ${cacheKey} with timestamp ${timestamp}`);
       return;
     }
-    
+
     const url = buildAvatarUri(remoteUri);
     if (!url) {
       // No avatar URL, but still create cache entry with null to indicate "processed"
@@ -381,7 +392,7 @@ export default function MapScreen({ focusLocation, onNavigateToNotifications }: 
       });
       return;
     }
-    
+
     const local = await downloadToCache(url, fullCacheKey);
     if (local) {
       setLocalUris(prev => {
@@ -403,7 +414,7 @@ export default function MapScreen({ focusLocation, onNavigateToNotifications }: 
     const cacheKey = String(userId);
     const timestamp = profileUpdatedAt ? new Date(profileUpdatedAt).getTime() : 0;
     const fullCacheKey = timestamp > 0 ? `${cacheKey}_${timestamp}` : cacheKey;
-    
+
     // Return cached URI, or null if not cached or explicitly null
     return localUris.get(fullCacheKey) || null;
   }, [localUris]);
@@ -413,7 +424,7 @@ export default function MapScreen({ focusLocation, onNavigateToNotifications }: 
     const cacheKey = String(userId);
     const timestamp = profileUpdatedAt ? new Date(profileUpdatedAt).getTime() : 0;
     const fullCacheKey = timestamp > 0 ? `${cacheKey}_${timestamp}` : cacheKey;
-    
+
     return localUris.has(fullCacheKey);
   }, [localUris]);
 
@@ -447,6 +458,14 @@ export default function MapScreen({ focusLocation, onNavigateToNotifications }: 
 
   // ── Init: GPS + profile avatar + friends — all pre-loaded before rendering ─
   useEffect(() => {
+    // Prevent re-initialization if already initialized
+    if (hasInitialized.current) {
+      console.log('[Map] Skipping re-initialization (already initialized)');
+      return;
+    }
+
+    hasInitialized.current = true;
+
     (async () => {
       console.log('[Map] Initializing MapScreen components...');
 
@@ -461,16 +480,11 @@ export default function MapScreen({ focusLocation, onNavigateToNotifications }: 
               console.log('[Map] GPS success:', loc.coords.latitude, loc.coords.longitude);
               const pos = [loc.coords.longitude, loc.coords.latitude];
               setCurrentLocation(pos);
-              
-              // One-time flyTo user if not focused by props
-              if (!focusLocation && cameraRef.current && !hasMapInitialFocused) {
-                console.log('[Map] Auto-focusing on User (Initial Global)');
+
+              // Mark as initialized but DON'T auto-zoom (user can manually zoom using My Location button)
+              if (!focusLocation && !hasMapInitialFocused) {
+                console.log('[Map] GPS initialized, but NOT auto-zooming (user controls camera)');
                 setMapInitialFocused(true);
-                cameraRef.current.setCamera({
-                  centerCoordinate: pos,
-                  zoomLevel: 14,
-                  animationDuration: 800,
-                });
               }
             } else {
               console.warn('[Map] GPS permission denied, using fallback (Hanoi)');
@@ -510,21 +524,35 @@ export default function MapScreen({ focusLocation, onNavigateToNotifications }: 
       console.log('[Map] MapScreen Ready.');
     })();
 
-    mapService.getSharingStatus().then(v => setIsSharingLocation(v)).catch(() => {});
+    mapService.getSharingStatus().then(v => setIsSharingLocation(v)).catch(() => { });
 
     return () => {
       console.log('[Map] Unmounting MapScreen...');
+      // DON'T reset initialization flag on unmount - keep it persistent
+      // hasInitialized.current = false;
       // Clear avatar cache to force fresh download next time
       setLocalUris(new Map());
     };
-  }, [loadFriends]);
+  }, []); // CRITICAL: Empty deps to prevent re-init on every state change
 
   // ── Camera follows focusLocation prop (First time only) ──────────────────
   useEffect(() => {
-    if (focusLocation && !hasMapInitialFocused) {
+    if (focusLocation && !hasMapInitialFocused && cameraRef.current) {
       console.log('[Map] Focusing on Prop location (First time Global)');
       setMapInitialFocused(true);
       setCurrentLocation([focusLocation.longitude, focusLocation.latitude]);
+      // Only zoom if explicitly provided via props (e.g., from notification)
+      cameraRef.current.setCamera({
+        centerCoordinate: [focusLocation.longitude, focusLocation.latitude],
+        zoomLevel: 15,
+        animationDuration: 800,
+      });
+    } else {
+      console.log('[Map] Skipping focusLocation zoom:', {
+        hasFocusLocation: !!focusLocation,
+        hasMapInitialFocused,
+        hasCameraRef: !!cameraRef.current
+      });
     }
   }, [focusLocation, hasMapInitialFocused]);
 
@@ -624,10 +652,10 @@ export default function MapScreen({ focusLocation, onNavigateToNotifications }: 
     zoomLevel: 13,
   }), [initialMapLocation]);
 
-  const selectedFriend = useMemo(() => 
+  const selectedFriend = useMemo(() =>
     selectedId ? friends.get(selectedId) ?? null : null
-  , [selectedId, friends]);
-  
+    , [selectedId, friends]);
+
   const friendList = useMemo(() => Array.from(friends.values()), [friends]);
   const onlineCount = useMemo(() => friendList.filter(f => f.isOnline).length, [friendList]);
 
@@ -671,13 +699,13 @@ export default function MapScreen({ focusLocation, onNavigateToNotifications }: 
             console.log(`[MapPress] Valid tap on map. Clearing selection.`);
             isMapMoving.current = false;
             if (selectedId) setSelectedId(null);
-          } catch (_) {}
+          } catch (_) { }
         }}
         onRegionWillChange={() => {
           try {
             isMapMoving.current = true;
             lastLockUpdateTime.current = Date.now();
-          } catch (_) {}
+          } catch (_) { }
         }}
         onRegionDidChange={(feature) => {
           try {
@@ -688,7 +716,7 @@ export default function MapScreen({ focusLocation, onNavigateToNotifications }: 
               isMapMoving.current = false;
               lastMoveEndTime.current = Date.now();
             }, 300);
-          } catch (_) {}
+          } catch (_) { }
         }}
       >
         <MapboxGL.Camera
@@ -707,21 +735,21 @@ export default function MapScreen({ focusLocation, onNavigateToNotifications }: 
             anchor={{ x: 0.5, y: 0.5 }}
             allowOverlap={true}
           >
-            <TouchableOpacity 
+            <TouchableOpacity
               activeOpacity={0.7}
               delayPressIn={0}
               hitSlop={{ top: 25, bottom: 25, left: 25, right: 25 }}
               collapsable={false} // CRITICAL: Prevent Android view flattening
-              onLayout={() => {}} // CRITICAL: Force Android to render properly
+              onLayout={() => { }} // CRITICAL: Force Android to render properly
               onPressIn={() => {
-                lastMarkerPress.current = Date.now(); 
+                lastMarkerPress.current = Date.now();
               }}
               onPress={() => {
                 const duration = Date.now() - lastMarkerPress.current;
-                
+
                 if (duration > 400) {
-                   console.log(`[Touch] Ignored long-press/pan on friend ${friend.userId} (${duration}ms)`);
-                   return;
+                  console.log(`[Touch] Ignored long-press/pan on friend ${friend.userId} (${duration}ms)`);
+                  return;
                 }
 
                 if (isMapMoving.current) {
@@ -737,7 +765,7 @@ export default function MapScreen({ focusLocation, onNavigateToNotifications }: 
                     return;
                   }
                 }
-                
+
                 console.log(`[Touch] Tapped on friend ${friend.userId} (Valid fast tap: ${duration}ms). Setting selectedId...`);
                 setSelectedId(friend.userId);
                 focusOnFriend(friend);
@@ -761,9 +789,9 @@ export default function MapScreen({ focusLocation, onNavigateToNotifications }: 
             anchor={{ x: 0.5, y: 0.5 }}
             allowOverlap={true}
           >
-            <View 
+            <View
               collapsable={false} // CRITICAL: Prevent Android view flattening
-              onLayout={() => {}} // CRITICAL: Force Android to render properly
+              onLayout={() => { }} // CRITICAL: Force Android to render properly
             >
               <FriendPin
                 friend={{
@@ -792,9 +820,10 @@ export default function MapScreen({ focusLocation, onNavigateToNotifications }: 
             coordinate={[alert.longitude || 0, alert.latitude || 0]}
             anchor={{ x: 0.5, y: 0.5 }}
           >
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.sosMarker}
               onPress={() => {
+                console.log('[Camera] Flying to SOS alert (User pressed SOS marker)');
                 setSelectedId(alert.senderId);
                 cameraRef.current?.setCamera({
                   centerCoordinate: [alert.longitude || 0, alert.latitude || 0],
@@ -840,13 +869,34 @@ export default function MapScreen({ focusLocation, onNavigateToNotifications }: 
       <TouchableOpacity
         style={[styles.myLocationBtn, { bottom: insets.bottom + 156 }]}
         onPress={() => {
+          // Mark that user has interacted
+          userHasInteracted.current = true;
+
+          // Prevent spam clicking (debounce 2 seconds)
+          const now = Date.now();
+          const timeSinceLastPress = now - lastMyLocationPress.current;
+
+          if (timeSinceLastPress < 2000) {
+            console.log(`[Camera] Ignoring My Location button spam (debounced: ${timeSinceLastPress}ms ago)`);
+            return;
+          }
+
+          lastMyLocationPress.current = now;
+          hasPerformedInitialZoom.current = true; // Mark that zoom has been performed
+          setHasPerformedManualZoom(true); // Persist to global store
+
           if (currentLocation && cameraRef.current) {
-            console.log('[Camera] Flying to my location');
+            console.log('[Camera] Flying to my location (User pressed button)');
             cameraRef.current.setCamera({
               centerCoordinate: currentLocation,
               zoomLevel: 15,
               animationDuration: 600,
               animationMode: 'flyTo',
+            });
+          } else {
+            console.log('[Camera] Cannot fly - missing location or camera ref:', {
+              hasLocation: !!currentLocation,
+              hasCameraRef: !!cameraRef.current
             });
           }
         }}
@@ -858,7 +908,7 @@ export default function MapScreen({ focusLocation, onNavigateToNotifications }: 
       {/* Sharing FAB */}
       <TouchableOpacity
         style={[
-          styles.fab, 
+          styles.fab,
           isSharingLocation ? styles.fabOn : styles.fabOff,
           { bottom: insets.bottom + 90 }
         ]}
@@ -886,9 +936,9 @@ export default function MapScreen({ focusLocation, onNavigateToNotifications }: 
               {sharingLoading
                 ? <ActivityIndicator size="small" color="#4361EE" />
                 : <Switch value={isSharingLocation} onValueChange={handleToggle}
-                    trackColor={{ false: 'rgba(255,255,255,0.15)', true: 'rgba(34,197,94,0.5)' }}
-                    thumbColor={isSharingLocation ? '#22C55E' : '#888'}
-                    ios_backgroundColor="rgba(255,255,255,0.15)" />}
+                  trackColor={{ false: 'rgba(255,255,255,0.15)', true: 'rgba(34,197,94,0.5)' }}
+                  thumbColor={isSharingLocation ? '#22C55E' : '#888'}
+                  ios_backgroundColor="rgba(255,255,255,0.15)" />}
             </View>
           </BlurView>
         </View>
@@ -914,30 +964,30 @@ export default function MapScreen({ focusLocation, onNavigateToNotifications }: 
 // ─────────────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  center: { 
-    flex: 1, 
-    justifyContent: 'center', 
-    alignItems: 'center', 
-    backgroundColor: COLORS.black, 
-    gap: SPACING.md 
+  center: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: COLORS.black,
+    gap: SPACING.md
   },
-  loadingText: { 
-    color: COLORS.gray400, 
-    fontSize: FONT_SIZE.md 
+  loadingText: {
+    color: COLORS.gray400,
+    fontSize: FONT_SIZE.md
   },
   map: { flex: 1 },
 
   // ── Own pin ──
-  myPinWrapper: { 
-    alignItems: 'center', 
+  myPinWrapper: {
+    alignItems: 'center',
     justifyContent: 'center',
-    width: 90, 
+    width: 90,
     height: 90,
   },
   myPulseRing: {
     position: 'absolute',
-    width: 75, 
-    height: 75, 
+    width: 75,
+    height: 75,
     borderRadius: 37.5,
     borderWidth: 3,
     borderColor: COLORS.primary,
@@ -945,26 +995,26 @@ const styles = StyleSheet.create({
   },
   myPulseRing2: {
     position: 'absolute',
-    width: 90, 
-    height: 90, 
+    width: 90,
+    height: 90,
     borderRadius: 45,
     borderWidth: 2,
     borderColor: COLORS.primary,
     backgroundColor: 'rgba(67,97,238,0.12)',
   },
   myAvatarBorder: {
-    width: DIMENSIONS.avatarLG + 2, 
-    height: DIMENSIONS.avatarLG + 2, 
+    width: DIMENSIONS.avatarLG + 2,
+    height: DIMENSIONS.avatarLG + 2,
     borderRadius: (DIMENSIONS.avatarLG + 2) / 2,
-    borderWidth: 4, 
+    borderWidth: 4,
     borderColor: COLORS.primary,
-    overflow: 'hidden', 
+    overflow: 'hidden',
     backgroundColor: COLORS.gray800,
     ...SHADOWS.lg,
   },
-  myNameBubble: { 
-    backgroundColor: 'rgba(67,97,238,0.95)', 
-    flexDirection: 'row', 
+  myNameBubble: {
+    backgroundColor: 'rgba(67,97,238,0.95)',
+    flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: SPACING.sm,
     paddingVertical: SPACING.xs,
@@ -977,60 +1027,64 @@ const styles = StyleSheet.create({
   // ── Friend pin ──
   pinWrapper: { alignItems: 'center' },
   avatarContainer: {
-    width: 66, 
+    width: 66,
     height: 66,
-    justifyContent: 'center', 
+    justifyContent: 'center',
     alignItems: 'center',
   },
   onlineRing: {
     position: 'absolute',
-    width: 66, 
-    height: 66, 
+    width: 66,
+    height: 66,
     borderRadius: 33,
-    borderWidth: 2.5, 
+    borderWidth: 2.5,
     borderColor: 'rgba(34,197,94,0.50)',
     backgroundColor: 'transparent',
   },
   onlineRingSelected: { borderColor: COLORS.success },
   avatarBorder: {
-    width: DIMENSIONS.avatarLG, 
-    height: DIMENSIONS.avatarLG, 
+    width: DIMENSIONS.avatarLG,
+    height: DIMENSIONS.avatarLG,
     borderRadius: DIMENSIONS.avatarLG / 2,
-    borderWidth: 3, 
+    borderWidth: 3,
     borderColor: COLORS.white,
-    overflow: 'hidden', 
+    overflow: 'hidden',
     backgroundColor: COLORS.gray800,
+    justifyContent: 'center',
+    alignItems: 'center',
     ...SHADOWS.md,
   },
   avatarBorderOffline: { borderColor: COLORS.gray400 },
   avatarBorderSelected: { borderColor: COLORS.success },
 
   // ── Shared image / initials ──
-  avatarImg: { 
-    width: DIMENSIONS.avatarLG, 
-    height: DIMENSIONS.avatarLG 
+  // Note: avatarImg style is now inline in FriendPin component
+  avatarImg: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
   },
   avatarInitials: {
-    flex: 1, 
-    justifyContent: 'center', 
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: COLORS.gray700,
   },
-  initialsText: { 
-    color: COLORS.white, 
-    fontSize: FONT_SIZE.lg, 
-    fontWeight: FONT_WEIGHT.bold 
+  initialsText: {
+    color: COLORS.white,
+    fontSize: FONT_SIZE.lg,
+    fontWeight: FONT_WEIGHT.bold
   },
 
   // ── Status dot ──
   statusDot: {
-    position: 'absolute', 
-    bottom: 6, 
+    position: 'absolute',
+    bottom: 6,
     right: 6,
-    width: 14, 
-    height: 14, 
+    width: 14,
+    height: 14,
     borderRadius: 7,
-    borderWidth: 2.5, 
+    borderWidth: 2.5,
     borderColor: COLORS.white,
     ...SHADOWS.sm,
   },
@@ -1039,35 +1093,35 @@ const styles = StyleSheet.create({
   nameBubble: {
     marginTop: SPACING.xs,
     backgroundColor: 'rgba(0,0,0,0.72)',
-    paddingHorizontal: SPACING.sm, 
+    paddingHorizontal: SPACING.sm,
     paddingVertical: SPACING.xs,
-    borderRadius: RADIUS.sm, 
+    borderRadius: RADIUS.sm,
     maxWidth: 110,
   },
-  nameLabel: { 
-    color: COLORS.white, 
-    fontSize: FONT_SIZE.xs, 
-    fontWeight: FONT_WEIGHT.semibold, 
-    textAlign: 'center' 
+  nameLabel: {
+    color: COLORS.white,
+    fontSize: FONT_SIZE.xs,
+    fontWeight: FONT_WEIGHT.semibold,
+    textAlign: 'center'
   },
 
   // ── Badge ──
   badge: {
     position: 'absolute',
     left: SPACING.lg,
-    flexDirection: 'row', 
-    alignItems: 'center', 
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: SPACING.xs,
     backgroundColor: 'rgba(67,97,238,0.92)',
-    paddingHorizontal: SPACING.md, 
+    paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.sm,
-    borderRadius: RADIUS.round, 
+    borderRadius: RADIUS.round,
     ...SHADOWS.md,
   },
-  badgeText: { 
-    color: COLORS.white, 
-    fontSize: FONT_SIZE.sm, 
-    fontWeight: FONT_WEIGHT.bold 
+  badgeText: {
+    color: COLORS.white,
+    fontSize: FONT_SIZE.sm,
+    fontWeight: FONT_WEIGHT.bold
   },
 
   // ── Notification Bell ──
@@ -1111,10 +1165,10 @@ const styles = StyleSheet.create({
   fab: {
     position: 'absolute',
     right: SPACING.xl,
-    width: DIMENSIONS.avatarLG, 
-    height: DIMENSIONS.avatarLG, 
+    width: DIMENSIONS.avatarLG,
+    height: DIMENSIONS.avatarLG,
     borderRadius: DIMENSIONS.avatarLG / 2,
-    justifyContent: 'center', 
+    justifyContent: 'center',
     alignItems: 'center',
     ...SHADOWS.lg,
   },
@@ -1138,11 +1192,11 @@ const styles = StyleSheet.create({
 
   sharingPanel: {
     position: 'absolute',
-    left: SPACING.xl, 
+    left: SPACING.xl,
     right: SPACING.xl,
-    borderRadius: RADIUS.xl, 
+    borderRadius: RADIUS.xl,
     overflow: 'hidden',
-    borderWidth: 1, 
+    borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.15)',
     ...SHADOWS.xl,
   },
@@ -1150,27 +1204,27 @@ const styles = StyleSheet.create({
     padding: SPACING.lg,
     backgroundColor: Platform.OS === 'android' ? 'rgba(15,15,25,0.93)' : 'transparent',
   },
-  sharingRow: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    gap: SPACING.md 
+  sharingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.md
   },
-  sharingIconBox: { 
-    width: 42, 
-    height: 42, 
-    borderRadius: RADIUS.md, 
-    justifyContent: 'center', 
-    alignItems: 'center' 
+  sharingIconBox: {
+    width: 42,
+    height: 42,
+    borderRadius: RADIUS.md,
+    justifyContent: 'center',
+    alignItems: 'center'
   },
-  sharingTitle: { 
-    color: COLORS.white, 
-    fontSize: FONT_SIZE.md, 
-    fontWeight: FONT_WEIGHT.bold, 
-    marginBottom: 2 
+  sharingTitle: {
+    color: COLORS.white,
+    fontSize: FONT_SIZE.md,
+    fontWeight: FONT_WEIGHT.bold,
+    marginBottom: 2
   },
-  sharingSubtitle: { 
-    color: COLORS.gray400, 
-    fontSize: FONT_SIZE.sm 
+  sharingSubtitle: {
+    color: COLORS.gray400,
+    fontSize: FONT_SIZE.sm
   },
 
   // ── Detail card ──
@@ -1179,9 +1233,9 @@ const styles = StyleSheet.create({
     bottom: 80,
     left: SPACING.xl,
     right: SPACING.xl,
-    borderRadius: RADIUS.xxl, 
+    borderRadius: RADIUS.xxl,
     overflow: 'hidden',
-    borderWidth: 1, 
+    borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.15)',
     ...SHADOWS.xl,
   },
@@ -1189,72 +1243,72 @@ const styles = StyleSheet.create({
     padding: SPACING.lg,
     backgroundColor: Platform.OS === 'android' ? 'rgba(18,18,30,0.93)' : 'transparent',
   },
-  detailRow: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    gap: SPACING.md 
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.md
   },
   detailAvatarBorder: {
-    width: 60, 
-    height: 60, 
+    width: 60,
+    height: 60,
     borderRadius: 30,
-    borderWidth: 2.5, 
+    borderWidth: 2.5,
     borderColor: COLORS.primary,
-    overflow: 'hidden', 
+    overflow: 'hidden',
     backgroundColor: COLORS.gray800,
   },
-  detailInfo: { 
-    flex: 1, 
-    gap: SPACING.xs 
+  detailInfo: {
+    flex: 1,
+    gap: SPACING.xs
   },
-  detailName: { 
-    color: COLORS.white, 
-    fontSize: FONT_SIZE.lg, 
-    fontWeight: FONT_WEIGHT.bold 
+  detailName: {
+    color: COLORS.white,
+    fontSize: FONT_SIZE.lg,
+    fontWeight: FONT_WEIGHT.bold
   },
-  detailUsername: { 
-    color: COLORS.gray400, 
-    fontSize: FONT_SIZE.sm 
+  detailUsername: {
+    color: COLORS.gray400,
+    fontSize: FONT_SIZE.sm
   },
-  coordRow: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    gap: SPACING.xs, 
-    marginTop: 2 
+  coordRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
+    marginTop: 2
   },
-  coordText: { 
-    color: COLORS.gray500, 
-    fontSize: FONT_SIZE.xs 
+  coordText: {
+    color: COLORS.gray500,
+    fontSize: FONT_SIZE.xs
   },
   closeBtn: {
-    width: 32, 
-    height: 32, 
+    width: 32,
+    height: 32,
     borderRadius: RADIUS.lg,
     backgroundColor: 'rgba(255,255,255,0.10)',
-    justifyContent: 'center', 
+    justifyContent: 'center',
     alignItems: 'center',
   },
   statusRow: {
-    flexDirection: 'row', 
-    alignItems: 'center', 
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: SPACING.xs,
-    marginTop: SPACING.md, 
+    marginTop: SPACING.md,
     paddingTop: SPACING.md,
-    borderTopWidth: 1, 
+    borderTopWidth: 1,
     borderTopColor: 'rgba(255,255,255,0.10)',
   },
-  statusDotSmall: { 
-    width: 8, 
-    height: 8, 
-    borderRadius: 4 
+  statusDotSmall: {
+    width: 8,
+    height: 8,
+    borderRadius: 4
   },
-  statusText: { 
-    color: COLORS.gray400, 
-    fontSize: FONT_SIZE.sm 
+  statusText: {
+    color: COLORS.gray400,
+    fontSize: FONT_SIZE.sm
   },
-  statusTime: { 
-    color: COLORS.gray500, 
-    fontSize: FONT_SIZE.sm 
+  statusTime: {
+    color: COLORS.gray500,
+    fontSize: FONT_SIZE.sm
   },
   sosMarker: {
     alignItems: 'center',

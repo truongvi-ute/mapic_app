@@ -551,15 +551,14 @@ export default function ChatRoomScreen({
         )}
       </View>
 
-      {/* Messages + Input — tách riêng để tránh KeyboardAvoidingView che FlatList inverted */}
-      <View style={{ flex: 1 }}>
-        {loading ? (
-          <View style={styles.loadingCenter}>
-            <ActivityIndicator size="large" color={COLORS.primary} />
-          </View>
-        ) : (
-          <View style={{ flex: 1 }}>
-            {messages.length === 0 && (
+      {/* Messages List */}
+      {loading ? (
+        <View style={styles.loadingCenter}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+        </View>
+      ) : (
+        <View style={{ flex: 1 }}>
+          {messages.length === 0 && (
             <View style={styles.emptyState}>
               <Image
                 source={require('../assets/images/message.png')}
@@ -571,47 +570,47 @@ export default function ChatRoomScreen({
               </Text>
             </View>
           )}
-            <FlatList
-              ref={flatListRef}
-              data={messages}
-              keyExtractor={(item) => item.id.toString()}
-              renderItem={renderMessage}
-              inverted
-              contentContainerStyle={styles.messagesContent}
-              onEndReached={() => {
-                if (hasMore && !loadingMore) loadMessages(page + 1);
-              }}
-              onEndReachedThreshold={0.3}
-              ListFooterComponent={loadingMore ? <ActivityIndicator color="#007AFF" /> : null}
-            />
-          </View>
-        )}
+          <FlatList
+            ref={flatListRef}
+            data={messages}
+            keyExtractor={(item) => item.id.toString()}
+            renderItem={renderMessage}
+            inverted
+            contentContainerStyle={styles.messagesContent}
+            keyboardShouldPersistTaps="handled"
+            onEndReached={() => {
+              if (hasMore && !loadingMore) loadMessages(page + 1);
+            }}
+            onEndReachedThreshold={0.3}
+            ListFooterComponent={loadingMore ? <ActivityIndicator color="#007AFF" /> : null}
+          />
+        </View>
+      )}
 
-        {/* Input bar */}
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          keyboardVerticalOffset={0}
-        >
-          <View style={[styles.inputBar, { paddingBottom: insets.bottom + SPACING.sm, backgroundColor: C.surface, borderTopColor: C.border }]}>
-            <TextInput
-              style={[styles.input, { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : COLORS.gray100, color: C.textPrimary }]}
-              placeholder="Nhập tin nhắn..."
-              placeholderTextColor={C.textTertiary}
-              value={inputText}
-              onChangeText={setInputText}
-              multiline
-              maxLength={2000}
-            />
-            <TouchableOpacity
-              style={[styles.sendBtn, !inputText.trim() && styles.sendBtnDisabled]}
-              onPress={handleSend}
-              disabled={!inputText.trim()}
-            >
-              <Ionicons name="send" size={20} color={inputText.trim() ? COLORS.primary : COLORS.gray300} />
-            </TouchableOpacity>
-          </View>
-        </KeyboardAvoidingView>
-      </View>
+      {/* Input bar with KeyboardAvoidingView */}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top + 60 : 0}
+      >
+        <View style={[styles.inputBar, { paddingBottom: insets.bottom + SPACING.sm, backgroundColor: C.surface, borderTopColor: C.border }]}>
+          <TextInput
+            style={[styles.input, { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : COLORS.gray100, color: C.textPrimary }]}
+            placeholder="Nhập tin nhắn..."
+            placeholderTextColor={C.textTertiary}
+            value={inputText}
+            onChangeText={setInputText}
+            multiline
+            maxLength={2000}
+          />
+          <TouchableOpacity
+            style={[styles.sendBtn, !inputText.trim() && styles.sendBtnDisabled]}
+            onPress={handleSend}
+            disabled={!inputText.trim()}
+          >
+            <Ionicons name="send" size={20} color={inputText.trim() ? COLORS.primary : COLORS.gray300} />
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
 
       {/* Reaction picker */}
       <Modal

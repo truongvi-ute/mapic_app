@@ -11,6 +11,8 @@ import {
   ScrollView,
   SafeAreaView,
   StatusBar,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
@@ -391,37 +393,41 @@ export default function GroupInfoModal({ visible, conversation, onClose, onUpdat
                 <Text style={[styles.sectionLabel, { color: C.textSecondary }]}>TÊN NHÓM</Text>
               </View>
               {editingName ? (
-                <View style={styles.editNameRow}>
-                  <TextInput
-                    style={[styles.editNameInput, { color: C.textPrimary, borderColor: C.border }]}
-                    value={newGroupName}
-                    onChangeText={setNewGroupName}
-                    placeholder="Tên nhóm mới..."
-                    placeholderTextColor={C.textTertiary}
-                    autoFocus
-                    maxLength={50}
-                  />
-                  <TouchableOpacity
-                    style={styles.saveNameBtn}
-                    onPress={handleSaveGroupName}
-                    disabled={savingName}
-                  >
-                    {savingName ? (
-                      <ActivityIndicator size="small" color={COLORS.primary} />
-                    ) : (
-                      <Ionicons name="checkmark-circle" size={32} color={COLORS.success} />
-                    )}
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.cancelNameBtn}
-                    onPress={() => {
-                      setEditingName(false);
-                      setNewGroupName(conversation.title || '');
-                    }}
-                  >
-                    <Ionicons name="close-circle" size={32} color={COLORS.gray400} />
-                  </TouchableOpacity>
-                </View>
+                <KeyboardAvoidingView 
+                  behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                >
+                  <View style={styles.editNameRow}>
+                    <TextInput
+                      style={[styles.editNameInput, { color: C.textPrimary, borderColor: C.border }]}
+                      value={newGroupName}
+                      onChangeText={setNewGroupName}
+                      placeholder="Tên nhóm mới..."
+                      placeholderTextColor={C.textTertiary}
+                      autoFocus
+                      maxLength={50}
+                    />
+                    <TouchableOpacity
+                      style={styles.saveNameBtn}
+                      onPress={handleSaveGroupName}
+                      disabled={savingName}
+                    >
+                      {savingName ? (
+                        <ActivityIndicator size="small" color={COLORS.primary} />
+                      ) : (
+                        <Ionicons name="checkmark-circle" size={32} color={COLORS.success} />
+                      )}
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.cancelNameBtn}
+                      onPress={() => {
+                        setEditingName(false);
+                        setNewGroupName(conversation.title || '');
+                      }}
+                    >
+                      <Ionicons name="close-circle" size={32} color={COLORS.gray400} />
+                    </TouchableOpacity>
+                  </View>
+                </KeyboardAvoidingView>
               ) : (
                 <TouchableOpacity
                   style={styles.infoRow}
