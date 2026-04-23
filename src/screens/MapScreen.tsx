@@ -23,6 +23,7 @@ import SafeContainer from '../components/ui/SafeContainer';
 import DefaultAvatar from '../components/DefaultAvatar';
 import { useWebSocketStore } from '../store/useWebSocketStore';
 import { useAuthStore } from '../store/useAuthStore';
+import { useSOSStore } from '../store/sosStore';
 import mapService, { FriendLocationResponse } from '../api/mapService';
 import userService from '../api/userService';
 import { getBaseUrl } from '../config/api';
@@ -299,6 +300,7 @@ export default function MapScreen({ focusLocation, onNavigateToNotifications }: 
   );
   const [isSharingLocation, setIsSharingLocation] = useState(true);
   const [sharingLoading, setSharingLoading] = useState(false);
+  const [showPanel, setShowPanel] = useState(false);
   const lastMarkerPress = useRef<number>(0);
   
   // ── Optimized Selectors ──

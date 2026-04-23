@@ -17,6 +17,7 @@ import { useNotificationStore } from '../store/useNotificationStore';
 const iconImages = {
   home: require('../assets/images/home.png'),
   compass: require('../assets/images/explore.png'),
+  map: require('../assets/images/path.png'),
   'add-circle': require('../assets/images/write.png'),
   people: require('../assets/images/friend.png'),
   notifications: require('../assets/images/notification.png'),
@@ -25,7 +26,7 @@ const iconImages = {
 };
 
 // Ionicons-only icons (no local asset)
-const ionicIconsOnly = [];
+const ionicIconsOnly: string[] = [];
 
 // Function to get icon source based on active state
 const getIconSource = (iconKey: keyof typeof iconImages) => {
@@ -37,7 +38,7 @@ const { height } = Dimensions.get('window');
 interface MenuItem {
   id: string;
   label: string;
-  icon: keyof typeof Ionicons.glyphMap;
+  icon: keyof typeof Ionicons.glyphMap | keyof typeof iconImages;
   onPress: () => void;
   color?: string;
 }
@@ -110,7 +111,7 @@ export default function FloatingActionMenu({ items, activeItem }: FloatingAction
         animationType="none"
         onRequestClose={closeMenu}
       >
-        <TouchableWithoutFeedback onPress={closeMenu}>
+        <TouchableWithoutFeedback>
           <Animated.View
             style={[
               styles.backdrop,
@@ -174,31 +175,38 @@ export default function FloatingActionMenu({ items, activeItem }: FloatingAction
                 </View>
               </Animated.View>
             </TouchableWithoutFeedback>
+            
+            {/* Close Button - Inside Modal to ensure it's on top */}
+            <TouchableOpacity
+              style={styles.fabInModal}
+              onPress={closeMenu}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="close" size={28} color="#FFFFFF" />
+            </TouchableOpacity>
           </Animated.View>
         </TouchableWithoutFeedback>
       </Modal>
 
-      {/* Floating Action Button - Always on top */}
-      <TouchableOpacity
-        style={styles.fab}
-        onPress={toggleMenu}
-        activeOpacity={0.8}
-      >
-        {isVisible ? (
-          <Ionicons name="close" size={28} color="#FFFFFF" />
-        ) : (
+      {/* Floating Action Button - Only when menu is closed */}
+      {!isVisible && (
+        <TouchableOpacity
+          style={styles.fab}
+          onPress={toggleMenu}
+          activeOpacity={0.8}
+        >
           <Image
             source={require('../assets/images/menu.png')}
             style={styles.menuIcon}
             resizeMode="contain"
           />
-        )}
-        {!isVisible && unreadCount > 0 && (
-          <View style={styles.fabBadge}>
-             <Text style={styles.fabBadgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
-          </View>
-        )}
-      </TouchableOpacity>
+          {unreadCount > 0 && (
+            <View style={styles.fabBadge}>
+               <Text style={styles.fabBadgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+            </View>
+          )}
+        </TouchableOpacity>
+      )}
     </>
   );
 }
@@ -218,8 +226,25 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
-    elevation: 10,
-    zIndex: 9999,
+    elevation: 15,
+    zIndex: 99999,
+  },
+  fabInModal: {
+    position: 'absolute',
+    bottom: 30,
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    backgroundColor: '#007AFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 20,
+    zIndex: 100000,
   },
   menuIcon: {
     width: 28,

@@ -239,7 +239,10 @@ export default function FriendRequestsScreen({ onBack, onPressProfile }: FriendR
 
     return (
       <View style={styles.emptyContainer}>
-        <Ionicons name="mail-open-outline" size={DIMENSIONS.avatarXL - SPACING.lg} color={COLORS.gray300} />
+        <Image 
+          source={require('../assets/images/letter.png')} 
+          style={styles.emptyIcon} 
+        />
         <Spacer size="lg" />
         <Text style={styles.emptyTitle}>Không có lời mời nào</Text>
         <Spacer size="sm" />
@@ -405,6 +408,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: SPACING.xxxl + SPACING.sm,
     minHeight: 400,
+  },
+  emptyIcon: {
+    width: DIMENSIONS.avatarXL - SPACING.lg,
+    height: DIMENSIONS.avatarXL - SPACING.lg,
+    opacity: 0.3,
   },
   emptyTitle: {
     fontSize: FONT_SIZE.xl,

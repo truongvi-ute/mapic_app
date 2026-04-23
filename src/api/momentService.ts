@@ -5,6 +5,24 @@ export interface UpdateMomentContentRequest {
 }
 
 const momentService = {
+  getMomentById: async (momentId: number, token: string): Promise<any> => {
+    const API_URL = getApiUrl();
+    const response = await fetch(`${API_URL}/moments/${momentId}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch moment');
+    }
+
+    const result = await response.json();
+    return result.data;
+  },
+
   deleteMoment: async (momentId: number, token: string): Promise<void> => {
     const API_URL = getApiUrl();
     const url = `${API_URL}/moments/${momentId}`;

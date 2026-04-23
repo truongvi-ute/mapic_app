@@ -596,9 +596,12 @@ export default function ExploreScreen({ refreshTrigger, highlightMomentId, onBac
                 });
               }
             }}
-            onPressLike={() => console.log('Like moment:', item.id)}
+            onPressLike={undefined} // Để MomentCard tự xử lý
             onPressComment={() => handleOpenComment(item.id)}
-            onPressShare={() => console.log('Share moment:', item.id)}
+            onPressShare={() => {
+              // TODO: Implement share functionality
+              showAlert('Thông báo', 'Chức năng chia sẻ đang được phát triển');
+            }}
             onPressMenu={() => {
               const isOwnMoment = item.author.id === currentUser?.id;
               

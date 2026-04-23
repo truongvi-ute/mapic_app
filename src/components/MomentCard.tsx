@@ -211,6 +211,13 @@ export default function MomentCard({
     }
     
     setIsLiking(true);
+    
+    // Safety timeout để đảm bảo isLiking được reset
+    const safetyTimeout = setTimeout(() => {
+      console.log('[MomentCard] Safety timeout - resetting isLiking');
+      setIsLiking(false);
+    }, 5000);
+    
     const wasLiked = liked;
     const previousCount = likeCount;
     const previousType = userReactionType;
@@ -296,12 +303,24 @@ export default function MomentCard({
       setUserReactionType(previousType);
       console.error('[MomentCard] Error toggling reaction:', error);
     } finally {
+      clearTimeout(safetyTimeout);
       setIsLiking(false);
     }
   };
 
   const handleLike = () => {
-    handleReact(userReactionType || 'HEART');
+    console.log('[MomentCard] handleLike called', { hasOnPressLike: !!onPressLike, isLiking });
+    
+    // Nếu có onPressLike callback, để parent component xử lý
+    if (onPressLike) {
+      console.log('[MomentCard] Calling parent onPressLike');
+      onPressLike();
+      return;
+    }
+    
+    // Nếu không có callback, tự xử lý như bình thường
+    console.log('[MomentCard] Handling like internally');
+    handleReact('HEART');
   };
 
   const handleScroll = (event: any) => {
@@ -397,99 +416,119 @@ export default function MomentCard({
             )}
           </View>
           
-          {/* Interaction Overlay - Giữa phía dưới với nút Map */}
+          {/* Media Indicator - Nằm ngoài overlay */}
+          {mediaCount > 1 && (
+            <View style={styles.mediaIndicator}>
+              {moment.media?.map((_, index) => (
+                <View
+                  key={index}
+                  style={[
+                    styles.indicatorDot,
+                    index === currentMediaIndex && styles.indicatorDotActive,
+                  ]}
+                />
+              ))}
+            </View>
+          )}
+          
+          {/* Interaction Overlay - 2 hàng 4 cột */}
           <View style={styles.interactionOverlay}>
-            <View>
+            {/* Hàng 1: Icons */}
+            <View style={styles.iconsRow}>
               <TouchableOpacity
                 style={styles.overlayButton}
                 onPress={handleLike}
                 onLongPress={() => setShowReactions(true)}
                 activeOpacity={0.7}
                 disabled={isLiking}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
-                <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
-                  {liked && userReactionType ? (
-                    <Text style={styles.reactionEmoji}>
-                      {getEmojiFromType(userReactionType)}
-                    </Text>
-                  ) : (
-                    <Ionicons
-                      name="heart-outline"
-                      size={28}
-                      color="#FFFFFF"
-                    />
-                  )}
+                <Animated.View style={{ transform: [{ scale: scaleAnim }] }} pointerEvents="none">
+                  <Ionicons
+                    name={liked ? "heart" : "heart-outline"}
+                    size={28}
+                    color={liked ? "#FF3B30" : "#FFFFFF"}
+                  />
                 </Animated.View>
-                {likeCount > 0 && (
-                  <Text style={styles.reactionCount}>{likeCount}</Text>
-                )}
               </TouchableOpacity>
-              
-              {/* Emoji Picker */}
-              {showReactions && (
-                <View style={styles.reactionPicker}>
-                  {(['LIKE', 'HEART', 'HAHA', 'WOW', 'SAD', 'ANGRY'] as const).map((type) => (
-                    <TouchableOpacity
-                      key={type}
-                      style={styles.reactionBubble}
-                      onPress={() => handleReact(type)}
-                    >
-                      <Text style={styles.reactionEmojiPicker}>
-                        {getEmojiFromType(type)}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
+
+              <TouchableOpacity
+                style={styles.overlayButton}
+                onPress={onPressComment}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="chatbubble-outline" size={26} color="#FFFFFF" />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.overlayButton}
+                onPress={() => setShareModalVisible(true)}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="share-outline" size={26} color="#FFFFFF" />
+              </TouchableOpacity>
+
+              {/* Map Button - Chỉ hiện khi có location */}
+              {moment.location && onPressMap ? (
+                <TouchableOpacity
+                  style={styles.overlayButton}
+                  onPress={onPressMap}
+                  activeOpacity={0.7}
+                >
+                  <Image
+                    source={require('../assets/images/open-map.png')}
+                    style={styles.mapIconInteraction}
+                    resizeMode="contain"
+                  />
+                </TouchableOpacity>
+              ) : showAddToAlbum && onPressAddToAlbum ? (
+                <TouchableOpacity
+                  style={styles.overlayButton}
+                  onPress={onPressAddToAlbum}
+                  activeOpacity={0.7}
+                >
+                  <Image
+                    source={require('../assets/images/album.png')}
+                    style={styles.albumIconInteraction}
+                    resizeMode="contain"
+                  />
+                </TouchableOpacity>
+              ) : (
+                <View style={styles.overlayButton} />
               )}
             </View>
-
-            <TouchableOpacity
-              style={styles.overlayButton}
-              onPress={onPressComment}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="chatbubble-outline" size={26} color="#FFFFFF" />
-              {moment.commentCount! > 0 && (
-                <Text style={styles.reactionCount}>{moment.commentCount}</Text>
-              )}
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.overlayButton}
-              onPress={() => setShareModalVisible(true)}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="share-outline" size={26} color="#FFFFFF" />
-            </TouchableOpacity>
-
-            {/* Map Button - Chỉ hiện khi có location */}
-            {moment.location && onPressMap && (
-              <TouchableOpacity
-                style={styles.overlayButton}
-                onPress={onPressMap}
-                activeOpacity={0.7}
-              >
-                <Image
-                  source={require('../assets/images/open-map.png')}
-                  style={styles.mapIconInteraction}
-                  resizeMode="contain"
-                />
-              </TouchableOpacity>
-            )}
             
-            {/* Add to Album Button - Chỉ hiện khi showAddToAlbum = true */}
-            {showAddToAlbum && onPressAddToAlbum && (
-              <TouchableOpacity
-                style={styles.overlayButton}
-                onPress={onPressAddToAlbum}
-                activeOpacity={0.7}
-              >
-                <Image
-                  source={require('../assets/images/album.png')}
-                  style={styles.albumIconInteraction}
-                  resizeMode="contain"
-                />
-              </TouchableOpacity>
+            {/* Hàng 2: Số lượng */}
+            <View style={styles.countsRow}>
+              <View style={styles.countColumn}>
+                {likeCount > 0 && (
+                  <Text style={styles.reactionCountInside}>{likeCount}</Text>
+                )}
+              </View>
+              <View style={styles.countColumn}>
+                {moment.commentCount! > 0 && (
+                  <Text style={styles.reactionCountInside}>{moment.commentCount}</Text>
+                )}
+              </View>
+              <View style={styles.countColumn} />
+              <View style={styles.countColumn} />
+            </View>
+            
+            {/* Emoji Picker */}
+            {showReactions && (
+              <View style={styles.reactionPicker}>
+                {(['LIKE', 'HEART', 'HAHA', 'WOW', 'SAD', 'ANGRY'] as const).map((type) => (
+                  <TouchableOpacity
+                    key={type}
+                    style={styles.reactionBubble}
+                    onPress={() => handleReact(type)}
+                  >
+                    <Text style={styles.reactionEmojiPicker}>
+                      {getEmojiFromType(type)}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
             )}
           </View>
           
@@ -505,21 +544,6 @@ export default function MomentCard({
             autoPlay={false}
             speed={0.3}
           />
-          
-          {/* Media Indicator */}
-          {mediaCount > 1 && (
-            <View style={styles.mediaIndicator}>
-              {moment.media?.map((_, index) => (
-                <View
-                  key={index}
-                  style={[
-                    styles.indicatorDot,
-                    index === currentMediaIndex && styles.indicatorDotActive,
-                  ]}
-                />
-              ))}
-            </View>
-          )}
         </View>
       )}
 
@@ -642,19 +666,34 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   
-  // Interaction Overlay - Giữa phía dưới (có thể có 3 hoặc 4 nút)
+  // Interaction Overlay - 2 hàng 4 cột
   interactionOverlay: {
     position: 'absolute',
     bottom: 16,
     alignSelf: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    borderRadius: 30,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    zIndex: 200,
+  },
+  iconsRow: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
-    borderRadius: 30,
-    gap: 8,
+    gap: 6,
+  },
+  countsRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 4,
+  },
+  countColumn: {
+    width: 48,
+    alignItems: 'center',
+    minHeight: 16,
   },
   overlayButton: {
     width: 48,
@@ -665,6 +704,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1.5,
     borderColor: 'rgba(255, 255, 255, 0.4)',
+  },
+  reactionButtonContainer: {
+    alignItems: 'center',
+    gap: 1,
+  },
+  reactionCountInside: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    textAlign: 'center',
+  },
+  reactionCountBelow: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    textAlign: 'center',
+    minWidth: 20,
   },
   reactionCount: {
     position: 'absolute',
@@ -711,7 +767,7 @@ const styles = StyleSheet.create({
   // Media Indicator
   mediaIndicator: {
     position: 'absolute',
-    bottom: 76,
+    bottom: 120,
     left: 0,
     right: 0,
     flexDirection: 'row',
@@ -746,7 +802,7 @@ const styles = StyleSheet.create({
   },
   reactionPicker: {
     position: 'absolute',
-    bottom: 50,
+    bottom: 70, // Tăng từ 50 lên 70 để không che nút tim
     left: 0,
     flexDirection: 'row',
     backgroundColor: 'rgba(0, 0, 0, 0.8)',
@@ -758,6 +814,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 4,
     elevation: 5,
+    zIndex: 300,
   },
   reactionBubble: {
     paddingHorizontal: 6,

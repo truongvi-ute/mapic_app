@@ -370,17 +370,19 @@ export default function ChatsListScreen({ onBack, onOpenChat, refreshTrigger, in
           style={[styles.tab, tab === 'direct' && styles.tabActive]}
           onPress={() => setTab('direct')}
         >
-          <Text style={[styles.tabText, { color: C.textTertiary }, tab === 'direct' && { color: C.primary, fontWeight: FONT_WEIGHT.semibold }]}>
-            Cá nhân
-          </Text>
+          <Image 
+            source={require('../assets/images/message.png')} 
+            style={styles.tabIcon} 
+          />
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.tab, tab === 'group' && styles.tabActive]}
           onPress={() => setTab('group')}
         >
-          <Text style={[styles.tabText, { color: C.textTertiary }, tab === 'group' && { color: C.primary, fontWeight: FONT_WEIGHT.semibold }]}>
-            Nhóm
-          </Text>
+          <Image 
+            source={require('../assets/images/group.png')} 
+            style={styles.tabIcon} 
+          />
         </TouchableOpacity>
       </View>
 
@@ -415,7 +417,10 @@ export default function ChatsListScreen({ onBack, onOpenChat, refreshTrigger, in
           contentContainerStyle={styles.listContent}
           ListEmptyComponent={
             <View style={styles.emptyState}>
-              <Ionicons name="people-outline" size={64} color={COLORS.gray300} />
+              <Image 
+                source={require('../assets/images/group.png')} 
+                style={styles.emptyIcon} 
+              />
               <Spacer size="lg" />
               <Text style={styles.emptyText}>Chưa có nhóm nào</Text>
               <Spacer size="sm" />
@@ -529,6 +534,10 @@ const styles = StyleSheet.create({
     color: COLORS.gray500, 
     fontWeight: FONT_WEIGHT.medium 
   },
+  tabIcon: {
+    width: 32,
+    height: 32,
+  },
   tabTextActive: { 
     color: COLORS.primary, 
     fontWeight: FONT_WEIGHT.semibold 
@@ -599,6 +608,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 80,
     paddingHorizontal: SPACING.xxxl,
+  },
+  emptyIcon: {
+    width: 64,
+    height: 64,
+    opacity: 0.3,
   },
   emptyText: { 
     fontSize: FONT_SIZE.xl, 

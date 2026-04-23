@@ -27,7 +27,7 @@ import MomentCard, { Moment } from '../components/MomentCard';
 import CreateAlbumModal from '../components/CreateAlbumModal';
 import ShareTargetModal from '../components/ShareTargetModal';
 import CommentModal from '../components/CommentModal';
-import { getBaseUrl } from '../config/api';
+import { getBaseUrl, getApiUrl } from '../config/api';
 import { SPACING, COLORS, LIGHT_COLORS, DARK_COLORS, FONT_SIZE, FONT_WEIGHT, RADIUS, SHADOWS, DIMENSIONS } from '../constants/design';
 import { useThemeStore } from '../store/useThemeStore';
 import SafeContainer from '../components/ui/SafeContainer';
@@ -320,7 +320,7 @@ export default function AlbumsScreen({ onBack, onOpenAlbum, onOpenMap, onOpenPro
                     moment={moment}
                     token={token || ''}
                     onPress={() => setSelectedMoment(moment)}
-                    onPressLike={() => console.log('Like moment:', moment.id)}
+                    onPressLike={undefined} // Để MiniMomentCard tự xử lý
                   />
                 </View>
               ))}
@@ -413,18 +413,19 @@ export default function AlbumsScreen({ onBack, onOpenAlbum, onOpenMap, onOpenPro
         />
       )}
 
-      {/* Full Moment Card Modal */}
       <Modal
         animationType="fade"
         transparent={true}
         visible={!!selectedMoment}
         onRequestClose={() => setSelectedMoment(null)}
       >
-        <Pressable 
-          style={styles.momentModalOverlay} 
-          onPress={() => setSelectedMoment(null)}
-        >
-          <Pressable style={{ width: '100%' }}>
+        <View style={styles.momentModalOverlay}>
+          {/* Close button */}
+          <TouchableOpacity style={styles.modalCloseBtn} onPress={() => setSelectedMoment(null)} activeOpacity={0.8}>
+            <Ionicons name="close" size={22} color="#FFF" />
+          </TouchableOpacity>
+
+          <View style={{ width: '100%' }}>
               {selectedMoment && (
                 <MomentCard
                   moment={selectedMoment}
@@ -444,32 +445,82 @@ export default function AlbumsScreen({ onBack, onOpenAlbum, onOpenMap, onOpenPro
                     }
                     setSelectedMoment(null);
                   }}
-                  onPressLike={() => {
-                    // MomentCard handles API internally, update both selectedMoment and albums state
+                  onPressLike={async () => {
                     if (selectedMoment) {
-                      const newUserReacted = !selectedMoment.userReacted;
-                      const newReactionCount = selectedMoment.userReacted 
-                        ? (selectedMoment.reactionCount || 1) - 1 
+                      const wasLiked = selectedMoment.userReacted;
+                      const newReactionCount = wasLiked
+                        ? (selectedMoment.reactionCount || 1) - 1
                         : (selectedMoment.reactionCount || 0) + 1;
                       
-                      // Update selectedMoment for modal display
+                      // Optimistic update
                       setSelectedMoment(prev => prev ? {
                         ...prev,
-                        userReacted: newUserReacted,
+                        userReacted: !wasLiked,
                         reactionCount: newReactionCount,
                       } : null);
                       
-                      // Update albums state so mini cards reflect the change
                       setAlbums(prevAlbums =>
                         prevAlbums.map(album => ({
                           ...album,
                           moments: album.moments?.map(m =>
                             m.id === selectedMoment.id
-                              ? { ...m, userReacted: newUserReacted, reactionCount: newReactionCount }
+                              ? { ...m, userReacted: !wasLiked, reactionCount: newReactionCount }
                               : m
                           ),
                         }))
                       );
+
+                      // Call API
+                      try {
+                        const API_URL = getApiUrl();
+                        const response = await fetch(`${API_URL}/reactions/moments/${selectedMoment.id}`, {
+                          method: 'POST',
+                          headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json',
+                          },
+                          body: JSON.stringify({ type: 'HEART' }),
+                        });
+
+                        if (!response.ok) {
+                          // Revert on failure
+                          setSelectedMoment(prev => prev ? {
+                            ...prev,
+                            userReacted: wasLiked,
+                            reactionCount: selectedMoment.reactionCount || 0,
+                          } : null);
+                          
+                          setAlbums(prevAlbums =>
+                            prevAlbums.map(album => ({
+                              ...album,
+                              moments: album.moments?.map(m =>
+                                m.id === selectedMoment.id
+                                  ? { ...m, userReacted: wasLiked, reactionCount: selectedMoment.reactionCount || 0 }
+                                  : m
+                              ),
+                            }))
+                          );
+                        }
+                      } catch (error) {
+                        console.error('Error toggling reaction:', error);
+                        // Revert on error
+                        setSelectedMoment(prev => prev ? {
+                          ...prev,
+                          userReacted: wasLiked,
+                          reactionCount: selectedMoment.reactionCount || 0,
+                        } : null);
+                        
+                        setAlbums(prevAlbums =>
+                          prevAlbums.map(album => ({
+                            ...album,
+                            moments: album.moments?.map(m =>
+                              m.id === selectedMoment.id
+                                ? { ...m, userReacted: wasLiked, reactionCount: selectedMoment.reactionCount || 0 }
+                                : m
+                            ),
+                          }))
+                        );
+                      }
                     }
                   }}
                   onPressComment={() => {
@@ -478,11 +529,13 @@ export default function AlbumsScreen({ onBack, onOpenAlbum, onOpenMap, onOpenPro
                       setCommentModalVisible(true);
                     }
                   }}
-                  onPressShare={() => console.log('Share full moment:', selectedMoment.id)}
+                  onPressShare={() => {
+                    // TODO: Implement share functionality
+                    showAlert('Thông báo', 'Chức năng chia sẻ đang được phát triển');
+                  }}
                   onPressMenu={() => {
                     const parentAlbum = albums.find(a => a.moments?.some(m => m.id === selectedMoment.id));
                     const options: any[] = [];
-                    
                     if (parentAlbum && parentAlbum.moments) {
                       const currentIndex = parentAlbum.moments.findIndex(m => m.id === selectedMoment.id);
                       if (currentIndex > 0) {
@@ -507,13 +560,12 @@ export default function AlbumsScreen({ onBack, onOpenAlbum, onOpenMap, onOpenPro
                       });
                     }
                     options.push({ text: 'Đóng', style: 'cancel' });
-
                     showAlert('Tùy chọn', 'Chọn hành động', options);
                   }}
                 />
               )}
-          </Pressable>
-        </Pressable>
+          </View>
+        </View>
       </Modal>
       {/* Comment Modal */}
       {commentMomentId && (
@@ -704,6 +756,20 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.85)',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  modalCloseBtn: {
+    position: 'absolute',
+    top: 52,
+    right: 16,
+    zIndex: 100,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
   },
   submitButtonText: {
     color: COLORS.white,

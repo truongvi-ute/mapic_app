@@ -35,11 +35,13 @@ import AlbumSelectModal from '../components/AlbumSelectModal';
 import CommentModal from '../components/CommentModal';
 import EditCaptionModal from '../components/EditCaptionModal';
 import { Modal, Pressable } from 'react-native';
+import MiniMomentCard from '../components/MiniMomentCard';
 
 const { width: SCREEN_W } = Dimensions.get('window');
-const PHOTO_COL = 3;
-const PHOTO_GAP = 3;
-const PHOTO_SIZE = (SCREEN_W - PHOTO_GAP * (PHOTO_COL + 1)) / PHOTO_COL;
+const PHOTO_COL = 2;
+const PHOTO_GAP = 8;
+const CONTENT_PADDING = 32;
+const PHOTO_SIZE = (SCREEN_W - CONTENT_PADDING - PHOTO_GAP * (PHOTO_COL + 1)) / PHOTO_COL;
 
 const GENDER_LABELS: Record<string, string> = { MALE: 'Nam', FEMALE: 'Nữ', OTHER: 'Khác' };
 const formatDate = (dateString: string) => new Date(dateString).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -202,7 +204,7 @@ export default function ProfileScreen({ onNavigateToSettings, refreshTrigger, on
 
         // Cleanup cached file on Android
         if (Platform.OS === 'android' && fileUri.startsWith(FileSystem.cacheDirectory || '')) {
-          try { await FileSystem.deleteAsync(fileUri, { idempotent: true }); } catch (_) {}
+          try { await FileSystem.deleteAsync(fileUri, { idempotent: true }); } catch (_) { }
         }
 
         const profile = await userService.getProfile();
@@ -246,7 +248,7 @@ export default function ProfileScreen({ onNavigateToSettings, refreshTrigger, on
                 const result = await ImagePickerModule.pickImage();
                 uri = result?.uri || null;
               }
-            } catch (_) {}
+            } catch (_) { }
 
             // Fallback: expo-image-picker (works in Expo Go)
             if (!uri) {
@@ -277,7 +279,7 @@ export default function ProfileScreen({ onNavigateToSettings, refreshTrigger, on
     const now = Date.now();
     if (now - lastPress.current < 600) return;
     lastPress.current = now;
-    
+
     setSelectedMoment(moments[index]);
   }, [moments]);
 
@@ -285,7 +287,7 @@ export default function ProfileScreen({ onNavigateToSettings, refreshTrigger, on
     const now = Date.now();
     if (now - lastPress.current < 400) return;
     lastPress.current = now;
-    
+
     setSelectedMoment(null);
   }, []);
 
@@ -344,32 +346,22 @@ export default function ProfileScreen({ onNavigateToSettings, refreshTrigger, on
     }
   };
 
-  const renderThumb = ({ item, index }: { item: Moment; index: number }) => {
-    const mainMedia = item.media?.[0];
-    const imgUrl = getImageUrl(mainMedia?.mediaUrl, 'moment');
+  const renderMiniCard = ({ item, index }: { item: Moment; index: number }) => {
     return (
-      <TouchableOpacity
-        style={styles.thumb}
-        activeOpacity={0.88}
-        onPress={() => openMomentViewer(index)}
-      >
-        {imgUrl ? (
-          <Image source={{ uri: imgUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />
-        ) : (
-          <GradientView colors={['#1e1b4b', '#312e81']} style={StyleSheet.absoluteFill} />
-        )}
-        <View style={styles.thumbOverlay} />
-        {(item.media?.length ?? 0) > 1 && (
-          <View style={styles.multiIcon}>
-            <Ionicons name="copy" size={12} color="#FFF" />
-          </View>
-        )}
-        {mainMedia?.mediaType === 'VIDEO' && (
-          <View style={styles.videoIcon}>
-            <Ionicons name="play" size={12} color="#FFF" />
-          </View>
-        )}
-      </TouchableOpacity>
+      <View style={styles.miniCardWrapper}>
+        <MiniMomentCard
+          moment={item}
+          token={token || ''}
+          onPress={() => openMomentViewer(index)}
+          onPressLike={() => {
+            setMoments(prev => prev.map(m =>
+              m.id === item.id
+                ? { ...m, userReacted: !m.userReacted, reactionCount: m.userReacted ? (m.reactionCount || 1) - 1 : (m.reactionCount || 0) + 1 }
+                : m
+            ));
+          }}
+        />
+      </View>
     );
   };
 
@@ -378,7 +370,7 @@ export default function ProfileScreen({ onNavigateToSettings, refreshTrigger, on
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} translucent backgroundColor="transparent" />
 
       {/* Sticky mini-header (appears when scrolled past cover) */}
-      <Animated.View 
+      <Animated.View
         pointerEvents={isHeaderVisible ? 'auto' : 'none'}
         style={[styles.stickyHeader, { opacity: headerOpacity, backgroundColor: C.background }]}
       >
@@ -400,41 +392,45 @@ export default function ProfileScreen({ onNavigateToSettings, refreshTrigger, on
           {coverUrl ? (
             <Image source={{ uri: `${coverUrl}?v=${coverVersion}` }} style={StyleSheet.absoluteFill} contentFit="cover" />
           ) : (
-            <GradientView colors={GRADIENTS.darkHero} style={StyleSheet.absoluteFill} />
+            <Image source={require('../assets/images/cover-default.jpg')} style={StyleSheet.absoluteFill} contentFit="cover" />
           )}
-          <GradientView colors={GRADIENTS.overlayFull as any} style={StyleSheet.absoluteFill} />
-          <TouchableOpacity 
+          {/* Camera button - pick avatar or cover */}
+          <TouchableOpacity
             style={[styles.coverEditBtn, { elevation: 5 }]}
-            onPress={() => pickAndUpload('cover')}
+            onPress={() => showAlert('Thay ảnh', 'Bạn muốn đổi ảnh nào?', [
+              { text: 'Ảnh đại diện', onPress: () => pickAndUpload('avatar') },
+              { text: 'Ảnh bìa', onPress: () => pickAndUpload('cover') },
+              { text: 'Hủy', style: 'cancel' },
+            ])}
             hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
             activeOpacity={0.7}
           >
-            <BlurView intensity={25} tint="dark" style={styles.coverEditBtnInner}>
-              <Ionicons name="camera" size={14} color="rgba(255,255,255,0.85)" />
-            </BlurView>
+            <View style={styles.coverEditBtnInner}>
+              <Image source={require('../assets/images/camera.png')} style={styles.coverIconImg} />
+            </View>
           </TouchableOpacity>
           {/* Settings */}
-          <TouchableOpacity 
-            style={[styles.settingsBtn, { elevation: 5 }]} 
+          <TouchableOpacity
+            style={[styles.settingsBtn, { elevation: 5 }]}
             onPress={onNavigateToSettings}
             hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
             activeOpacity={0.7}
           >
-            <BlurView intensity={40} tint="dark" style={styles.settingsBtnInner}>
-              <Ionicons name="settings-outline" size={18} color="#FFF" />
-            </BlurView>
+            <View style={styles.settingsBtnInner}>
+              <Image source={require('../assets/images/setting.png')} style={styles.coverIconImg} />
+            </View>
           </TouchableOpacity>
           {/* Albums */}
           {onOpenAlbums && (
-            <TouchableOpacity 
-              style={[styles.albumsBtn, { elevation: 5 }]} 
+            <TouchableOpacity
+              style={[styles.albumsBtn, { elevation: 5 }]}
               onPress={onOpenAlbums}
               hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
               activeOpacity={0.7}
             >
-              <BlurView intensity={40} tint="dark" style={styles.settingsBtnInner}>
-                <Ionicons name="albums-outline" size={18} color="#FFF" />
-              </BlurView>
+              <View style={styles.settingsBtnInner}>
+                <Image source={require('../assets/images/album.png')} style={styles.coverIconImg} />
+              </View>
             </TouchableOpacity>
           )}
           {/* Upload progress */}
@@ -449,25 +445,22 @@ export default function ProfileScreen({ onNavigateToSettings, refreshTrigger, on
         {/* === PROFILE CONTENT === */}
         <View style={[styles.content, { backgroundColor: C.background }]}>
 
-          {/* Avatar floating above cover */}
+          {/* Avatar floating above cover - no camera badge */}
           <View style={styles.avatarRow}>
-            <TouchableOpacity style={styles.avatarWrapper} onPress={() => pickAndUpload('avatar')}>
+            <View style={styles.avatarWrapper}>
               {avatarUrl ? (
                 <Image source={{ uri: `${avatarUrl}?v=${avatarVersion}` }} style={styles.avatar} contentFit="cover" />
               ) : (
-                <GradientView colors={GRADIENTS.primaryBlue} style={styles.avatar}>
-                  <Text style={styles.avatarInitials}>{getInitials()}</Text>
-                </GradientView>
+                <Image source={require('../assets/images/avatar-default.png')} style={styles.avatar} contentFit="cover" />
               )}
-              <View style={[styles.avatarBadge, { backgroundColor: C.primary }]}>
-                <Ionicons name="camera" size={11} color="#FFF" />
-              </View>
-            </TouchableOpacity>
+            </View>
+            <View style={styles.usernameContainer}>
+               <Text style={[styles.username, { color: C.textTertiary }]}>@{user?.username || ''}</Text>
+            </View>
           </View>
 
           {/* Name & info */}
           <Text style={[styles.name, { color: C.textPrimary }]}>{user?.name || 'Người dùng'}</Text>
-          <Text style={[styles.username, { color: C.textTertiary }]}>@{user?.username || ''}</Text>
           {user?.bio ? <Text style={[styles.bio, { color: C.textSecondary }]}>{user.bio}</Text> : null}
 
           {/* Gender / DOB / Phone info row */}
@@ -491,50 +484,10 @@ export default function ProfileScreen({ onNavigateToSettings, refreshTrigger, on
               </View>
             ) : null}
           </View>
-
-          {/* === BENTO STATS GRID === */}
-          <View style={styles.bentoGrid}>
-            {/* Row 1: 3 equal stat cards */}
-            <View style={styles.bentoRow}>
-              {[
-                { icon: 'images', label: 'Khoảnh khắc', value: moments.length, color: C.primary },
-                { icon: 'people', label: 'Bạn bè', value: friendsCount, color: DARK_COLORS.accentPink },
-                { icon: 'location', label: 'Địa điểm', value: locationsCount, color: DARK_COLORS.accentViolet },
-              ].map((stat) => (
-                <View
-                  key={stat.label}
-                  style={[styles.statCard, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#FFF', borderColor: C.border }]}
-                >
-                  <View style={[styles.statIconBg, { backgroundColor: `${stat.color}22` }]}>
-                    <Ionicons name={stat.icon as any} size={20} color={stat.color} />
-                  </View>
-                  <Text style={[styles.statValue, { color: C.textPrimary }]}>{stat.value}</Text>
-                  <Text style={[styles.statLabel, { color: C.textTertiary }]}>{stat.label}</Text>
-                </View>
-              ))}
-            </View>
-          </View>
-
-          {/* === LOGOUT ROW === */}
-          <View style={styles.actionRow}>
-            <TouchableOpacity
-              style={[styles.logoutBtn, { backgroundColor: isDark ? 'rgba(255,255,255,0.07)' : '#F3F4F6', borderColor: C.border }]}
-              onPress={() => showAlert('Xác nhận', 'Đăng xuất khỏi tài khoản?', [
-                { text: 'Hủy', style: 'cancel' },
-                { text: 'Đăng xuất', style: 'destructive', onPress: async () => { await authService.logout(); logoutStore(); } },
-              ])}
-            >
-              <Ionicons name="log-out-outline" size={17} color={C.textTertiary} />
-              <Text style={[styles.logoutText, { color: C.textTertiary }]}>Đăng xuất</Text>
-            </TouchableOpacity>
-          </View>
-
           {/* === MOMENTS GRID === */}
           <View style={styles.sectionHeader}>
+            <Image source={require('../assets/images/moment.png')} style={styles.sectionIcon} />
             <Text style={[styles.sectionTitle, { color: C.textPrimary }]}>Khoảnh khắc</Text>
-            <View style={[styles.countBadge, { backgroundColor: isDark ? 'rgba(67,97,238,0.2)' : '#EEF2FF' }]}>
-              <Text style={[styles.countBadgeText, { color: C.primary }]}>{moments.length}</Text>
-            </View>
           </View>
 
           {loadingMoments ? (
@@ -550,7 +503,7 @@ export default function ProfileScreen({ onNavigateToSettings, refreshTrigger, on
           ) : (
             <FlatList
               data={moments}
-              renderItem={renderThumb}
+              renderItem={renderMiniCard}
               keyExtractor={(item) => item.id.toString()}
               numColumns={PHOTO_COL}
               scrollEnabled={false}
@@ -571,58 +524,118 @@ export default function ProfileScreen({ onNavigateToSettings, refreshTrigger, on
         visible={!!selectedMoment}
         onRequestClose={closeMomentViewer}
       >
-        <Pressable 
-          style={styles.momentModalOverlay} 
-          onPress={closeMomentViewer}
-        >
-          <Pressable style={{ width: '100%' }}>
-              {selectedMoment && (
-                <MomentCard
-                  moment={selectedMoment}
-                  baseUrl={getBaseUrl()}
-                  token={token || ''}
-                  onPressMap={() => {
-                    if (selectedMoment.location && onOpenMap) {
-                      const provinceName = selectedMoment.province?.name || selectedMoment.district?.name || '';
-                      const firstImage = selectedMoment.media && selectedMoment.media.length > 0 ? selectedMoment.media[0].mediaUrl : undefined;
-                      onOpenMap({
-                        latitude: selectedMoment.location.latitude,
-                        longitude: selectedMoment.location.longitude,
-                        addressName: selectedMoment.location.address || selectedMoment.location.name,
-                        provinceName,
-                        imageUrl: firstImage,
-                      });
+        <View style={styles.momentModalOverlay}>
+          {/* Close button */}
+          <TouchableOpacity style={styles.modalCloseBtn} onPress={closeMomentViewer} activeOpacity={0.8}>
+            <Ionicons name="close" size={22} color="#FFF" />
+          </TouchableOpacity>
+
+          <View style={{ width: '100%' }}>
+            {selectedMoment && (
+              <MomentCard
+                moment={selectedMoment}
+                baseUrl={getBaseUrl()}
+                token={token || ''}
+                onPressMap={() => {
+                  if (selectedMoment.location && onOpenMap) {
+                    const provinceName = selectedMoment.province?.name || selectedMoment.district?.name || '';
+                    const firstImage = selectedMoment.media && selectedMoment.media.length > 0 ? selectedMoment.media[0].mediaUrl : undefined;
+                    onOpenMap({
+                      latitude: selectedMoment.location.latitude,
+                      longitude: selectedMoment.location.longitude,
+                      addressName: selectedMoment.location.address || selectedMoment.location.name,
+                      provinceName,
+                      imageUrl: firstImage,
+                    });
+                  }
+                  setSelectedMoment(null);
+                }}
+                onPressLike={async () => {
+                  const wasLiked = selectedMoment.userReacted;
+                  const newReactionCount = wasLiked ? (selectedMoment.reactionCount || 1) - 1 : (selectedMoment.reactionCount || 0) + 1;
+                  
+                  // Optimistic update
+                  setMoments(prev => prev.map(m =>
+                    m.id === selectedMoment.id
+                      ? {
+                        ...m,
+                        userReacted: !wasLiked,
+                        reactionCount: newReactionCount
+                      }
+                      : m
+                  ));
+                  
+                  setSelectedMoment(prev => prev ? {
+                    ...prev,
+                    userReacted: !wasLiked,
+                    reactionCount: newReactionCount
+                  } : null);
+
+                  // Call API
+                  try {
+                    const API_URL = getApiUrl();
+                    const response = await fetch(`${API_URL}/reactions/moments/${selectedMoment.id}`, {
+                      method: 'POST',
+                      headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                      },
+                      body: JSON.stringify({ type: 'HEART' }),
+                    });
+
+                    if (!response.ok) {
+                      // Revert on failure
+                      setMoments(prev => prev.map(m =>
+                        m.id === selectedMoment.id
+                          ? {
+                            ...m,
+                            userReacted: wasLiked,
+                            reactionCount: selectedMoment.reactionCount || 0
+                          }
+                          : m
+                      ));
+                      
+                      setSelectedMoment(prev => prev ? {
+                        ...prev,
+                        userReacted: wasLiked,
+                        reactionCount: selectedMoment.reactionCount || 0
+                      } : null);
                     }
-                    setSelectedMoment(null);
-                  }}
-                  onPressLike={() => {
-                    // Update internal list state if liked from modal
-                    const wasLiked = selectedMoment.userReacted;
-                    setMoments(prev => prev.map(m => 
-                      m.id === selectedMoment.id 
-                        ? { 
-                            ...m, 
-                            userReacted: !wasLiked, 
-                            reactionCount: wasLiked ? (m.reactionCount || 1) - 1 : (m.reactionCount || 0) + 1 
-                          } 
+                  } catch (error) {
+                    console.error('Error toggling reaction:', error);
+                    // Revert on error
+                    setMoments(prev => prev.map(m =>
+                      m.id === selectedMoment.id
+                        ? {
+                          ...m,
+                          userReacted: wasLiked,
+                          reactionCount: selectedMoment.reactionCount || 0
+                        }
                         : m
                     ));
-                  }}
-                  onPressComment={() => {
-                    setCommentModalVisible(true);
-                  }}
-                  onPressMenu={() => {
-                    showAlert('Tùy chọn', 'Chọn hành động cho bài viết này', [
-                      { text: 'Chỉnh sửa caption', onPress: () => handleEditCaption(selectedMoment) },
-                      { text: 'Thêm vào album', onPress: () => handleAddToAlbum(selectedMoment.id) },
-                      { text: 'Xóa bài viết', style: 'destructive', onPress: () => handleDeleteMoment(selectedMoment.id) },
-                      { text: 'Hủy', style: 'cancel' }
-                    ]);
-                  }}
-                />
-              )}
-          </Pressable>
-        </Pressable>
+                    
+                    setSelectedMoment(prev => prev ? {
+                      ...prev,
+                      userReacted: wasLiked,
+                      reactionCount: selectedMoment.reactionCount || 0
+                    } : null);
+                  }
+                }}
+                onPressComment={() => {
+                  setCommentModalVisible(true);
+                }}
+                onPressMenu={() => {
+                  showAlert('Tùy chọn', 'Chọn hành động cho bài viết này', [
+                    { text: 'Chỉnh sửa caption', onPress: () => handleEditCaption(selectedMoment) },
+                    { text: 'Thêm vào album', onPress: () => handleAddToAlbum(selectedMoment.id) },
+                    { text: 'Xóa bài viết', style: 'destructive', onPress: () => handleDeleteMoment(selectedMoment.id) },
+                    { text: 'Hủy', style: 'cancel' }
+                  ]);
+                }}
+              />
+            )}
+          </View>
+        </View>
       </Modal>
 
       {/* Comment Modal */}
@@ -632,9 +645,9 @@ export default function ProfileScreen({ onNavigateToSettings, refreshTrigger, on
           momentId={selectedMoment.id}
           onClose={() => setCommentModalVisible(false)}
           onCommentAdded={() => {
-            setMoments(prev => prev.map(m => 
-              m.id === selectedMoment.id 
-                ? { ...m, commentCount: (m.commentCount || 0) + 1 } 
+            setMoments(prev => prev.map(m =>
+              m.id === selectedMoment.id
+                ? { ...m, commentCount: (m.commentCount || 0) + 1 }
                 : m
             ));
             setSelectedMoment(prev => prev ? { ...prev, commentCount: (prev.commentCount || 0) + 1 } : null);
@@ -696,30 +709,56 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)',
   },
   settingsBtn: { position: 'absolute', top: 54, right: 16, zIndex: 10 },
-  albumsBtn: { position: 'absolute', top: 54, right: 64, zIndex: 10 },
+  albumsBtn: { position: 'absolute', top: 54, right: 74, zIndex: 10 },
   uploadProgress: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: 8, paddingVertical: 8, backgroundColor: 'rgba(0,0,0,0.5)',
   },
   uploadText: { color: '#FFF', fontSize: 13 },
-  settingsBtnInner: {
-    width: 40, height: 40, borderRadius: 20, overflow: 'hidden',
+  coverEditBtn: {
+    position: 'absolute', bottom: 14, right: 14,
+    zIndex: 10,
+  },
+  coverEditBtnInner: {
+    width: 54, height: 54, borderRadius: 27, overflow: 'hidden',
     justifyContent: 'center', alignItems: 'center',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.4)',
+  },
+  settingsBtnInner: {
+    width: 54, height: 54, borderRadius: 27, overflow: 'hidden',
+    justifyContent: 'center', alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.4)',
   },
 
   // Content
   content: { paddingHorizontal: 16, paddingBottom: 8 },
 
   // Avatar
-  avatarRow: { marginTop: -52, marginBottom: 12 },
-  avatarWrapper: { position: 'relative', alignSelf: 'flex-start' },
-  avatar: {
-    width: 96, height: 96, borderRadius: 28,
-    borderWidth: 3, borderColor: '#000',
-    justifyContent: 'center', alignItems: 'center',
+  avatarRow: { 
+    marginTop: -96, 
+    marginBottom: 12, 
+    flexDirection: 'row', 
+    alignItems: 'flex-end', 
+    justifyContent: 'space-between' 
   },
+  avatarWrapper: { position: 'relative' },
+  avatar: {
+    width: 192, height: 192, borderRadius: 96,
+    borderWidth: 4, borderColor: '#FFF',
+    backgroundColor: '#EEE',
+  },
+  usernameContainer: {
+    flex: 1,
+    alignItems: 'flex-end',
+    justifyContent: 'flex-end',
+    paddingBottom: 12,
+  },
+  username: { fontSize: 20, fontWeight: '700' },
+  smallIconImg: { width: 28, height: 28 },
+  coverIconImg: { width: 32, height: 32 },
   avatarInitials: { fontSize: 34, fontWeight: '800', color: '#FFF' },
   avatarBadge: {
     position: 'absolute', bottom: 0, right: 0,
@@ -754,29 +793,24 @@ const styles = StyleSheet.create({
   statValue: { fontSize: 22, fontWeight: '800' },
   statLabel: { fontSize: 11, fontWeight: '500', textAlign: 'center' },
 
-  // Actions
-  actionRow: { flexDirection: 'row', marginBottom: 24 },
-  logoutBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    paddingHorizontal: 14, paddingVertical: 10,
-    borderRadius: 20, borderWidth: 1,
-  },
-  logoutText: { fontSize: 14, fontWeight: '500' },
-
   // Section header
-  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
-  sectionTitle: { fontSize: 18, fontWeight: '800' },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16 },
+  sectionIcon: { width: 32, height: 32 },
+  sectionTitle: { fontSize: 20, fontWeight: '800' },
   countBadge: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 20 },
   countBadgeText: { fontSize: 13, fontWeight: '700' },
 
   // Grid thumbs
   thumb: {
     width: PHOTO_SIZE, height: PHOTO_SIZE,
-    borderRadius: 10, overflow: 'hidden', position: 'relative',
+    borderRadius: 14, overflow: 'hidden', position: 'relative',
+  },
+  miniCardWrapper: {
+    width: PHOTO_SIZE,
   },
   thumbOverlay: {
     ...StyleSheet.absoluteFillObject,
-    borderRadius: 10,
+    borderRadius: 14,
     borderWidth: 0.5,
     borderColor: 'rgba(255,255,255,0.06)',
   },
@@ -801,5 +835,19 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.85)',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  modalCloseBtn: {
+    position: 'absolute',
+    top: 52,
+    right: 16,
+    zIndex: 100,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
   },
 });

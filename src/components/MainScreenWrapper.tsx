@@ -1,8 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, Modal, TouchableOpacity } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import FloatingActionMenu from './FloatingActionMenu';
 import albumService from '../api/albumService';
+import momentService from '../api/momentService';
+import MomentCard from './MomentCard';
 import { useAlert } from '../context/AlertContext';
 
 // Import screens
@@ -20,6 +23,7 @@ import UserProfileScreen from '../screens/UserProfileScreen';
 import AlbumsScreen from '../screens/AlbumsScreen';
 import ChatsListScreen from '../screens/ChatsListScreen';
 import ChatRoomScreen from '../screens/ChatRoomScreen';
+import CommentModal from './CommentModal';
 import { useChatStore } from '../store/useChatStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { useWebSocketStore } from '../store/useWebSocketStore';
@@ -28,6 +32,7 @@ import { useMainNavigationStore } from '../store/useMainNavigationStore';
 import { useSOSStore } from '../store/sosStore';
 import SOSActiveScreen from '../screens/SOSActiveScreen';
 import SOSReceivedAlert from '../components/SOSReceivedAlert';
+import { getBaseUrl } from '../config/api';
 import { SOSAlertStatus } from '../types/sos';
 import { pushNotificationService } from '../services/pushNotificationService';
 
@@ -57,6 +62,13 @@ export default function MainScreenWrapper() {
   const [currentChatTab, setCurrentChatTab] = useState<'direct' | 'group'>('direct');
   const [sharedMomentId, setSharedMomentId] = useState<number | null>(null);
   const [sharedAlbumId, setSharedAlbumId] = useState<number | null>(null);
+  
+  // Shared moment modal state (giống AlbumsScreen)
+  const [selectedMoment, setSelectedMoment] = useState<any | null>(null);
+  
+  // Comment modal state
+  const [commentModalVisible, setCommentModalVisible] = useState(false);
+  const [selectedMomentForComment, setSelectedMomentForComment] = useState<number | null>(null);
 
   const token = useAuthStore((s) => s.token);
   const currentUser = useAuthStore((s) => s.user);
@@ -238,11 +250,21 @@ export default function MainScreenWrapper() {
     setActiveScreen('chat-room');
   }, [setActiveScreen]);
 
-  // Mở moment từ chat → navigate đến Explore với momentId highlight
-  const onPressMoment = useCallback((momentId: number) => {
-    setSharedMomentId(momentId);
-    setActiveScreen('explore-moment');
-  }, [setActiveScreen]);
+  // Mở moment từ chat → mở modal với MomentCard (giống AlbumsScreen)
+  const onPressMoment = useCallback(async (momentId: number) => {
+    if (!token) return;
+    
+    try {
+      // Fetch moment data từ API
+      const moment = await momentService.getMomentById(momentId, token);
+      if (moment) {
+        setSelectedMoment(moment);
+      }
+    } catch (error) {
+      console.error('Error fetching shared moment:', error);
+      showAlert('Lỗi', 'Không thể tải moment này');
+    }
+  }, [token, showAlert]);
 
   // Lưu album được chia sẻ vào album của mình rồi mở AlbumsScreen
   const onPressAlbum = useCallback(async (albumId: number) => {
@@ -450,6 +472,77 @@ export default function MainScreenWrapper() {
         <FloatingActionMenu items={menuItems} activeItem={activeScreen} />
       )}
 
+      {/* Shared Moment Modal (giống AlbumsScreen) */}
+      <Modal
+        visible={!!selectedMoment}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setSelectedMoment(null)}
+      >
+        <View style={styles.momentModalOverlay}>
+          {/* Close button */}
+          <TouchableOpacity 
+            style={styles.modalCloseBtn} 
+            onPress={() => setSelectedMoment(null)} 
+            activeOpacity={0.8}
+          >
+            <Ionicons name="close" size={22} color="#FFF" />
+          </TouchableOpacity>
+
+          <View style={{ width: '100%' }}>
+            {selectedMoment && (
+              <MomentCard
+                moment={selectedMoment}
+                baseUrl={getBaseUrl()}
+                token={token || ''}
+                onPressProfile={() => {
+                  // Mở trang cá nhân của người đăng moment
+                  setUserProfileParams({ userId: selectedMoment.author.id });
+                  setActiveScreen('userProfile');
+                  setSelectedMoment(null);
+                }}
+                onPressComment={() => {
+                  // Mở CommentModal
+                  setSelectedMomentForComment(selectedMoment.id);
+                  setCommentModalVisible(true);
+                  setSelectedMoment(null); // Đóng moment modal trước
+                }}
+                onPressMap={() => {
+                  if (selectedMoment.location) {
+                    const provinceName = selectedMoment.province?.name || selectedMoment.district?.name || '';
+                    const firstImage = selectedMoment.media && selectedMoment.media.length > 0 ? selectedMoment.media[0].mediaUrl : undefined;
+                    setMapParams({
+                      latitude: selectedMoment.location.latitude,
+                      longitude: selectedMoment.location.longitude,
+                      addressName: selectedMoment.location.address || selectedMoment.location.name,
+                      provinceName,
+                      imageUrl: firstImage,
+                    });
+                    setActiveScreen('map');
+                  }
+                  setSelectedMoment(null);
+                }}
+                onPressLike={undefined} // Để MomentCard tự xử lý
+                onPressShare={() => {
+                  // TODO: Implement share functionality
+                  showAlert('Thông báo', 'Chức năng chia sẻ đang được phát triển');
+                }}
+              />
+            )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* Comment Modal */}
+      <CommentModal
+        visible={commentModalVisible}
+        momentId={selectedMomentForComment}
+        onClose={() => {
+          setCommentModalVisible(false);
+          setSelectedMomentForComment(null);
+        }}
+      />
+
       {/* SOS Active Overlay (Full screen) */}
       {activeAlert && <SOSActiveScreen />}
 
@@ -478,5 +571,24 @@ export default function MainScreenWrapper() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  momentModalOverlay: {
+    flex: 1,
+    backgroundColor: '#000',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+  },
+  modalCloseBtn: {
+    position: 'absolute',
+    top: 60,
+    right: 20,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
   },
 });

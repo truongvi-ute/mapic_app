@@ -1,5 +1,5 @@
 import { Accelerometer } from 'expo-sensors';
-import { Subscription } from 'expo-modules-core';
+import { Subscription } from 'expo-sensors';
 
 /**
  * Shake Detector Utility
