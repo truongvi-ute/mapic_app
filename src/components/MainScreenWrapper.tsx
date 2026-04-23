@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import FloatingActionMenu from './FloatingActionMenu';
@@ -25,6 +25,11 @@ import { useAuthStore } from '../store/useAuthStore';
 import { useWebSocketStore } from '../store/useWebSocketStore';
 import { useNotificationStore } from '../store/useNotificationStore';
 import { useMainNavigationStore } from '../store/useMainNavigationStore';
+import { useSOSStore } from '../store/sosStore';
+import SOSActiveScreen from '../screens/SOSActiveScreen';
+import SOSReceivedAlert from '../components/SOSReceivedAlert';
+import { SOSAlertStatus } from '../types/sos';
+import { pushNotificationService } from '../services/pushNotificationService';
 
 interface MapScreenParams {
   latitude: number;
@@ -58,6 +63,13 @@ export default function MainScreenWrapper() {
   const { connect, disconnect } = useChatStore();
   const { connect: connectMapWS, disconnect: disconnectMapWS, subscribe } = useWebSocketStore();
   const { addNotification, fetchUnreadCount } = useNotificationStore();
+  const { 
+    activeAlert, 
+    receivedAlerts, 
+    fetchActiveAlerts, 
+    addReceivedAlert, 
+    markAlertAsViewed 
+  } = useSOSStore();
   const { showAlert } = useAlert();
 
   // Connect STOMP when app loads
@@ -72,17 +84,41 @@ export default function MainScreenWrapper() {
             console.log('[WS Notification] Received:', notification);
             addNotification(notification);
             
-            // Show local alert/toast
-            showAlert('Thông báo mới', notification.message, [
-              { text: 'Xem', onPress: () => setActiveScreen('notifications') },
-              { text: 'Đóng', style: 'cancel' }
-            ]);
+            // Handle SOS specific notification
+            if (notification.type === 'SOS_ALERT') {
+              console.log('[SOS] Emergency alert received via WS!');
+              addReceivedAlert({
+                id: notification.targetId,
+                senderId: notification.actorId,
+                senderName: notification.actorName,
+                senderAvatar: notification.actorAvatar,
+                triggeredAt: notification.createdAt,
+                status: SOSAlertStatus.ACTIVE,
+                message: notification.message,
+                locationStatus: 'ACCURATE', // Default for alerts
+                recipientCount: 0
+              });
+
+              // Trigger a local push notification immediately
+              pushNotificationService.scheduleLocalNotification(
+                '⚠️ CẢNH BÁO SOS KHẨN CẤP',
+                `${notification.actorName} đang cần bạn giúp đỡ!`,
+                { type: 'SOS_ALERT', alertId: notification.targetId }
+              );
+            } else {
+              // Show local alert/toast for other notifications
+              showAlert('Thông báo mới', notification.message, [
+                { text: 'Xem', onPress: () => setActiveScreen('notifications') },
+                { text: 'Đóng', style: 'cancel' }
+              ]);
+            }
           } catch (e) {
             console.error('[WS Notification] Parse error:', e);
           }
         });
       });
       fetchUnreadCount();
+      fetchActiveAlerts();
     }
     return () => {
       disconnect();
@@ -91,7 +127,7 @@ export default function MainScreenWrapper() {
   }, [token]);
 
   // Helper function to handle profile navigation
-  const handleOpenProfile = (userId: number) => {
+  const handleOpenProfile = useCallback((userId: number) => {
     // If clicking on own profile, go to Profile tab
     if (currentUser?.id === userId) {
       setActiveScreen('profile');
@@ -100,7 +136,7 @@ export default function MainScreenWrapper() {
       setUserProfileParams({ userId });
       setActiveScreen('userProfile');
     }
-  };
+  }, [currentUser?.id, setActiveScreen]);
 
   // Sync global navigation params to local state
   React.useEffect(() => {
@@ -194,22 +230,22 @@ export default function MainScreenWrapper() {
     },
   ];
 
-  const onOpenChat = (conversation: any, currentTab?: 'direct' | 'group') => {
+  const onOpenChat = useCallback((conversation: any, currentTab?: 'direct' | 'group') => {
     if (currentTab) {
       setCurrentChatTab(currentTab);
     }
     setChatParams(conversation);
     setActiveScreen('chat-room');
-  };
+  }, [setActiveScreen]);
 
   // Mở moment từ chat → navigate đến Explore với momentId highlight
-  const onPressMoment = (momentId: number) => {
+  const onPressMoment = useCallback((momentId: number) => {
     setSharedMomentId(momentId);
     setActiveScreen('explore-moment');
-  };
+  }, [setActiveScreen]);
 
   // Lưu album được chia sẻ vào album của mình rồi mở AlbumsScreen
-  const onPressAlbum = async (albumId: number) => {
+  const onPressAlbum = useCallback(async (albumId: number) => {
     if (!token) return;
     try {
       await albumService.saveSharedAlbum(albumId, token);
@@ -231,27 +267,55 @@ export default function MainScreenWrapper() {
         showAlert('Lỗi', e.message || 'Không thể lưu album');
       }
     }
-  };
+  }, [token, setActiveScreen, showAlert]);
+
+  const handleOpenMap = useCallback((params: any) => {
+    setMapParams(params);
+    setActiveScreen('map');
+  }, [setActiveScreen]);
+
+  const handleOpenAlbums = useCallback(() => {
+    setActiveScreen('albums');
+  }, [setActiveScreen]);
+
+  const handleBackToHome = useCallback(() => {
+    setActiveScreen('home');
+  }, [setActiveScreen]);
+
+  const handleBackToProfile = useCallback(() => {
+    setActiveScreen('profile');
+  }, [setActiveScreen]);
+
+  const handleBackToChat = useCallback(() => {
+    setChatListRefresh((n) => n + 1);
+    setActiveScreen('chat');
+  }, [setActiveScreen]);
+
+  const handleNavigateToSettings = useCallback(() => {
+    setActiveScreen('settings');
+  }, [setActiveScreen]);
+
+  const handleNavigateToEditProfile = useCallback(() => {
+    setActiveScreen('edit-profile');
+  }, [setActiveScreen]);
+
+  const handleNavigateToNotifications = useCallback(() => {
+    setActiveScreen('notifications');
+  }, [setActiveScreen]);
 
   const renderScreen = () => {
     switch (activeScreen) {
       case 'home':
         return <HomeScreen 
           refreshTrigger={homeNeedsRefresh}
-          onOpenMap={(params) => {
-            setMapParams(params);
-            setActiveScreen('map');
-          }}
+          onOpenMap={handleOpenMap}
           onPressProfile={handleOpenProfile}
         />;
       case 'explore':
         return <ExploreScreen 
           refreshTrigger={exploreNeedsRefresh}
           highlightMomentId={sharedMomentId ?? undefined}
-          onOpenMap={(params) => {
-            setMapParams(params);
-            setActiveScreen('map');
-          }}
+          onOpenMap={handleOpenMap}
           onPressProfile={handleOpenProfile}
         />;
       case 'explore-moment':
@@ -261,10 +325,7 @@ export default function MainScreenWrapper() {
             setSharedMomentId(null);
             setActiveScreen('chat-room');
           }}
-          onOpenMap={(params) => {
-            setMapParams(params);
-            setActiveScreen('map');
-          }}
+          onOpenMap={handleOpenMap}
           onPressProfile={handleOpenProfile}
         />;
       case 'create':
@@ -286,7 +347,7 @@ export default function MainScreenWrapper() {
       case 'chat':
         return (
           <ChatsListScreen
-            onBack={() => setActiveScreen('home')}
+            onBack={handleBackToHome}
             onOpenChat={onOpenChat}
             refreshTrigger={chatListRefresh}
             initialTab={currentChatTab}
@@ -302,10 +363,7 @@ export default function MainScreenWrapper() {
           <ChatRoomScreen
             conversation={chatParams}
             friendId={friendIdFromConv}
-            onBack={() => {
-              setChatListRefresh((n) => n + 1);
-              setActiveScreen('chat');
-            }}
+            onBack={handleBackToChat}
             onPressMoment={onPressMoment}
             onPressAlbum={onPressAlbum}
           />
@@ -313,30 +371,24 @@ export default function MainScreenWrapper() {
       case 'profile':
         return (
           <ProfileScreen 
-            onNavigateToSettings={() => setActiveScreen('settings')}
+            onNavigateToSettings={handleNavigateToSettings}
             refreshTrigger={profileNeedsRefresh}
-            onOpenMap={(params) => {
-              setMapParams(params);
-              setActiveScreen('map');
-            }}
-            onOpenAlbums={() => setActiveScreen('albums')}
+            onOpenMap={handleOpenMap}
+            onOpenAlbums={handleOpenAlbums}
           />
         );
       case 'albums':
         return (
           <AlbumsScreen
-            onBack={() => setActiveScreen('profile')}
-            onOpenMap={(params) => {
-              setMapParams(params);
-              setActiveScreen('map');
-            }}
+            onBack={handleBackToProfile}
+            onOpenMap={handleOpenMap}
           />
         );
       case 'settings':
         return (
           <SettingsScreen 
-            onBack={() => setActiveScreen('profile')}
-            onNavigateToEditProfile={() => setActiveScreen('edit-profile')}
+            onBack={handleBackToProfile}
+            onNavigateToEditProfile={handleNavigateToEditProfile}
             onNavigateToVerifyOTP={(email, type) => {
               navigation.navigate('VerifyOTP', { email, type });
             }}
@@ -352,7 +404,7 @@ export default function MainScreenWrapper() {
       case 'main-map':
         return (
           <MapScreen
-            onNavigateToNotifications={() => setActiveScreen('notifications')}
+            onNavigateToNotifications={handleNavigateToNotifications}
           />
         );
       case 'map':
@@ -365,7 +417,7 @@ export default function MainScreenWrapper() {
         return (
           <MomentMapScreen
             {...mapParams}
-            onBack={() => setActiveScreen('home')}
+            onBack={handleBackToHome}
           />
         );
       case 'userProfile':
@@ -377,16 +429,15 @@ export default function MainScreenWrapper() {
         return (
           <UserProfileScreen 
             userId={userProfileParams.userId}
-            onBack={() => setActiveScreen('home')}
+            onBack={handleBackToHome}
+            onOpenChat={onOpenChat}
+            onOpenMap={handleOpenMap}
           />
         );
       default:
         return <HomeScreen 
           refreshTrigger={homeNeedsRefresh}
-          onOpenMap={(params) => {
-            setMapParams(params);
-            setActiveScreen('map');
-          }}
+          onOpenMap={handleOpenMap}
           onPressProfile={handleOpenProfile}
         />;
     }
@@ -395,9 +446,31 @@ export default function MainScreenWrapper() {
   return (
     <View style={styles.container}>
       {renderScreen()}
-      {activeScreen !== 'chat-room' && (
+      {activeScreen !== 'chat-room' && !activeAlert && (
         <FloatingActionMenu items={menuItems} activeItem={activeScreen} />
       )}
+
+      {/* SOS Active Overlay (Full screen) */}
+      {activeAlert && <SOSActiveScreen />}
+
+      {/* SOS Received Notifications (Floating alerts) */}
+      {receivedAlerts.map(alert => (
+        <SOSReceivedAlert 
+          key={`sos-alert-${alert.id}`}
+          alert={alert}
+          onViewLocation={() => {
+            setMapParams({
+              latitude: alert.latitude || 0,
+              longitude: alert.longitude || 0,
+              addressName: alert.senderName,
+              caption: 'Đang gửi tín hiệu SOS'
+            });
+            setActiveScreen('map');
+            markAlertAsViewed(alert.id);
+          }}
+          onDismiss={() => markAlertAsViewed(alert.id)}
+        />
+      ))}
     </View>
   );
 }

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { NavigationContainer } from '@react-navigation/native';
 import { useAuthStore } from '../store/useAuthStore';
@@ -17,6 +17,15 @@ const Stack = createNativeStackNavigator();
 
 const AppNavigator = () => {
   const isLoggedIn = useAuthStore((state) => state.isLoggedIn);
+  const user = useAuthStore((state) => state.user);
+  
+  console.log('[AppNavigator] Rendering with isLoggedIn:', isLoggedIn);
+  console.log('[AppNavigator] User:', user ? user.username : 'null');
+
+  // Force re-render when auth state changes
+  useEffect(() => {
+    console.log('[AppNavigator] Auth state changed - isLoggedIn:', isLoggedIn);
+  }, [isLoggedIn]);
 
   return (
     <NavigationContainer>
@@ -26,11 +35,6 @@ const AppNavigator = () => {
             <Stack.Screen 
               name="Main" 
               component={MainScreenWrapper} 
-              options={{ headerShown: false }} 
-            />
-            <Stack.Screen 
-              name="VerifyOTP" 
-              component={VerifyOTPScreen} 
               options={{ headerShown: false }} 
             />
             <Stack.Screen 

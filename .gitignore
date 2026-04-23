@@ -74,3 +74,4 @@ logs/
 # Temporary files
 tmp/
 temp/
+.gitnexus

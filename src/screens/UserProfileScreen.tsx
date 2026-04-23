@@ -25,6 +25,7 @@ import { getApiUrl, getBaseUrl, buildMediaUrl } from '../config/api';
 import AlbumSelectModal from '../components/AlbumSelectModal';
 import CommentModal from '../components/CommentModal';
 import EditCaptionModal from '../components/EditCaptionModal';
+import ReportInputModal from '../components/ReportInputModal';
 import chatService from '../api/chatService';
 
 const GENDER_LABELS: { [key: string]: string } = {
@@ -90,6 +91,8 @@ export default function UserProfileScreen({ userId, onBack, onOpenMap, onOpenCha
   const [selectedMomentForComment, setSelectedMomentForComment] = useState<number | null>(null);
   const [editCaptionModalVisible, setEditCaptionModalVisible] = useState(false);
   const [editingMoment, setEditingMoment] = useState<Moment | null>(null);
+  const [reportInputVisible, setReportInputVisible] = useState(false);
+  const [reportingMomentId, setReportingMomentId] = useState<number | null>(null);
 
   const API_URL = getApiUrl();
   const baseUrl = getBaseUrl();
@@ -166,13 +169,23 @@ export default function UserProfileScreen({ userId, onBack, onOpenMap, onOpenCha
       'Báo cáo bài viết',
       'Chọn lý do báo cáo:',
       [
-        { text: 'Nội dung sai lệch', onPress: () => submitReport(momentId, 'nội dung sai lệch') },
-        { text: 'Vi phạm tiêu chuẩn cộng đồng', onPress: () => submitReport(momentId, 'vi phạm tiêu chuẩn cộng đồng') },
-        { text: 'Ngôn từ thù ghét', onPress: () => submitReport(momentId, 'ngôn từ thù ghét') },
-        { text: 'Khác', onPress: () => submitReport(momentId, 'khác') },
+        { text: 'Nội dung sai lệch', onPress: () => submitReport(momentId, 'Bài viết có nội dung sai lệch hoặc không chính xác') },
+        { text: 'Vi phạm tiêu chuẩn cộng đồng', onPress: () => submitReport(momentId, 'Bài viết vi phạm tiêu chuẩn cộng đồng') },
+        { text: 'Ngôn từ thù ghét', onPress: () => submitReport(momentId, 'Bài viết chứa ngôn từ thù ghét hoặc phân biệt đối xử') },
+        { text: 'Khác', onPress: () => {
+          setReportingMomentId(momentId);
+          setReportInputVisible(true);
+        }},
         { text: 'Hủy', style: 'cancel' }
       ]
     );
+  };
+
+  const handleCustomReasonSubmit = (reason: string) => {
+    if (reportingMomentId) {
+      submitReport(reportingMomentId, reason);
+      setReportingMomentId(null);
+    }
   };
 
   const submitReport = async (momentId: number, reason: string) => {
@@ -614,6 +627,15 @@ export default function UserProfileScreen({ userId, onBack, onOpenMap, onOpenCha
           onSave={handleSaveCaption}
         />
       )}
+      
+      <ReportInputModal
+        visible={reportInputVisible}
+        onClose={() => {
+          setReportInputVisible(false);
+          setReportingMomentId(null);
+        }}
+        onSubmit={handleCustomReasonSubmit}
+      />
     </SafeContainer>
   );
 }

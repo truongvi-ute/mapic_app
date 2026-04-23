@@ -172,7 +172,7 @@ export default function RegisterScreen() {
               </Text>
             </TouchableOpacity>
 
-            <TouchableOpacity onPress={() => navigation.goBack()}>
+            <TouchableOpacity onPress={() => navigation.canGoBack() ? navigation.goBack() : navigation.navigate('Login')}>
               <Text style={styles.loginText}>
                 Đã có tài khoản? <Text style={styles.loginLink}>Đăng nhập</Text>
               </Text>

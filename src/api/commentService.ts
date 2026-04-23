@@ -16,6 +16,7 @@ export interface CommentDto {
   createdAt: string;
   reactionCount: number;
   userReacted: boolean;
+  userReactionType?: 'LIKE' | 'HEART' | 'HAHA' | 'WOW' | 'SAD' | 'ANGRY'; // Thêm field này
   replies?: CommentDto[];
 }
 

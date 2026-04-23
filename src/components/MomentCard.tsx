@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -72,6 +72,7 @@ export interface Moment {
   media?: MomentMedia[];
   reactionCount?: number;
   userReacted?: boolean;
+  userReactionType?: 'LIKE' | 'HEART' | 'HAHA' | 'WOW' | 'SAD' | 'ANGRY';
   commentCount?: number;
 }
 
@@ -120,12 +121,46 @@ export default function MomentCard({
   const [isLiking, setIsLiking] = useState(false);
   const [showLottie, setShowLottie] = useState(false);
   const [shareModalVisible, setShareModalVisible] = useState(false);
+  const [showReactions, setShowReactions] = useState(false);
+  const [userReactionType, setUserReactionType] = useState<string | undefined>(
+    (moment as any).userReactionType
+  );
+  
+  // Sync state with props when moment changes
+  useEffect(() => {
+    setLiked(moment.userReacted || false);
+    setLikeCount(moment.reactionCount || 0);
+    setUserReactionType((moment as any).userReactionType);
+  }, [moment.id, moment.userReacted, moment.reactionCount, (moment as any).userReactionType]);
   
   // Animation values
   const scaleAnim = useState(new Animated.Value(1))[0];
   const lottieRef = useRef<LottieView>(null);
   
   const actualBaseUrl = baseUrl || getBaseUrl();
+
+  // Helper function to get emoji from reaction type
+  const getEmojiFromType = (type?: string) => {
+    switch (type) {
+      case 'LIKE': return '👍';
+      case 'HEART': return '❤️';
+      case 'HAHA': return '😂';
+      case 'WOW': return '😮';
+      case 'SAD': return '😢';
+      case 'ANGRY': return '😠';
+      default: return '❤️';
+    }
+  };
+
+  // Auto-close emoji picker after 5 seconds
+  useEffect(() => {
+    if (showReactions) {
+      const timer = setTimeout(() => {
+        setShowReactions(false);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [showReactions]);
 
   const getTimeAgo = (dateString: string) => {
     const date = new Date(dateString);
@@ -164,8 +199,11 @@ export default function MomentCard({
     return iconMap[category] || 'ellipsis-horizontal-circle-outline';
   };
 
-  const handleLike = async () => {
-    console.log('[MomentCard] handleLike called', { isLiking, hasToken: !!token, momentId: moment.id });
+  const handleReact = async (reactionType: string) => {
+    console.log('[MomentCard] handleReact called', { isLiking, hasToken: !!token, momentId: moment.id, type: reactionType });
+    
+    // Close emoji picker
+    setShowReactions(false);
     
     if (isLiking || !token) {
       console.log('[MomentCard] Skipping - isLiking:', isLiking, 'hasToken:', !!token);
@@ -175,12 +213,27 @@ export default function MomentCard({
     setIsLiking(true);
     const wasLiked = liked;
     const previousCount = likeCount;
+    const previousType = userReactionType;
     
-    console.log('[MomentCard] Before toggle - liked:', wasLiked, 'count:', previousCount);
+    console.log('[MomentCard] Before react - liked:', wasLiked, 'count:', previousCount, 'type:', previousType);
     
-    // Optimistic update
-    setLiked(!liked);
-    setLikeCount(liked ? likeCount - 1 : likeCount + 1);
+    // Optimistic update logic
+    const isCurrentlyReacted = liked && userReactionType === reactionType;
+    
+    if (isCurrentlyReacted) {
+      // Remove reaction (toggle off)
+      setLiked(false);
+      setUserReactionType(undefined);
+      setLikeCount(likeCount - 1);
+    } else if (liked && userReactionType !== reactionType) {
+      // Change reaction type (count stays same)
+      setUserReactionType(reactionType);
+    } else {
+      // Add new reaction
+      setLiked(true);
+      setUserReactionType(reactionType);
+      setLikeCount(likeCount + 1);
+    }
     
     // Button scale animation
     Animated.sequence([
@@ -196,18 +249,16 @@ export default function MomentCard({
       }),
     ]).start();
     
-    // Heart animation (only when liking)
+    // Heart animation (only when adding reaction)
     if (!wasLiked) {
       console.log('[MomentCard] Starting Lottie animation');
       setShowLottie(true);
       
-      // Delay to ensure state update and smooth start
       setTimeout(() => {
         lottieRef.current?.reset();
         lottieRef.current?.play();
       }, 50);
       
-      // Hide after 3 seconds
       setTimeout(() => {
         setShowLottie(false);
       }, 3000);
@@ -215,7 +266,7 @@ export default function MomentCard({
     
     try {
       const API_URL = getApiUrl();
-      console.log('[MomentCard] Calling reaction API:', `${API_URL}/reactions/moments/${moment.id}`, 'hasToken:', !!token);
+      console.log('[MomentCard] Calling reaction API:', `${API_URL}/reactions/moments/${moment.id}`, 'type:', reactionType);
       
       const response = await fetch(`${API_URL}/reactions/moments/${moment.id}`, {
         method: 'POST',
@@ -223,7 +274,7 @@ export default function MomentCard({
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ type: 'HEART' }),
+        body: JSON.stringify({ type: reactionType }),
       });
       
       const responseText = await response.text();
@@ -231,18 +282,26 @@ export default function MomentCard({
       
       if (!response.ok) {
         console.error('[MomentCard] Reaction failed:', response.status, responseText);
+        // Revert on failure
         setLiked(wasLiked);
         setLikeCount(previousCount);
+        setUserReactionType(previousType);
       }
       
       onPressLike?.();
     } catch (error) {
+      // Revert on error
       setLiked(wasLiked);
       setLikeCount(previousCount);
+      setUserReactionType(previousType);
       console.error('[MomentCard] Error toggling reaction:', error);
     } finally {
       setIsLiking(false);
     }
+  };
+
+  const handleLike = () => {
+    handleReact(userReactionType || 'HEART');
   };
 
   const handleScroll = (event: any) => {
@@ -340,23 +399,49 @@ export default function MomentCard({
           
           {/* Interaction Overlay - Giữa phía dưới với nút Map */}
           <View style={styles.interactionOverlay}>
-            <TouchableOpacity
-              style={styles.overlayButton}
-              onPress={handleLike}
-              activeOpacity={0.7}
-              disabled={isLiking}
-            >
-              <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
-                <Ionicons
-                  name={liked ? 'heart' : 'heart-outline'}
-                  size={28}
-                  color={liked ? '#FF3B30' : '#FFFFFF'}
-                />
-              </Animated.View>
-              {likeCount > 0 && (
-                <Text style={styles.reactionCount}>{likeCount}</Text>
+            <View>
+              <TouchableOpacity
+                style={styles.overlayButton}
+                onPress={handleLike}
+                onLongPress={() => setShowReactions(true)}
+                activeOpacity={0.7}
+                disabled={isLiking}
+              >
+                <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+                  {liked && userReactionType ? (
+                    <Text style={styles.reactionEmoji}>
+                      {getEmojiFromType(userReactionType)}
+                    </Text>
+                  ) : (
+                    <Ionicons
+                      name="heart-outline"
+                      size={28}
+                      color="#FFFFFF"
+                    />
+                  )}
+                </Animated.View>
+                {likeCount > 0 && (
+                  <Text style={styles.reactionCount}>{likeCount}</Text>
+                )}
+              </TouchableOpacity>
+              
+              {/* Emoji Picker */}
+              {showReactions && (
+                <View style={styles.reactionPicker}>
+                  {(['LIKE', 'HEART', 'HAHA', 'WOW', 'SAD', 'ANGRY'] as const).map((type) => (
+                    <TouchableOpacity
+                      key={type}
+                      style={styles.reactionBubble}
+                      onPress={() => handleReact(type)}
+                    >
+                      <Text style={styles.reactionEmojiPicker}>
+                        {getEmojiFromType(type)}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
               )}
-            </TouchableOpacity>
+            </View>
 
             <TouchableOpacity
               style={styles.overlayButton}
@@ -653,5 +738,31 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 20,
     color: '#1C1C1E',
+  },
+  
+  // Emoji Reactions
+  reactionEmoji: {
+    fontSize: 28,
+  },
+  reactionPicker: {
+    position: 'absolute',
+    bottom: 50,
+    left: 0,
+    flexDirection: 'row',
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    borderRadius: 25,
+    padding: 8,
+    paddingHorizontal: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  reactionBubble: {
+    paddingHorizontal: 6,
+  },
+  reactionEmojiPicker: {
+    fontSize: 24,
   },
 });

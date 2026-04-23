@@ -10,6 +10,7 @@ import commentService, { CommentDto } from '../api/commentService';
 import reportService, { ReportRequest } from '../api/reportService';
 import { useAuthStore } from '../store/useAuthStore';
 import { useAlert } from '../context/AlertContext';
+import ReportInputModal from './ReportInputModal';
 
 interface CommentModalProps {
   visible: boolean;
@@ -24,6 +25,8 @@ export default function CommentModal({ visible, momentId, onClose, onCommentAdde
   const [inputText, setInputText] = useState('');
   const [replyingTo, setReplyingTo] = useState<CommentDto | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [reportInputVisible, setReportInputVisible] = useState(false);
+  const [reportingCommentId, setReportingCommentId] = useState<number | null>(null);
   
   const token = useAuthStore(state => state.token);
   const currentUserId = useAuthStore(state => state.user?.id);
@@ -84,20 +87,62 @@ export default function CommentModal({ visible, momentId, onClose, onCommentAdde
       // Optimistic update
       const updatedComments = comments.map(c => {
         if (c.id === comment.id) {
-          return {
-            ...c,
-            userReacted: !c.userReacted, // Note: Simplified toggle logic
-            reactionCount: c.userReacted ? c.reactionCount - 1 : c.reactionCount + 1
-          };
+          // If clicking same reaction type, remove it (toggle off)
+          const isCurrentlyReacted = c.userReacted && c.userReactionType === type;
+          
+          if (isCurrentlyReacted) {
+            // Remove reaction
+            return {
+              ...c,
+              userReacted: false,
+              userReactionType: undefined,
+              reactionCount: c.reactionCount - 1
+            };
+          } else if (c.userReacted && c.userReactionType !== type) {
+            // Change reaction type (count stays same)
+            return {
+              ...c,
+              userReacted: true,
+              userReactionType: type,
+              reactionCount: c.reactionCount
+            };
+          } else {
+            // Add new reaction
+            return {
+              ...c,
+              userReacted: true,
+              userReactionType: type,
+              reactionCount: c.reactionCount + 1
+            };
+          }
         }
         if (c.replies) {
           const updatedReplies = c.replies.map(r => {
             if (r.id === comment.id) {
-              return {
-                ...r,
-                userReacted: !r.userReacted,
-                reactionCount: r.userReacted ? r.reactionCount - 1 : r.reactionCount + 1
-              };
+              const isCurrentlyReacted = r.userReacted && r.userReactionType === type;
+              
+              if (isCurrentlyReacted) {
+                return {
+                  ...r,
+                  userReacted: false,
+                  userReactionType: undefined,
+                  reactionCount: r.reactionCount - 1
+                };
+              } else if (r.userReacted && r.userReactionType !== type) {
+                return {
+                  ...r,
+                  userReacted: true,
+                  userReactionType: type,
+                  reactionCount: r.reactionCount
+                };
+              } else {
+                return {
+                  ...r,
+                  userReacted: true,
+                  userReactionType: type,
+                  reactionCount: r.reactionCount + 1
+                };
+              }
             }
             return r;
           });
@@ -156,13 +201,23 @@ export default function CommentModal({ visible, momentId, onClose, onCommentAdde
       'Báo cáo bình luận',
       'Chọn lý do báo cáo:',
       [
-        { text: 'Nội dung sai lệch', onPress: () => submitReport(commentId, 'nội dung sai lệch') },
-        { text: 'Vi phạm tiêu chuẩn cộng đồng', onPress: () => submitReport(commentId, 'vi phạm tiêu chuẩn cộng đồng') },
-        { text: 'Ngôn từ thù ghét', onPress: () => submitReport(commentId, 'ngôn từ thù ghét') },
-        { text: 'Khác', onPress: () => submitReport(commentId, 'khác') },
+        { text: 'Nội dung sai lệch', onPress: () => submitReport(commentId, 'Bình luận có nội dung sai lệch hoặc không chính xác') },
+        { text: 'Vi phạm tiêu chuẩn cộng đồng', onPress: () => submitReport(commentId, 'Bình luận vi phạm tiêu chuẩn cộng đồng') },
+        { text: 'Ngôn từ thù ghét', onPress: () => submitReport(commentId, 'Bình luận chứa ngôn từ thù ghét hoặc phân biệt đối xử') },
+        { text: 'Khác', onPress: () => {
+          setReportingCommentId(commentId);
+          setReportInputVisible(true);
+        }},
         { text: 'Hủy', style: 'cancel' }
       ]
     );
+  };
+
+  const handleCustomReasonSubmit = (reason: string) => {
+    if (reportingCommentId) {
+      submitReport(reportingCommentId, reason);
+      setReportingCommentId(null);
+    }
   };
 
   const submitReport = async (commentId: number, reason: string) => {
@@ -275,6 +330,15 @@ export default function CommentModal({ visible, momentId, onClose, onCommentAdde
           </View>
         </View>
       </KeyboardAvoidingView>
+      
+      <ReportInputModal
+        visible={reportInputVisible}
+        onClose={() => {
+          setReportInputVisible(false);
+          setReportingCommentId(null);
+        }}
+        onSubmit={handleCustomReasonSubmit}
+      />
     </Modal>
   );
 }

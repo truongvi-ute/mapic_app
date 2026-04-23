@@ -392,7 +392,7 @@ export default function ChatRoomScreen({
     <View style={[styles.container, { paddingTop: insets.top, backgroundColor: isDark ? '#0D0D14' : COLORS.gray50 }]}>
       {/* Header */}
       <View style={[styles.header, { backgroundColor: C.surface, borderBottomColor: C.border }]}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => onBack ? onBack() : navigation.goBack()}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => onBack ? onBack() : (navigation.canGoBack() && navigation.goBack())}>
           <Ionicons name="arrow-back" size={24} color={C.primary} />
         </TouchableOpacity>
         <TouchableOpacity 
@@ -508,7 +508,7 @@ export default function ChatRoomScreen({
           }}
           onLeave={() => {
             // Navigate back to chat list
-            onBack ? onBack() : navigation.goBack();
+            onBack ? onBack() : (navigation.canGoBack() && navigation.goBack());
           }}
         />
       )}

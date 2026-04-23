@@ -91,7 +91,7 @@ export default function ForgotPasswordScreen() {
             </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={() => navigation.goBack()}>
+          <TouchableOpacity onPress={() => navigation.canGoBack() ? navigation.goBack() : navigation.navigate('Login')}>
             <Text style={styles.backLink}>← Quay lại đăng nhập</Text>
           </TouchableOpacity>
         </View>

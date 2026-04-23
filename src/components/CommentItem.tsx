@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { CommentDto } from '../api/commentService';
@@ -19,6 +19,17 @@ export default function CommentItem({ comment, onReply, onReact, onLongPress, is
   const currentUserId = useAuthStore(state => state.user?.id);
   const [showReactions, setShowReactions] = useState(false);
 
+  // Close reactions picker when clicking outside
+  useEffect(() => {
+    if (showReactions) {
+      const timer = setTimeout(() => {
+        setShowReactions(false);
+      }, 5000); // Auto close after 5 seconds
+      
+      return () => clearTimeout(timer);
+    }
+  }, [showReactions]);
+
   const formatTime = (isoString: string) => {
     const date = new Date(isoString);
     const now = new Date();
@@ -28,6 +39,19 @@ export default function CommentItem({ comment, onReply, onReact, onLongPress, is
     if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} phút trước`;
     if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} giờ trước`;
     return `${Math.floor(diffInSeconds / 86400)} ngày trước`;
+  };
+
+  // Helper function to get emoji from reaction type
+  const getEmojiFromType = (type?: string) => {
+    switch (type) {
+      case 'LIKE': return '👍';
+      case 'HEART': return '❤️';
+      case 'HAHA': return '😂';
+      case 'WOW': return '😮';
+      case 'SAD': return '😢';
+      case 'ANGRY': return '😠';
+      default: return '❤️'; // Default to heart
+    }
   };
 
   return (
@@ -60,15 +84,21 @@ export default function CommentItem({ comment, onReply, onReact, onLongPress, is
           )}
 
           <TouchableOpacity 
-            onPress={() => onReact(comment, 'HEART')} 
+            onPress={() => onReact(comment, comment.userReactionType || 'HEART')} 
             onLongPress={() => setShowReactions(true)}
             style={styles.reactionButton}
           >
-            <Ionicons 
-              name={comment.userReacted ? "heart" : "heart-outline"} 
-              size={16} 
-              color={comment.userReacted ? "#FF4B4B" : "#8E8E93"} 
-            />
+            {comment.userReacted && comment.userReactionType ? (
+              <Text style={styles.reactionEmoji}>
+                {getEmojiFromType(comment.userReactionType)}
+              </Text>
+            ) : (
+              <Ionicons 
+                name="heart-outline" 
+                size={16} 
+                color="#8E8E93" 
+              />
+            )}
             {comment.reactionCount > 0 && (
               <Text style={[styles.reactionCount, comment.userReacted && styles.reactionCountActive]}>
                 {comment.reactionCount}
@@ -93,7 +123,8 @@ export default function CommentItem({ comment, onReply, onReact, onLongPress, is
                    type === 'HEART' ? '❤️' : 
                    type === 'HAHA' ? '😂' : 
                    type === 'WOW' ? '😮' : 
-                   type === 'SAD' ? '😢' : '😡'}
+                   type === 'SAD' ? '😢' : 
+                   type === 'ANGRY' ? '😠' : '❤️'}
                 </Text>
               </TouchableOpacity>
             ))}

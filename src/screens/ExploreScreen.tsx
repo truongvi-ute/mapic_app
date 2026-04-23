@@ -24,6 +24,7 @@ import { getApiUrl, getBaseUrl } from '../config/api';
 import AlbumSelectModal from '../components/AlbumSelectModal';
 import CommentModal from '../components/CommentModal';
 import EditCaptionModal from '../components/EditCaptionModal';
+import ReportInputModal from '../components/ReportInputModal';
 import albumService from '../api/albumService';
 import { SPACING, COLORS, LIGHT_COLORS, DARK_COLORS, FONT_SIZE, FONT_WEIGHT, RADIUS, SHADOWS } from '../constants/design';
 import { useThemeStore } from '../store/useThemeStore';
@@ -83,6 +84,8 @@ export default function ExploreScreen({ refreshTrigger, highlightMomentId, onBac
   const [selectedMomentForComment, setSelectedMomentForComment] = useState<number | null>(null);
   const [editCaptionModalVisible, setEditCaptionModalVisible] = useState(false);
   const [editingMoment, setEditingMoment] = useState<Moment | null>(null);
+  const [reportInputVisible, setReportInputVisible] = useState(false);
+  const [reportingMomentId, setReportingMomentId] = useState<number | null>(null);
   const flatListRef = useRef<FlatList>(null);
   // activeHighlight: chỉ hiển thị khung xanh cho đến khi user chọn filter
   const [activeHighlight, setActiveHighlight] = useState<number | undefined>(highlightMomentId);
@@ -243,13 +246,23 @@ export default function ExploreScreen({ refreshTrigger, highlightMomentId, onBac
       'Báo cáo bài viết',
       'Chọn lý do báo cáo:',
       [
-        { text: 'Nội dung sai lệch', onPress: () => submitReport(momentId, 'nội dung sai lệch') },
-        { text: 'Vi phạm tiêu chuẩn cộng đồng', onPress: () => submitReport(momentId, 'vi phạm tiêu chuẩn cộng đồng') },
-        { text: 'Ngôn từ thù ghét', onPress: () => submitReport(momentId, 'ngôn từ thù ghét') },
-        { text: 'Khác', onPress: () => submitReport(momentId, 'khác') },
+        { text: 'Nội dung sai lệch', onPress: () => submitReport(momentId, 'Bài viết có nội dung sai lệch hoặc không chính xác') },
+        { text: 'Vi phạm tiêu chuẩn cộng đồng', onPress: () => submitReport(momentId, 'Bài viết vi phạm tiêu chuẩn cộng đồng') },
+        { text: 'Ngôn từ thù ghét', onPress: () => submitReport(momentId, 'Bài viết chứa ngôn từ thù ghét hoặc phân biệt đối xử') },
+        { text: 'Khác', onPress: () => {
+          setReportingMomentId(momentId);
+          setReportInputVisible(true);
+        }},
         { text: 'Hủy', style: 'cancel' }
       ]
     );
+  };
+
+  const handleCustomReasonSubmit = (reason: string) => {
+    if (reportingMomentId) {
+      submitReport(reportingMomentId, reason);
+      setReportingMomentId(null);
+    }
   };
 
   const submitReport = async (momentId: number, reason: string) => {
@@ -393,7 +406,7 @@ export default function ExploreScreen({ refreshTrigger, highlightMomentId, onBac
             style={styles.filterIcon}
           />
           <Text style={[styles.filterButtonText, sortBy === 'popular' && styles.filterButtonTextActive]}>
-            Phổ biến
+            Hot Trend
           </Text>
         </TouchableOpacity>
       </ScrollView>
@@ -663,6 +676,15 @@ export default function ExploreScreen({ refreshTrigger, highlightMomentId, onBac
           onSave={handleSaveCaption}
         />
       )}
+      
+      <ReportInputModal
+        visible={reportInputVisible}
+        onClose={() => {
+          setReportInputVisible(false);
+          setReportingMomentId(null);
+        }}
+        onSubmit={handleCustomReasonSubmit}
+      />
     </View>
   );
 }

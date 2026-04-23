@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -25,11 +25,16 @@ import { useThemeStore } from '../store/useThemeStore';
 import { LIGHT_COLORS, DARK_COLORS, GRADIENTS } from '../constants/design';
 import authService from '../api/authService';
 import userService from '../api/userService';
-import { Moment } from '../components/MomentCard';
+import MomentCard, { Moment } from '../components/MomentCard';
 import api from '../api/api';
 import { getImageUrl } from '../utils/uiUtils';
 import { getApiUrl, getBaseUrl, buildMediaUrl } from '../config/api';
-import MomentViewerModal from '../components/MomentViewerModal';
+import albumService from '../api/albumService';
+import momentService from '../api/momentService';
+import AlbumSelectModal from '../components/AlbumSelectModal';
+import CommentModal from '../components/CommentModal';
+import EditCaptionModal from '../components/EditCaptionModal';
+import { Modal, Pressable } from 'react-native';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const PHOTO_COL = 3;
@@ -67,15 +72,31 @@ export default function ProfileScreen({ onNavigateToSettings, refreshTrigger, on
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
 
-  // Moment Viewer
-  const [viewerVisible, setViewerVisible] = useState(false);
-  const [viewerIndex, setViewerIndex] = useState(0);
+  // Moment Viewer & Interaction
+  const [selectedMoment, setSelectedMoment] = useState<Moment | null>(null);
+  const [albumModalVisible, setAlbumModalVisible] = useState(false);
+  const [commentModalVisible, setCommentModalVisible] = useState(false);
+  const [editCaptionModalVisible, setEditCaptionModalVisible] = useState(false);
+  const [editingMoment, setEditingMoment] = useState<Moment | null>(null);
+
+  // Interaction throttling
+  const lastPress = useRef<number>(0);
 
   // Scroll animations
   const scrollY = useRef(new Animated.Value(0)).current;
   const coverScale = scrollY.interpolate({ inputRange: [-100, 0], outputRange: [1.4, 1], extrapolate: 'clamp' });
   const coverOpacity = scrollY.interpolate({ inputRange: [0, 180], outputRange: [1, 0.3], extrapolate: 'clamp' });
   const headerOpacity = scrollY.interpolate({ inputRange: [140, 200], outputRange: [0, 1], extrapolate: 'clamp' });
+
+  const [isHeaderVisible, setIsHeaderVisible] = useState(false);
+
+  useEffect(() => {
+    const id = scrollY.addListener(({ value }) => {
+      const visible = value > 140;
+      if (visible !== isHeaderVisible) setIsHeaderVisible(visible);
+    });
+    return () => scrollY.removeListener(id);
+  }, [isHeaderVisible]);
 
   useEffect(() => { loadProfile(); loadMoments(); loadFriendsCount(); }, []);
   useEffect(() => { if (refreshTrigger !== undefined) loadProfile(); }, [refreshTrigger]);
@@ -252,9 +273,75 @@ export default function ProfileScreen({ onNavigateToSettings, refreshTrigger, on
     ]);
   };
 
-  const openMomentViewer = (index: number) => {
-    setViewerIndex(index);
-    setViewerVisible(true);
+  const openMomentViewer = useCallback((index: number) => {
+    const now = Date.now();
+    if (now - lastPress.current < 600) return;
+    lastPress.current = now;
+    
+    setSelectedMoment(moments[index]);
+  }, [moments]);
+
+  const closeMomentViewer = useCallback(() => {
+    const now = Date.now();
+    if (now - lastPress.current < 400) return;
+    lastPress.current = now;
+    
+    setSelectedMoment(null);
+  }, []);
+
+  const handleEditCaption = (moment: Moment) => {
+    setEditingMoment(moment);
+    setEditCaptionModalVisible(true);
+  };
+
+  const handleSaveCaption = async (newCaption: string) => {
+    if (!editingMoment || !token) return;
+    try {
+      await momentService.updateMomentContent(editingMoment.id, newCaption, token);
+      setMoments(prev => prev.map(m => (m.id === editingMoment.id ? { ...m, content: newCaption } : m)));
+      if (selectedMoment?.id === editingMoment.id) {
+        setSelectedMoment({ ...selectedMoment, content: newCaption });
+      }
+      showAlert('Thành công', 'Đã cập nhật caption');
+    } catch (error: any) {
+      showAlert('Lỗi', error.message || 'Không thể cập nhật caption');
+      throw error;
+    }
+  };
+
+  const handleDeleteMoment = async (momentId: number) => {
+    if (!token) return;
+    showAlert('Xác nhận', 'Bạn có chắc muốn xóa bài viết này?', [
+      { text: 'Hủy', style: 'cancel' },
+      {
+        text: 'Xóa',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await momentService.deleteMoment(momentId, token);
+            setMoments(prev => prev.filter(m => m.id !== momentId));
+            setSelectedMoment(null);
+            showAlert('Thành công', 'Đã xóa bài viết');
+          } catch (error: any) {
+            showAlert('Lỗi', error.message || 'Không thể xóa bài viết');
+          }
+        },
+      },
+    ]);
+  };
+
+  const handleAddToAlbum = (momentId: number) => {
+    setAlbumModalVisible(true);
+  };
+
+  const handleSelectAlbum = async (albumId: number) => {
+    if (!selectedMoment || !token) return;
+    try {
+      await albumService.addMomentToAlbum(albumId, selectedMoment.id, token);
+      showAlert('Thành công', 'Đã thêm vào album');
+    } catch (error: any) {
+      showAlert('Lỗi', error.message || 'Không thể thêm vào album');
+    }
   };
 
   const renderThumb = ({ item, index }: { item: Moment; index: number }) => {
@@ -291,7 +378,10 @@ export default function ProfileScreen({ onNavigateToSettings, refreshTrigger, on
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} translucent backgroundColor="transparent" />
 
       {/* Sticky mini-header (appears when scrolled past cover) */}
-      <Animated.View style={[styles.stickyHeader, { opacity: headerOpacity, backgroundColor: C.background }]}>
+      <Animated.View 
+        pointerEvents={isHeaderVisible ? 'auto' : 'none'}
+        style={[styles.stickyHeader, { opacity: headerOpacity, backgroundColor: C.background }]}
+      >
         <BlurView intensity={80} tint={isDark ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
         <Text style={[styles.stickyName, { color: C.textPrimary }]}>{user?.name || ''}</Text>
         <TouchableOpacity onPress={onNavigateToSettings}>
@@ -306,40 +396,55 @@ export default function ProfileScreen({ onNavigateToSettings, refreshTrigger, on
         scrollEventThrottle={16}
       >
         {/* === COVER with parallax === */}
-        <TouchableOpacity activeOpacity={0.95} onPress={() => pickAndUpload('cover')}>
-          <Animated.View style={[styles.cover, { transform: [{ scale: coverScale }], opacity: coverOpacity }]}>
-            {coverUrl ? (
-              <Image source={{ uri: `${coverUrl}?v=${coverVersion}` }} style={StyleSheet.absoluteFill} contentFit="cover" />
-            ) : (
-              <GradientView colors={GRADIENTS.darkHero} style={StyleSheet.absoluteFill} />
-            )}
-            <GradientView colors={GRADIENTS.overlayFull as any} style={StyleSheet.absoluteFill} />
-            <BlurView intensity={25} tint="dark" style={styles.coverEditBtn}>
+        <Animated.View style={[styles.cover, { transform: [{ scale: coverScale }], opacity: coverOpacity }]}>
+          {coverUrl ? (
+            <Image source={{ uri: `${coverUrl}?v=${coverVersion}` }} style={StyleSheet.absoluteFill} contentFit="cover" />
+          ) : (
+            <GradientView colors={GRADIENTS.darkHero} style={StyleSheet.absoluteFill} />
+          )}
+          <GradientView colors={GRADIENTS.overlayFull as any} style={StyleSheet.absoluteFill} />
+          <TouchableOpacity 
+            style={[styles.coverEditBtn, { elevation: 5 }]}
+            onPress={() => pickAndUpload('cover')}
+            hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
+            activeOpacity={0.7}
+          >
+            <BlurView intensity={25} tint="dark" style={styles.coverEditBtnInner}>
               <Ionicons name="camera" size={14} color="rgba(255,255,255,0.85)" />
             </BlurView>
-            {/* Settings */}
-            <TouchableOpacity style={styles.settingsBtn} onPress={onNavigateToSettings}>
+          </TouchableOpacity>
+          {/* Settings */}
+          <TouchableOpacity 
+            style={[styles.settingsBtn, { elevation: 5 }]} 
+            onPress={onNavigateToSettings}
+            hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
+            activeOpacity={0.7}
+          >
+            <BlurView intensity={40} tint="dark" style={styles.settingsBtnInner}>
+              <Ionicons name="settings-outline" size={18} color="#FFF" />
+            </BlurView>
+          </TouchableOpacity>
+          {/* Albums */}
+          {onOpenAlbums && (
+            <TouchableOpacity 
+              style={[styles.albumsBtn, { elevation: 5 }]} 
+              onPress={onOpenAlbums}
+              hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
+              activeOpacity={0.7}
+            >
               <BlurView intensity={40} tint="dark" style={styles.settingsBtnInner}>
-                <Ionicons name="settings-outline" size={18} color="#FFF" />
+                <Ionicons name="albums-outline" size={18} color="#FFF" />
               </BlurView>
             </TouchableOpacity>
-            {/* Albums */}
-            {onOpenAlbums && (
-              <TouchableOpacity style={styles.albumsBtn} onPress={onOpenAlbums}>
-                <BlurView intensity={40} tint="dark" style={styles.settingsBtnInner}>
-                  <Ionicons name="albums-outline" size={18} color="#FFF" />
-                </BlurView>
-              </TouchableOpacity>
-            )}
-            {/* Upload progress */}
-            {uploading && (
-              <View style={styles.uploadProgress}>
-                <ActivityIndicator size="small" color="#FFF" />
-                <Text style={styles.uploadText}>Đang tải lên... {uploadProgress}%</Text>
-              </View>
-            )}
-          </Animated.View>
-        </TouchableOpacity>
+          )}
+          {/* Upload progress */}
+          {uploading && (
+            <View style={styles.uploadProgress}>
+              <ActivityIndicator size="small" color="#FFF" />
+              <Text style={styles.uploadText}>Đang tải lên... {uploadProgress}%</Text>
+            </View>
+          )}
+        </Animated.View>
 
         {/* === PROFILE CONTENT === */}
         <View style={[styles.content, { backgroundColor: C.background }]}>
@@ -459,13 +564,103 @@ export default function ProfileScreen({ onNavigateToSettings, refreshTrigger, on
         </View>
       </Animated.ScrollView>
 
-      {/* === MOMENT VIEWER MODAL === */}
-      <MomentViewerModal
-        visible={viewerVisible}
-        moments={moments}
-        initialIndex={viewerIndex}
-        onClose={() => setViewerVisible(false)}
+      {/* === FULL MOMENT MODAL === */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={!!selectedMoment}
+        onRequestClose={closeMomentViewer}
+      >
+        <Pressable 
+          style={styles.momentModalOverlay} 
+          onPress={closeMomentViewer}
+        >
+          <Pressable style={{ width: '100%' }}>
+              {selectedMoment && (
+                <MomentCard
+                  moment={selectedMoment}
+                  baseUrl={getBaseUrl()}
+                  token={token || ''}
+                  onPressMap={() => {
+                    if (selectedMoment.location && onOpenMap) {
+                      const provinceName = selectedMoment.province?.name || selectedMoment.district?.name || '';
+                      const firstImage = selectedMoment.media && selectedMoment.media.length > 0 ? selectedMoment.media[0].mediaUrl : undefined;
+                      onOpenMap({
+                        latitude: selectedMoment.location.latitude,
+                        longitude: selectedMoment.location.longitude,
+                        addressName: selectedMoment.location.address || selectedMoment.location.name,
+                        provinceName,
+                        imageUrl: firstImage,
+                      });
+                    }
+                    setSelectedMoment(null);
+                  }}
+                  onPressLike={() => {
+                    // Update internal list state if liked from modal
+                    const wasLiked = selectedMoment.userReacted;
+                    setMoments(prev => prev.map(m => 
+                      m.id === selectedMoment.id 
+                        ? { 
+                            ...m, 
+                            userReacted: !wasLiked, 
+                            reactionCount: wasLiked ? (m.reactionCount || 1) - 1 : (m.reactionCount || 0) + 1 
+                          } 
+                        : m
+                    ));
+                  }}
+                  onPressComment={() => {
+                    setCommentModalVisible(true);
+                  }}
+                  onPressMenu={() => {
+                    showAlert('Tùy chọn', 'Chọn hành động cho bài viết này', [
+                      { text: 'Chỉnh sửa caption', onPress: () => handleEditCaption(selectedMoment) },
+                      { text: 'Thêm vào album', onPress: () => handleAddToAlbum(selectedMoment.id) },
+                      { text: 'Xóa bài viết', style: 'destructive', onPress: () => handleDeleteMoment(selectedMoment.id) },
+                      { text: 'Hủy', style: 'cancel' }
+                    ]);
+                  }}
+                />
+              )}
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Comment Modal */}
+      {selectedMoment && (
+        <CommentModal
+          visible={commentModalVisible}
+          momentId={selectedMoment.id}
+          onClose={() => setCommentModalVisible(false)}
+          onCommentAdded={() => {
+            setMoments(prev => prev.map(m => 
+              m.id === selectedMoment.id 
+                ? { ...m, commentCount: (m.commentCount || 0) + 1 } 
+                : m
+            ));
+            setSelectedMoment(prev => prev ? { ...prev, commentCount: (prev.commentCount || 0) + 1 } : null);
+          }}
+        />
+      )}
+
+      {/* Album Select Modal */}
+      <AlbumSelectModal
+        visible={albumModalVisible}
+        onClose={() => setAlbumModalVisible(false)}
+        onSelectAlbum={handleSelectAlbum}
       />
+
+      {/* Edit Caption Modal */}
+      {editingMoment && (
+        <EditCaptionModal
+          visible={editCaptionModalVisible}
+          initialCaption={editingMoment.content}
+          onClose={() => {
+            setEditCaptionModalVisible(false);
+            setEditingMoment(null);
+          }}
+          onSave={handleSaveCaption}
+        />
+      )}
     </View>
   );
 }
@@ -494,11 +689,14 @@ const styles = StyleSheet.create({
   cover: { height: 260, overflow: 'hidden', position: 'relative' },
   coverEditBtn: {
     position: 'absolute', bottom: 14, right: 14,
+    zIndex: 10,
+  },
+  coverEditBtnInner: {
     padding: 9, borderRadius: 12, overflow: 'hidden',
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)',
   },
-  settingsBtn: { position: 'absolute', top: 54, right: 16 },
-  albumsBtn: { position: 'absolute', top: 54, right: 64 },
+  settingsBtn: { position: 'absolute', top: 54, right: 16, zIndex: 10 },
+  albumsBtn: { position: 'absolute', top: 54, right: 64, zIndex: 10 },
   uploadProgress: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
@@ -596,4 +794,12 @@ const styles = StyleSheet.create({
   emptyIconBg: { width: 80, height: 80, borderRadius: 24, justifyContent: 'center', alignItems: 'center' },
   emptyTitle: { fontSize: 17, fontWeight: '700' },
   emptySubtitle: { fontSize: 13, textAlign: 'center' },
+
+  // Moment Modal
+  momentModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
 });

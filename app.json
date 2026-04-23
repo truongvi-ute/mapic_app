@@ -62,7 +62,8 @@
         {
           "locationAlwaysAndWhenInUsePermission": "Cho phép $(PRODUCT_NAME) sử dụng vị trí của bạn để gắn thẻ khoảnh khắc."
         }
-      ]
+      ],
+      "expo-build-properties"
     ],
     "experiments": {
       "reactCompiler": true

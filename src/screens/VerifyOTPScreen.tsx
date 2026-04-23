@@ -10,7 +10,7 @@ import {
   TouchableWithoutFeedback,
   Keyboard,
 } from 'react-native';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute, CommonActions } from '@react-navigation/native';
 import { useAlert } from '../context/AlertContext';
 import authService from '../api/authService';
 import { useAuthStore } from '../store/useAuthStore';
@@ -74,8 +74,26 @@ export default function VerifyOTPScreen() {
           showAlert('Thành công', 'Đăng ký thành công!', [
             {
               text: 'Bắt đầu ngay',
-              onPress: () => {
+              onPress: async () => {
+                console.log('[VerifyOTP] Calling loginStore with user:', user);
+                console.log('[VerifyOTP] Calling loginStore with token:', token ? 'present' : 'missing');
+                
+                // Small delay to ensure AsyncStorage is saved
+                await new Promise(resolve => setTimeout(resolve, 100));
+                
                 loginStore(user, token);
+                console.log('[VerifyOTP] loginStore called, should trigger navigation');
+                
+                // Force navigation reset as backup
+                setTimeout(() => {
+                  console.log('[VerifyOTP] Force navigation reset to Main');
+                  navigation.dispatch(
+                    CommonActions.reset({
+                      index: 0,
+                      routes: [{ name: 'Main' }],
+                    })
+                  );
+                }, 500);
               }
             }
           ]);
@@ -176,7 +194,7 @@ export default function VerifyOTPScreen() {
             </TouchableOpacity>
           </View>
 
-          <TouchableOpacity onPress={() => navigation.goBack()}>
+          <TouchableOpacity onPress={() => navigation.canGoBack() && navigation.goBack()}>
             <Text style={styles.backLink}>← Quay lại</Text>
           </TouchableOpacity>
         </View>

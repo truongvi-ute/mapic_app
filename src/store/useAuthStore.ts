@@ -30,7 +30,12 @@ export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   token: null,
   avatarVersion: 0,
-  login: (userData, token) => set({ isLoggedIn: true, user: userData, token }),
+  login: (userData, token) => {
+    console.log('[AuthStore] login called with user:', userData);
+    console.log('[AuthStore] login called with token:', token ? 'present' : 'missing');
+    set({ isLoggedIn: true, user: userData, token });
+    console.log('[AuthStore] State updated: isLoggedIn = true');
+  },
   logout: () => set({ isLoggedIn: false, user: null, token: null, avatarVersion: 0 }),
   setUser: (user) => set({ user, isLoggedIn: !!user }),
   setToken: (token) => set({ token }),

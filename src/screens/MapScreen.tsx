@@ -20,6 +20,7 @@ import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SPACING, COLORS, FONT_SIZE, FONT_WEIGHT, RADIUS, SHADOWS, DIMENSIONS } from '../constants/design';
 import SafeContainer from '../components/ui/SafeContainer';
+import DefaultAvatar from '../components/DefaultAvatar';
 import { useWebSocketStore } from '../store/useWebSocketStore';
 import { useAuthStore } from '../store/useAuthStore';
 import mapService, { FriendLocationResponse } from '../api/mapService';
@@ -132,29 +133,23 @@ async function downloadToCache(remoteUri: string, cacheKey: string): Promise<str
       if (fileSize > 1024) {
         return result.uri;
       } else {
-        console.error(`[Cache] Downloaded file too small (${fileSize} bytes), using HTTP URL directly`);
+        console.error(`[Cache] Downloaded file too small (${fileSize} bytes), marking as failed`);
         // Delete corrupt file
         await FileSystem.deleteAsync(result.uri, { idempotent: true });
-        // Return HTTP URL as fallback - this works for friend avatars
-        return remoteUri;
+        return null; // Return null to indicate failure
       }
     }
     
     console.error(`[Cache] Download failed with status: ${result.status}`);
-    // Return HTTP URL as fallback
-    return remoteUri;
+    return null; // Return null to indicate failure
   } catch (error) {
     console.error(`[Cache] Error downloading avatar for ${cacheKey}:`, error);
-    // Return HTTP URL as fallback
-    return remoteUri;
+    return null; // Return null to indicate failure
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
 // Friend pin — simple View children inside MarkerView (Perfect CSS styling)
-// Used for BOTH friends and own avatar for consistent rendering
-// ─────────────────────────────────────────────────────────────────────────────
-function FriendPin({
+const FriendPin = React.memo(({
   friend,
   localUri,
   isSelected,
@@ -162,27 +157,17 @@ function FriendPin({
   friend: MapFriend | OwnAvatarFriend;
   localUri?: string | null;
   isSelected: boolean;
-}) {
-  // CRITICAL: Calculate isOwn FIRST before using it
+}) => {
   const isOwn = friend.userId === 'me' || String(friend.userId) === 'me';
-  
-  // Debug log to see actual URI
-  useEffect(() => {
-    console.log(`[FriendPin] ${friend.name} - URI: ${localUri}, type: ${typeof localUri}, isOwn: ${isOwn}`);
-    if (isOwn) {
-      console.log(`[FriendPin] Own avatar - avatarUrl: ${friend.avatarUrl}, profileUpdatedAt: ${friend.profileUpdatedAt}`);
-    }
-  }, [localUri, friend.name, isOwn, friend.avatarUrl, friend.profileUpdatedAt]);
   
   return (
     <View 
       style={styles.pinWrapper}
-      collapsable={false} // CRITICAL: Prevent Android view flattening
-      onLayout={() => {}} // CRITICAL: Force Android to render properly
+      collapsable={false}
     >
       <View 
         style={styles.avatarContainer}
-        collapsable={false} // CRITICAL: Prevent Android view flattening
+        collapsable={false}
       >
         {friend.isOnline && (
           <View style={[
@@ -198,32 +183,21 @@ function FriendPin({
             isSelected && styles.avatarBorderSelected,
             isOwn && { borderColor: '#4361EE', borderWidth: 4 }
           ]}
-          collapsable={false} // CRITICAL: Prevent Android view flattening
+          collapsable={false}
         >
           {localUri && localUri !== 'null' ? (
             <Image 
               source={{ uri: localUri }} 
               style={styles.avatarImg} 
               resizeMode="cover"
-              onLayout={() => {}} // CRITICAL: Force Android to render images
-              onLoad={() => console.log(`[Image] Loaded: ${friend.name}`)}
-              onError={(e) => {
-                console.error(`[Image] Error loading ${friend.name}:`, e.nativeEvent.error);
-                console.log(`[Image] Failed URI: ${localUri}`);
-              }}
             />
           ) : (
-            <View 
-              style={[
-                styles.avatarInitials,
-                isOwn && { backgroundColor: '#4361EE' }
-              ]}
-              collapsable={false} // CRITICAL: Prevent Android view flattening
-            >
-              <Text style={[styles.initialsText, isOwn && { color: '#FFF' }]}>
-                {friend.name.charAt(0).toUpperCase()}
-              </Text>
-            </View>
+            <DefaultAvatar 
+              name={friend.name}
+              size={40}
+              backgroundColor={isOwn ? '#4361EE' : '#6B7280'}
+              textColor="#FFFFFF"
+            />
           )}
         </View>
         <View style={[styles.statusDot, { backgroundColor: friend.isOnline ? '#22C55E' : '#6B7280' }]} />
@@ -237,11 +211,10 @@ function FriendPin({
       </View>
     </View>
   );
-}
+});
 
 // Detail card — slide-up blur panel when pin is selected
-// ─────────────────────────────────────────────────────────────────────────────
-function DetailCard({ friend, localUri, onClose }: { friend: MapFriend; localUri?: string | null; onClose: () => void }) {
+const DetailCard = React.memo(({ friend, localUri, onClose }: { friend: MapFriend; localUri?: string | null; onClose: () => void }) => {
   const slideY = useRef(new Animated.Value(130)).current;
   const opacity = useRef(new Animated.Value(0)).current;
 
@@ -274,11 +247,14 @@ function DetailCard({ friend, localUri, onClose }: { friend: MapFriend; localUri
         <View style={styles.detailRow}>
           <View style={[styles.detailAvatarBorder, !friend.isOnline && { borderColor: '#6B7280' }]}>
             {localUri ? (
-              <Image source={{ uri: localUri }} style={{ width: 60, height: 60 }} resizeMode="cover" />
+              <Image source={{ uri: localUri }} style={{ width: 60, height: 60, borderRadius: 30 }} resizeMode="cover" />
             ) : (
-              <View style={[{ width: 60, height: 60 }, styles.avatarInitials]}>
-                <Text style={[styles.initialsText, { fontSize: 22 }]}>{friend.name.charAt(0)}</Text>
-              </View>
+              <DefaultAvatar 
+                name={friend.name}
+                size={60}
+                backgroundColor="#6B7280"
+                textColor="#FFFFFF"
+              />
             )}
           </View>
           <View style={styles.detailInfo}>
@@ -304,7 +280,7 @@ function DetailCard({ friend, localUri, onClose }: { friend: MapFriend; localUri
       </BlurView>
     </Animated.View>
   );
-}
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // MapScreen — main component
@@ -325,22 +301,24 @@ export default function MapScreen({ focusLocation, onNavigateToNotifications }: 
   const [sharingLoading, setSharingLoading] = useState(false);
   const lastMarkerPress = useRef<number>(0);
   
-  const { 
-    lastCameraCenter,
-    setLastCameraCenter,
-    selectedId,
-    setSelectedId,
-    showPanel,
-    setShowPanel,
-    friends,
-    setFriends,
-    localUris,
-    setLocalUris,
-    hasMapInitialFocused,
-    setMapInitialFocused,
-    isConnected,
-    subscribe
-  } = useWebSocketStore();
+  // ── Optimized Selectors ──
+  const lastCameraCenter = useWebSocketStore(s => s.lastCameraCenter);
+  const setLastCameraCenter = useWebSocketStore(s => s.setLastCameraCenter);
+  const selectedId = useWebSocketStore(s => s.selectedId);
+  const setSelectedId = useWebSocketStore(s => s.setSelectedId);
+  const friends = useWebSocketStore(s => s.friends);
+  const setFriends = useWebSocketStore(s => s.setFriends);
+  const localUris = useWebSocketStore(s => s.localUris);
+  const setLocalUris = useWebSocketStore(s => s.setLocalUris);
+  const hasMapInitialFocused = useWebSocketStore(s => s.hasMapInitialFocused);
+  const setMapInitialFocused = useWebSocketStore(s => s.setMapInitialFocused);
+  const isConnected = useWebSocketStore(s => s.isConnected);
+  const subscribe = useWebSocketStore(s => s.subscribe);
+
+  // ── SOS State ──
+  const activeAlert = useSOSStore(s => s.activeAlert);
+  const receivedAlerts = useSOSStore(s => s.receivedAlerts);
+  const markAlertAsViewed = useSOSStore(s => s.markAlertAsViewed);
 
   const cameraRef = useRef<any>(null);
   const previousSelected = useRef<number | null>(null);
@@ -585,9 +563,41 @@ export default function MapScreen({ focusLocation, onNavigateToNotifications }: 
           return next;
         });
       });
+
+      // 1b. Listen for SOS location updates
+      // Note: We subscribe to /user/queue/sos.location.{id} for each alert
+      // But for simplicity in this version, we can use a generic listener if the backend broadcasted to a shared topic
+      // Given our backend implementation uses convertAndSendToUser, we subscribe to the user's specific queue
     }
     return () => { if (sub) sub.unsubscribe(); };
   }, [isConnected]);
+
+  // ── Dynamic SOS Subscribers ───────────────────────────────────────────
+  useEffect(() => {
+    if (!isConnected || receivedAlerts.length === 0) return;
+
+    const subs = receivedAlerts.map(alert => {
+      return subscribe(`/user/queue/sos.location.${alert.id}`, (msg) => {
+        const data = JSON.parse(msg.body);
+        setFriends(prev => {
+          const next = new Map(prev);
+          const friend = next.get(alert.senderId);
+          if (friend) {
+            next.set(alert.senderId, {
+              ...friend,
+              latitude: data.latitude,
+              longitude: data.longitude,
+              isOnline: true,
+              lastSeenAt: new Date().toISOString()
+            });
+          }
+          return next;
+        });
+      });
+    });
+
+    return () => subs.forEach(s => s?.unsubscribe());
+  }, [isConnected, receivedAlerts]);
 
   // ── Toggle sharing ────────────────────────────────────────────────────────
   const handleToggle = async (v: boolean) => {
@@ -636,12 +646,12 @@ export default function MapScreen({ focusLocation, onNavigateToNotifications }: 
     );
   }
 
-  const selectedFriend = selectedId ? friends.get(selectedId) ?? null : null;
-  console.log(`[Render] selectedId: ${selectedId}, friendsCount: ${friends.size}, HasSelectedFriend: ${!!selectedFriend}`);
-  console.log(`[Render] currentLocation: ${currentLocation ? `[${currentLocation[0]}, ${currentLocation[1]}]` : 'NULL'}, myAvatar: ${isAvatarCached('me', String(avatarVersion)) ? 'cached' : 'not cached'}, avatarVersion: ${avatarVersion}`);
-  console.log(`[Debug] Cache key for own avatar: me_${avatarVersion}, localUris size: ${localUris.size}, cached URI: ${getCachedAvatarUri('me', String(avatarVersion))}`);
+  const selectedFriend = useMemo(() => 
+    selectedId ? friends.get(selectedId) ?? null : null
+  , [selectedId, friends]);
   
-  const onlineCount = Array.from(friends.values()).filter(f => f.isOnline).length;
+  const friendList = useMemo(() => Array.from(friends.values()), [friends]);
+  const onlineCount = useMemo(() => friendList.filter(f => f.isOnline).length, [friendList]);
 
   return (
     <SafeContainer style={styles.container}>
@@ -686,7 +696,7 @@ export default function MapScreen({ focusLocation, onNavigateToNotifications }: 
         {/* Blue circle indicator for my location - REMOVED completely to avoid overlapping with avatar */}
 
         {/* Friend pins using Native View for perfect CSS styling */}
-        {Array.from(friends.values()).map(friend => (
+        {friendList.map(friend => (
           <MapboxGL.MarkerView
             key={`f-${friend.userId}`}
             id={`fp-${friend.userId}`}
@@ -770,6 +780,31 @@ export default function MapScreen({ focusLocation, onNavigateToNotifications }: 
             </View>
           </MapboxGL.MarkerView>
         )}
+
+        {/* SOS Markers for recipients */}
+        {receivedAlerts.map(alert => (
+          <MapboxGL.MarkerView
+            key={`sos-marker-${alert.id}`}
+            id={`sos-marker-${alert.id}`}
+            coordinate={[alert.longitude || 0, alert.latitude || 0]}
+            anchor={{ x: 0.5, y: 0.5 }}
+          >
+            <TouchableOpacity 
+              style={styles.sosMarker}
+              onPress={() => {
+                setSelectedId(alert.senderId);
+                cameraRef.current?.setCamera({
+                  centerCoordinate: [alert.longitude || 0, alert.latitude || 0],
+                  zoomLevel: 16,
+                  animationDuration: 600,
+                });
+              }}
+            >
+              <View style={styles.sosPulse} />
+              <Ionicons name="warning" size={30} color="#FF3B30" />
+            </TouchableOpacity>
+          </MapboxGL.MarkerView>
+        ))}
       </MapboxGL.MapView>
 
       {/* Badge */}
@@ -1217,5 +1252,20 @@ const styles = StyleSheet.create({
   statusTime: { 
     color: COLORS.gray500, 
     fontSize: FONT_SIZE.sm 
+  },
+  sosMarker: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 60,
+    height: 60,
+  },
+  sosPulse: {
+    position: 'absolute',
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: 'rgba(255, 59, 48, 0.4)',
+    borderWidth: 2,
+    borderColor: '#FF3B30',
   },
 });

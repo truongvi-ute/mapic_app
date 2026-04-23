@@ -87,6 +87,13 @@ export const pushNotificationService = {
         console.log('   - Backend API');
         return null;
       }
+      if (error?.message?.includes('FirebaseApp is not initialized') || 
+          error?.message?.includes('google-services.json') ||
+          error?.message?.includes('Default FirebaseApp is not initialized')) {
+        console.log('⚠️ Push notifications: Firebase not initialized (missing google-services.json?)');
+        console.log('ℹ️ Push notifications disabled - continuing without push support');
+        return null;
+      }
       
       console.error('❌ Error registering for push notifications:', error);
       return null;
