@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "MAPIC",
-    "slug": "mapic-app",
+    "slug": "mapic",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./src/assets/images/icon.png",
@@ -9,12 +9,13 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.mapic.app"
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./src/assets/images/icon-app",
+        "backgroundColor": "#2C3E50",
+        "foregroundImage": "./src/assets/images/icon-app.png",
         "backgroundImage": "./src/assets/images/android-icon-background.png",
         "monochromeImage": "./src/assets/images/android-icon-monochrome.png"
       },
@@ -30,7 +31,8 @@
       "softwareKeyboardLayoutMode": "pan",
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.frontend"
+      "package": "com.mapic.app",
+      "versionCode": 1
     },
     "web": {
       "output": "single",

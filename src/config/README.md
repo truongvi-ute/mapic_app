@@ -7,7 +7,7 @@ This folder contains centralized API configuration utilities to avoid hardcoding
 ### 1. Set API URL in `.env` file
 
 ```env
-EXPO_PUBLIC_API_URL=http://192.168.100.177:8080/api
+EXPO_PUBLIC_API_URL=https://mapic-backend-ute.onrender.com/api
 ```
 
 ### 2. Import and use in your components
@@ -16,10 +16,10 @@ EXPO_PUBLIC_API_URL=http://192.168.100.177:8080/api
 import { getApiUrl, getBaseUrl, buildMediaUrl, buildMomentImageUrl, buildAvatarUrl } from '../config/api';
 
 // Get API URL (with /api suffix)
-const apiUrl = getApiUrl(); // http://192.168.100.177:8080/api
+const apiUrl = getApiUrl(); // https://mapic-backend-ute.onrender.com/api
 
 // Get base URL (without /api suffix) for media files
-const baseUrl = getBaseUrl(); // http://192.168.100.177:8080
+const baseUrl = getBaseUrl(); // https://mapic-backend-ute.onrender.com
 
 // Build media URLs
 const avatarUrl = buildAvatarUrl('/uploads/avatars/image.jpg');
