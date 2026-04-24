@@ -24,6 +24,7 @@ import DefaultAvatar from '../components/DefaultAvatar';
 import { useWebSocketStore } from '../store/useWebSocketStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { useSOSStore } from '../store/sosStore';
+import locationTrackingService from '../services/LocationTrackingService';
 import mapService, { FriendLocationResponse } from '../api/mapService';
 import userService from '../api/userService';
 import { getBaseUrl } from '../config/api';
@@ -524,10 +525,22 @@ export default function MapScreen({ focusLocation, onNavigateToNotifications }: 
       console.log('[Map] MapScreen Ready.');
     })();
 
-    mapService.getSharingStatus().then(v => setIsSharingLocation(v)).catch(() => { });
+    mapService.getSharingStatus().then(async (v) => {
+      setIsSharingLocation(v);
+      
+      // Auto-start location tracking if sharing is enabled
+      if (v && isConnected) {
+        const success = await locationTrackingService.startTracking();
+        if (success) {
+          console.log('[Map] ✅ Auto-started location tracking');
+        }
+      }
+    }).catch(() => { });
 
     return () => {
       console.log('[Map] Unmounting MapScreen...');
+      // Stop location tracking when leaving map
+      locationTrackingService.stopTracking();
       // DON'T reset initialization flag on unmount - keep it persistent
       // hasInitialized.current = false;
       // Clear avatar cache to force fresh download next time
@@ -635,6 +648,16 @@ export default function MapScreen({ focusLocation, onNavigateToNotifications }: 
     try {
       await mapService.toggleLocationSharing(v);
       setIsSharingLocation(v);
+      
+      // Start/stop location tracking based on sharing preference
+      if (v) {
+        const success = await locationTrackingService.startTracking();
+        if (!success) {
+          console.warn('[Map] Failed to start location tracking');
+        }
+      } else {
+        locationTrackingService.stopTracking();
+      }
     } finally {
       setSharingLoading(false);
     }

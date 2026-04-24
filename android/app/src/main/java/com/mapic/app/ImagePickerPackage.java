@@ -1,4 +1,4 @@
-package com.frontend;
+package com.mapic.app;
 
 import com.facebook.react.ReactPackage;
 import com.facebook.react.bridge.NativeModule;

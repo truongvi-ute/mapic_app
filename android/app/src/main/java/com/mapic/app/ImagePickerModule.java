@@ -1,4 +1,4 @@
-package com.frontend;
+package com.mapic.app;
 
 import android.app.Activity;
 import android.content.Intent;
