@@ -72,11 +72,21 @@ export const useSOSStore = create<SOSState>((set, get) => ({
 
   triggerSOS: async (message) => {
     const { token } = useAuthStore.getState();
-    if (!token) return;
+    if (!token) {
+      console.error('[SOSStore] No token available');
+      return;
+    }
+
+    console.log('[SOSStore] 🚨 Triggering SOS alert with message:', message);
 
     try {
       const location = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.Balanced,
+      });
+
+      console.log('[SOSStore] 📍 Got location:', {
+        lat: location.coords.latitude,
+        lng: location.coords.longitude
       });
 
       const request: TriggerSOSRequest = {
@@ -86,7 +96,9 @@ export const useSOSStore = create<SOSState>((set, get) => ({
         locationStatus: LocationStatus.ACCURATE
       };
 
+      console.log('[SOSStore] 📤 Sending SOS request to backend...');
       const response = await sosService.triggerSOS(request, token);
+      console.log('[SOSStore] ✅ SOS triggered successfully:', response);
       
       const alert: SOSAlert = {
         id: response.alertId,
@@ -104,7 +116,7 @@ export const useSOSStore = create<SOSState>((set, get) => ({
       set({ activeAlert: alert });
       get().startLocationTracking();
     } catch (error) {
-      console.error('[SOSStore] Trigger failed:', error);
+      console.error('[SOSStore] ❌ Trigger failed:', error);
       throw error;
     }
   },

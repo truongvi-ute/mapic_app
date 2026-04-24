@@ -93,12 +93,16 @@ export default function MainScreenWrapper() {
         const sub = subscribe('/user/queue/notifications', (msg) => {
           try {
             const notification = JSON.parse(msg.body);
-            console.log('[WS Notification] Received:', notification);
+            console.log('[WS Notification] 📨 Received notification:', notification);
             addNotification(notification);
 
             // Handle SOS specific notification
             if (notification.type === 'SOS_ALERT') {
-              console.log('[SOS] Emergency alert received via WS!');
+              console.log('[SOS] 🚨 Emergency alert received via WS!', {
+                alertId: notification.targetId,
+                senderId: notification.actorId,
+                senderName: notification.actorName
+              });
               addReceivedAlert({
                 id: notification.targetId,
                 senderId: notification.actorId,
